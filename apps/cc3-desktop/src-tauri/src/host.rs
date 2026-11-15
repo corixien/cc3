@@ -2,7 +2,6 @@
 //! Started on first use; speaks line-delimited JSON over stdio.
 use std::collections::HashMap;
 use std::io::{BufRead, BufReader, Write};
-use std::path::PathBuf;
 use std::process::{Child, ChildStdin, Command, Stdio};
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::mpsc::{self, Sender};
@@ -34,18 +33,10 @@ impl Host {
     }
 }
 
-fn host_dir() -> PathBuf {
-    std::env::var("CC3_HOST_DIR")
-        .map(PathBuf::from)
-        .unwrap_or_else(|_| PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../host"))
-}
-
 fn spawn(app: &AppHandle) -> Result<Running, String> {
-    let dir = host_dir();
-    let mut child = Command::new(std::env::var("CC3_NODE").unwrap_or_else(|_| "node".into()))
-        .arg("--import")
-        .arg(dir.join("register.mjs"))
-        .arg(dir.join("main.ts"))
+    let paths = crate::paths::get();
+    let mut child = Command::new(&paths.node)
+        .args(&paths.host_args)
         .env("T3CODE_HOME", crate::server::home())
         .stdin(Stdio::piped())
         .stdout(Stdio::piped())
@@ -68,7 +59,14 @@ fn spawn(app: &AppHandle) -> Result<Running, String> {
                     let _ = tx.send(outcome);
                 }
             } else if let Some(event) = msg.get("event").and_then(Value::as_str) {
-                if event == "cc3:relaunch-backend" {
+                if event == "cc3:open-external" {
+                    if let Some(url) = msg.get("payload").and_then(Value::as_str) {
+                        use tauri_plugin_opener::OpenerExt;
+                        if url.starts_with("http://") || url.starts_with("https://") {
+                            let _ = app.opener().open_url(url, None::<&str>);
+                        }
+                    }
+                } else if event == "cc3:relaunch-backend" {
                     let app = app.clone();
                     std::thread::spawn(move || crate::restart_server(&app));
                 } else if let Some(w) = app.get_webview_window("main") {

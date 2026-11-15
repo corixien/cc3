@@ -2,6 +2,7 @@
 
 mod host;
 mod native;
+mod paths;
 mod server;
 
 use std::sync::Mutex;
@@ -134,6 +135,7 @@ fn main() {
         .on_menu_event(|app, event| on_menu(app, event.id().as_ref()))
         .manage(host::Host::default())
         .setup(|app| {
+            paths::init(app.handle());
             let port = server::free_port()?;
             let (config, local_environment_enabled) = configure_backend(app.handle(), port);
             let srv = server::start(port, server::new_token(), &config)?;

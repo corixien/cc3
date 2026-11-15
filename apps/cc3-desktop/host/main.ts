@@ -21,6 +21,8 @@ import {
 
 import * as DesktopIpc from "../../desktop/src/ipc/DesktopIpc.ts";
 import * as sshMethods from "../../desktop/src/ipc/methods/sshEnvironment.ts";
+import * as providerAuthMethods from "../../desktop/src/ipc/methods/providerAuth.ts";
+import * as ElectronShell from "../../desktop/src/electron/ElectronShell.ts";
 import * as cliMethods from "../../desktop/src/ipc/methods/cliCommand.ts";
 import * as catalogMethods from "../../desktop/src/ipc/methods/connectionCatalog.ts";
 import * as IpcChannels from "../../desktop/src/ipc/channels.ts";
@@ -66,6 +68,12 @@ const window = {
 
 const layerWindow = Layer.succeed(ElectronWindow.ElectronWindow, {
   main: Effect.succeed(Option.some(window)),
+  currentMainOrFirst: Effect.succeed(Option.none()),
+} as never);
+
+const layerShell = Layer.succeed(ElectronShell.ElectronShell, {
+  openExternal: (url: string) =>
+    Effect.sync(() => send({ event: "cc3:open-external", payload: url })),
 } as never);
 
 const home = process.env.CC3_HOME ?? NodePath.join(process.env.HOME ?? ".", ".cc3");
@@ -123,7 +131,11 @@ const layerServices = Layer.mergeAll(
   ),
   layerSsh,
   layerFoundation,
-).pipe(Layer.provideMerge(layerWindow), Layer.provideMerge(layerRuntime));
+).pipe(
+  Layer.provideMerge(layerWindow),
+  Layer.provideMerge(layerShell),
+  Layer.provideMerge(layerRuntime),
+);
 
 const program = Effect.gen(function* () {
   const ipc = yield* DesktopIpc.DesktopIpc;
@@ -217,6 +229,7 @@ const program = Effect.gen(function* () {
   yield* Effect.forEach(
     [
       ...Object.values(sshMethods),
+      ...Object.values(providerAuthMethods),
       ...Object.values(cliMethods),
       ...Object.values(catalogMethods),
       ...custom,

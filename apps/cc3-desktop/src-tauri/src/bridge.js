@@ -251,8 +251,8 @@
     pickThemeFiles: () => native("pick_theme_files"),
     setTheme: (theme) => native("set_theme", theme),
     showContextMenu,
-    receiveProviderAuthCallback: unsupported("receiveProviderAuthCallback"),
-    cancelProviderAuthCallback: async () => {},
+    receiveProviderAuthCallback: (url) => host("desktop:receive-provider-auth-callback", url),
+    cancelProviderAuthCallback: (url) => host("desktop:cancel-provider-auth-callback", url),
     openExternal: (url) => native("open_external", url),
     readMedia: async (url) => {
       const r = await native("read_media", url);

@@ -3,14 +3,24 @@
   "productName": "CC3",
   "version": "0.1.0",
   "identifier": "dev.corixien.cc3",
-  "build": { "frontendDist": "../ui" },
+  "build": {
+    "frontendDist": "../ui"
+  },
   "app": {
     "windows": [],
-    "security": { "csp": null }
+    "security": {
+      "csp": null
+    }
   },
   "bundle": {
     "active": true,
     "targets": ["deb", "appimage"],
-    "icon": ["icons/32x32.png", "icons/128x128.png", "icons/128x128@2x.png", "icons/icon.png"]
+    "icon": ["icons/32x32.png", "icons/128x128.png", "icons/128x128@2x.png", "icons/icon.png"],
+    "resources": ["resources/**/*"],
+    "linux": {
+      "deb": {
+        "depends": []
+      }
+    }
   }
 }

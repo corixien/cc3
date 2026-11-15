@@ -18,13 +18,6 @@ pub fn home() -> PathBuf {
     })
 }
 
-fn entry() -> PathBuf {
-    if let Ok(p) = std::env::var("CC3_SERVER_ENTRY") {
-        return PathBuf::from(p);
-    }
-    PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../server/dist/bin.mjs")
-}
-
 fn random_token() -> String {
     let mut buf = [0u8; 24];
     std::fs::File::open("/dev/urandom")
@@ -82,8 +75,8 @@ pub fn start(port: u16, token: String, config: &Config) -> Result<Server, String
         "tailscaleServePort": config.tailscale_serve_port,
         "desktopAppUpdate": false,
     });
-    let mut child = Command::new(std::env::var("CC3_NODE").unwrap_or_else(|_| "node".into()))
-        .arg(entry())
+    let mut child = Command::new(&crate::paths::get().node)
+        .arg(&crate::paths::get().server_entry)
         .args(["--bootstrap-fd", "0"])
         .stdin(Stdio::piped())
         .stdout(Stdio::null())
