@@ -1,0 +1,12 @@
+[package]
+name = "cc3"
+version = "0.1.0"
+description = "CC3 - Corixien Code 3"
+edition = "2021"
+license = "MIT"
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[dependencies]
+tauri = { version = "2", features = [] }
