@@ -14,6 +14,39 @@ const BRIDGE_JS: &str = include_str!("bridge.js");
 
 struct ServerState(Mutex<Option<server::Server>>);
 
+/// Asks the host for the exposure config, using `port` for the server.
+fn configure_backend(app: &tauri::AppHandle, port: u16) -> (server::Config, bool) {
+    match host::call(app, "cc3:configure-backend", json!({ "port": port })) {
+        Ok(v) => (
+            server::Config {
+                bind_host: v["bindHost"].as_str().unwrap_or("127.0.0.1").to_string(),
+                tailscale_serve_enabled: v["tailscaleServeEnabled"].as_bool().unwrap_or(false),
+                tailscale_serve_port: v["tailscaleServePort"].as_u64().unwrap_or(443),
+            },
+            v["localEnvironmentEnabled"].as_bool().unwrap_or(true),
+        ),
+        Err(e) => {
+            eprintln!("desktop host unavailable, using defaults: {e}");
+            (server::Config::default(), true)
+        }
+    }
+}
+
+/// Restarts the server on the same port and token so the open window reconnects.
+pub fn restart_server(app: &tauri::AppHandle) {
+    let state = app.state::<ServerState>();
+    let mut guard = state.0.lock().unwrap();
+    let Some(mut old) = guard.take() else { return };
+    let (port, token) = (old.port, old.token.clone());
+    let _ = old.child.kill();
+    let _ = old.child.wait();
+    let (config, _) = configure_backend(app, port);
+    match server::start(port, token, &config) {
+        Ok(srv) => *guard = Some(srv),
+        Err(e) => eprintln!("failed to restart server: {e}"),
+    }
+}
+
 /// Calls `window.__cc3emit(channel, payload)` in the renderer.
 pub fn emit(window: &tauri::WebviewWindow, channel: &str, payload: serde_json::Value) {
     let _ = window.eval(format!("window.__cc3emit&&window.__cc3emit({},{})", json!(channel), payload));
@@ -101,8 +134,10 @@ fn main() {
         .on_menu_event(|app, event| on_menu(app, event.id().as_ref()))
         .manage(host::Host::default())
         .setup(|app| {
-            let srv = server::start()?;
-            let (port, token) = (srv.port, srv.token.clone());
+            let port = server::free_port()?;
+            let (config, local_environment_enabled) = configure_backend(app.handle(), port);
+            let srv = server::start(port, server::new_token(), &config)?;
+            let token = srv.token.clone();
             app.manage(ServerState(Mutex::new(Some(srv))));
             app.set_menu(build_menu(app.handle())?)?;
 
@@ -128,6 +163,7 @@ fn main() {
             let http = format!("http://127.0.0.1:{port}/");
             let init = json!({
                 "version": env!("CARGO_PKG_VERSION"),
+                "localEnvironmentEnabled": local_environment_enabled,
                 "debugPort": debug_port,
                 "selfTest": std::env::var("CC3_SELFTEST").is_ok(),
                 "arch": std::env::consts::ARCH,

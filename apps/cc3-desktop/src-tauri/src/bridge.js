@@ -34,17 +34,6 @@
     } else dispatch(channel, payload);
   };
 
-  const storeJson = async (name, fallback = null) => {
-    const raw = await native("store_read", name);
-    if (raw == null) return fallback;
-    try {
-      return JSON.parse(raw);
-    } catch {
-      return fallback;
-    }
-  };
-  const storeSet = (name, value) => native("store_write", name, JSON.stringify(value));
-
   let closeMenu = null;
   const showContextMenu = (items, position) =>
     new Promise((resolve) => {
@@ -169,13 +158,6 @@
     errorContext: null,
     canRetry: false,
   };
-  const exposureState = {
-    mode: "local-only",
-    endpointUrl: null,
-    advertisedHost: null,
-    tailscaleServeEnabled: false,
-    tailscaleServePort: 443,
-  };
   const wslState = {
     enabled: false,
     distro: null,
@@ -184,7 +166,6 @@
     distros: [],
     preflightError: null,
   };
-  const cliState = { supported: false, installedPath: null, onPath: false, launcherPath: null };
   const snapState = {
     mode: "unavailable",
     shortcut: { kind: "both-shift-keys" },
@@ -209,16 +190,16 @@
     getLocalEnvironmentBootstraps: () => (localEnabled ? init.bootstraps || [] : []),
     getLocalEnvironmentEnabled: () => localEnabled,
     setLocalEnvironmentEnabled: async (enabled) => {
+      await host("cc3:set-local-environment-enabled", enabled);
       localEnabled = enabled;
-      await storeSet("local-environment-enabled.json", enabled);
+      location.reload();
     },
     getHostEnvironmentId: async () => null,
     getLocalEnvironmentBearerToken: getBearer,
-    getClientSettings: () => storeJson("client-settings.json"),
-    setClientSettings: (settings) => storeSet("client-settings.json", settings).then(() => {}),
-    getConnectionCatalog: async () =>
-      (await native("store_read", "connection-catalog.json")) ?? null,
-    setConnectionCatalog: (catalog) => native("store_write", "connection-catalog.json", catalog),
+    getClientSettings: () => host("desktop:get-client-settings"),
+    setClientSettings: (settings) => host("desktop:set-client-settings", settings),
+    getConnectionCatalog: () => host("desktop:get-connection-catalog"),
+    setConnectionCatalog: (catalog) => host("desktop:set-connection-catalog", catalog),
     discoverSshHosts: () => host("desktop:discover-ssh-hosts"),
     resolveSshHost: (alias) => host("desktop:resolve-ssh-host", alias),
     requestSnapShotPermissions: async () => {},
@@ -256,10 +237,10 @@
     onSshPasswordPromptSettled: (fn) => on("desktop:ssh-password-prompt-settled", fn),
     resolveSshPasswordPrompt: (requestId, password) =>
       host("desktop:resolve-ssh-password-prompt", { requestId, password }),
-    getServerExposureState: async () => exposureState,
-    setServerExposureMode: unsupported("setServerExposureMode"),
-    setTailscaleServeEnabled: unsupported("setTailscaleServeEnabled"),
-    getAdvertisedEndpoints: async () => [],
+    getServerExposureState: () => host("desktop:get-server-exposure-state"),
+    setServerExposureMode: (mode) => host("desktop:set-server-exposure-mode", mode),
+    setTailscaleServeEnabled: (input) => host("desktop:set-tailscale-serve-enabled", input),
+    getAdvertisedEndpoints: () => host("desktop:get-advertised-endpoints"),
     getWslState: async () => wslState,
     setWslBackendEnabled: async () => wslState,
     setWslDistro: async () => wslState,
@@ -297,10 +278,10 @@
     installUpdate: async () => ({ accepted: false, completed: false, state: updateState }),
     onUpdateState: noop,
     cliCommand: {
-      getState: async () => cliState,
-      install: async () => cliState,
-      uninstall: async () => cliState,
-      addToPath: async () => cliState,
+      getState: () => host("desktop:cli-command-get-state"),
+      install: () => host("desktop:cli-command-install"),
+      uninstall: () => host("desktop:cli-command-uninstall"),
+      addToPath: () => host("desktop:cli-command-add-to-path"),
     },
     webLinks: { setReady: async () => {}, onOpen: (fn) => on("web-link-open", fn) },
     appActivation: {
@@ -345,18 +326,25 @@
   }
 
   if (init.debugPort && init.selfTest) {
-    setTimeout(
-      () =>
-        window.desktopBridge.discoverSshHosts().then(
-          (r) => window.__cc3Log?.("selftest " + JSON.stringify(r)),
-          (e) => window.__cc3Log?.("selftest failed " + e),
-        ),
-      3000,
-    );
+    const bridge = window.desktopBridge;
+    const report = (label) => (r) => window.__cc3Log?.(`selftest ${label} ${JSON.stringify(r)}`);
+    setTimeout(async () => {
+      await bridge
+        .getClientSettings()
+        .then(report("clientSettings"), report("clientSettings failed"));
+      await bridge
+        .setServerExposureMode("network-accessible")
+        .then(report("exposure"), report("exposure failed"));
+      setTimeout(async () => {
+        const res = await fetch("/").then((r) => r.status, String);
+        window.__cc3Log?.("selftest after-restart fetch " + res);
+        await bridge.getAdvertisedEndpoints().then(report("endpoints"), report("endpoints failed"));
+        await bridge
+          .setServerExposureMode("local-only")
+          .then(report("exposure-back"), report("exposure-back failed"));
+      }, 15000);
+    }, 3000);
   }
 
-  let localEnabled = true;
-  storeJson("local-environment-enabled.json", true).then((v) => {
-    localEnabled = v !== false;
-  });
+  let localEnabled = init.localEnvironmentEnabled !== false;
 })();

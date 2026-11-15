@@ -45,22 +45,41 @@ fn http_ready(port: u16) -> bool {
     c.read_exact(&mut head).is_ok() && &head == b"HTTP/1.1 200" || &head == b"HTTP/1.0 200"
 }
 
-pub fn start() -> Result<Server, String> {
-    let port = TcpListener::bind("127.0.0.1:0")
+pub fn free_port() -> Result<u16, String> {
+    TcpListener::bind("127.0.0.1:0")
         .and_then(|l| l.local_addr())
-        .map_err(|e| e.to_string())?
-        .port();
-    let token = random_token();
+        .map(|a| a.port())
+        .map_err(|e| e.to_string())
+}
+
+pub fn new_token() -> String {
+    random_token()
+}
+
+/// Exposure settings resolved by the desktop host (`cc3:configure-backend`).
+pub struct Config {
+    pub bind_host: String,
+    pub tailscale_serve_enabled: bool,
+    pub tailscale_serve_port: u64,
+}
+
+impl Default for Config {
+    fn default() -> Self {
+        Config { bind_host: "127.0.0.1".into(), tailscale_serve_enabled: false, tailscale_serve_port: 443 }
+    }
+}
+
+pub fn start(port: u16, token: String, config: &Config) -> Result<Server, String> {
     let home = home();
     let bootstrap = serde_json::json!({
         "mode": "desktop",
         "noBrowser": true,
         "port": port,
         "t3Home": home,
-        "host": "127.0.0.1",
+        "host": config.bind_host,
         "desktopBootstrapToken": token,
-        "tailscaleServeEnabled": false,
-        "tailscaleServePort": 443,
+        "tailscaleServeEnabled": config.tailscale_serve_enabled,
+        "tailscaleServePort": config.tailscale_serve_port,
         "desktopAppUpdate": false,
     });
     let mut child = Command::new(std::env::var("CC3_NODE").unwrap_or_else(|_| "node".into()))

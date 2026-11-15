@@ -9,7 +9,7 @@ use std::sync::mpsc::{self, Sender};
 use std::sync::{Arc, Mutex};
 
 use serde_json::{json, Value};
-use tauri::{AppHandle, Manager, State};
+use tauri::{AppHandle, Manager};
 
 type Pending = Arc<Mutex<HashMap<u64, Sender<Result<Value, String>>>>>;
 
@@ -46,7 +46,7 @@ fn spawn(app: &AppHandle) -> Result<Running, String> {
         .arg("--import")
         .arg(dir.join("register.mjs"))
         .arg(dir.join("main.ts"))
-        .env("CC3_HOME", crate::server::home())
+        .env("T3CODE_HOME", crate::server::home())
         .stdin(Stdio::piped())
         .stdout(Stdio::piped())
         .stderr(Stdio::inherit())
@@ -68,7 +68,10 @@ fn spawn(app: &AppHandle) -> Result<Running, String> {
                     let _ = tx.send(outcome);
                 }
             } else if let Some(event) = msg.get("event").and_then(Value::as_str) {
-                if let Some(w) = app.get_webview_window("main") {
+                if event == "cc3:relaunch-backend" {
+                    let app = app.clone();
+                    std::thread::spawn(move || crate::restart_server(&app));
+                } else if let Some(w) = app.get_webview_window("main") {
                     crate::emit(&w, event, msg.get("payload").cloned().unwrap_or(Value::Null));
                 }
             }
@@ -81,13 +84,9 @@ fn spawn(app: &AppHandle) -> Result<Running, String> {
     Ok(Running { child, stdin, pending })
 }
 
-#[tauri::command]
-pub async fn cc3_host(
-    app: AppHandle,
-    host: State<'_, Host>,
-    channel: String,
-    arg: Value,
-) -> Result<Value, String> {
+/// Sends one request to the host (starting it if needed) and blocks for the reply.
+pub fn call(app: &AppHandle, channel: &str, arg: Value) -> Result<Value, String> {
+    let host = app.state::<Host>();
     let id = host.next_id.fetch_add(1, Ordering::Relaxed);
     let (tx, rx) = mpsc::channel();
     {
@@ -97,7 +96,7 @@ pub async fn cc3_host(
             None => false,
         };
         if !alive {
-            *guard = Some(spawn(&app)?);
+            *guard = Some(spawn(app)?);
         }
         let r = guard.as_mut().unwrap();
         r.pending.lock().unwrap().insert(id, tx);
@@ -105,7 +104,12 @@ pub async fn cc3_host(
         writeln!(r.stdin, "{line}").map_err(|e| e.to_string())?;
         r.stdin.flush().map_err(|e| e.to_string())?;
     }
-    tauri::async_runtime::spawn_blocking(move || rx.recv().map_err(|e| e.to_string())?)
+    rx.recv().map_err(|e| e.to_string())?
+}
+
+#[tauri::command]
+pub async fn cc3_host(app: AppHandle, channel: String, arg: Value) -> Result<Value, String> {
+    tauri::async_runtime::spawn_blocking(move || call(&app, &channel, arg))
         .await
         .map_err(|e| e.to_string())?
 }
