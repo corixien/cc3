@@ -14,6 +14,7 @@ import {
 import { primaryServerKeybindingsAtom } from "../../state/server";
 import { cn } from "../../lib/utils";
 import { usePullRequestsSupported } from "../../state/environments";
+import { APP_BASE_NAME } from "~/branding";
 import { T3Wordmark } from "../T3Wordmark";
 import {
   resolveEnvironmentIdentificationPillLabel,
@@ -178,6 +179,18 @@ function SidebarBrand({ onBackdrop }: { onBackdrop: boolean }) {
 }
 
 function SidebarBrandMark({ onBackdrop }: { onBackdrop: boolean }) {
+  if (APP_BASE_NAME !== "T3 Code") {
+    return (
+      <span
+        className={cn(
+          "truncate text-sm font-semibold tracking-tight",
+          onBackdrop ? "text-white" : "text-foreground",
+        )}
+      >
+        {APP_BASE_NAME}
+      </span>
+    );
+  }
   return (
     <span className="inline-flex min-w-0 items-baseline gap-1 text-sm font-medium tracking-tight">
       <T3Wordmark aria-label="T3" className="h-[1cap] w-auto shrink-0" />

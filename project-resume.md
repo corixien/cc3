@@ -28,6 +28,10 @@ Working (verified by running the app, incl. the extracted .deb with bundled node
 - Verified by running the extracted .deb: snapshot state, CLI state, web-link forwarding from a second launch. Not verified: an actual capture, badge on a real launcher, preview UI.
 - Caveat: CLI install relinks ~/.local/bin/t3 to the CC3 home; the original T3 app restores its own launcher on start. SIGTERM on the app leaves the server child running (only RunEvent::Exit cleans up).
 
+- Window: frameless (decorations off, menu hidden); bridge.js draws min/max/close, polyfills navigator.windowControlsOverlay (so the web `.wco` layout applies) and starts native drags for `.drag-region`. Sidebar brand shows `CC3` when branding differs (SidebarChrome.tsx). Icon: two stacked Cs (icons/*).
+- Preview sharpness: server stream quality default 92 and client requests >=2x frame size. Real desktop-runtime preview is impossible on WebKitGTK (no CDP, server drives pages over CDP); the server runtime with Chrome is used.
+- RAM (idle, PSS sum): CC3 ~650-850 MB (server ~320, WebKit ~110-310, host ~100, shell ~80) vs Electron T3 ~350 MB. Server node uses far more native memory than Electron's; unexplained, next thing to investigate. User-local install: ~/.local/share/cc3-app + ~/.local/share/applications/CC3.desktop.
+
 ## Not implemented
 
 Auto-update (state is "disabled"), AppImage bundle (only deb built), arm64, snapshot overlay animation, in-app `<webview>` preview runtime.

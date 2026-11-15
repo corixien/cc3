@@ -32,6 +32,102 @@
     } else dispatch(channel, payload);
   };
 
+  // Frameless window: draw the caption buttons, polyfill the Window Controls Overlay the web UI
+  // reads, and turn `.drag-region` into a native drag (WebKitGTK ignores -webkit-app-region).
+  const CONTROLS_WIDTH = 138;
+  const TITLEBAR_HEIGHT = 40;
+  {
+    const wco = new EventTarget();
+    const rect = () => new DOMRect(0, 0, Math.max(0, innerWidth - CONTROLS_WIDTH), TITLEBAR_HEIGHT);
+    Object.defineProperty(navigator, "windowControlsOverlay", {
+      configurable: true,
+      value: {
+        visible: true,
+        getTitlebarAreaRect: rect,
+        addEventListener: (t, fn) => wco.addEventListener(t, fn),
+        removeEventListener: (t, fn) => wco.removeEventListener(t, fn),
+      },
+    });
+    addEventListener("resize", () => wco.dispatchEvent(new Event("geometrychange")));
+  }
+  const installChrome = () => {
+    const style = document.createElement("style");
+    style.textContent = `
+      .wco {
+        --native-titlebar-height: ${TITLEBAR_HEIGHT}px;
+        --workspace-topbar-height: ${TITLEBAR_HEIGHT}px;
+        --workspace-controls-top: 0px;
+        --workspace-controls-left: 0.75rem;
+        --workspace-controls-right: calc(${CONTROLS_WIDTH}px + 0.75rem);
+        --workspace-native-controls-inset: calc(${CONTROLS_WIDTH}px + 0.75rem);
+      }
+      #cc3-controls { position: fixed; top: 0; right: 0; z-index: 2147483647; display: flex;
+        height: ${TITLEBAR_HEIGHT}px; color: #f8fafc; user-select: none; }
+      #cc3-controls.light { color: #1f2937; }
+      #cc3-controls button { all: unset; box-sizing: border-box; width: 46px; height: 100%;
+        display: flex; align-items: center; justify-content: center; cursor: default; }
+      #cc3-controls button:hover { background: rgba(127,127,127,.22); }
+      #cc3-controls button.close:hover { background: #e81123; color: #fff; }
+      #cc3-controls svg { width: 10px; height: 10px; stroke: currentColor; fill: none; stroke-width: 1; }
+    `;
+    document.documentElement.append(style);
+
+    const bar = document.createElement("div");
+    bar.id = "cc3-controls";
+    const icons = {
+      min: '<path d="M0 5.5h10"/>',
+      max: '<rect x="0.5" y="0.5" width="9" height="9"/>',
+      restore: '<path d="M2.5 2.5v-2h7v7h-2M0.5 2.5h7v7h-7z"/>',
+      close: '<path d="M0 0l10 10M10 0L0 10"/>',
+    };
+    const button = (cls, icon, label, op) => {
+      const b = document.createElement("button");
+      b.className = cls;
+      b.title = label;
+      b.innerHTML = `<svg viewBox="0 0 10 10">${icon}</svg>`;
+      b.addEventListener("click", () => native(op).then(refresh));
+      return b;
+    };
+    const maxButton = button("max", icons.max, "Maximize", "win_toggle_maximize");
+    bar.append(
+      button("min", icons.min, "Minimize", "win_minimize"),
+      maxButton,
+      button("close", icons.close, "Close", "win_close"),
+    );
+    document.body.append(bar);
+
+    function refresh() {
+      native("win_is_maximized").then((maximized) => {
+        maxButton.innerHTML = `<svg viewBox="0 0 10 10">${maximized ? icons.restore : icons.max}</svg>`;
+      });
+      const fullscreenNow = fullscreen;
+      bar.style.display = fullscreenNow ? "none" : "flex";
+    }
+    addEventListener("resize", refresh);
+    refresh();
+
+    const root = document.documentElement;
+    const syncTheme = () => bar.classList.toggle("light", !root.classList.contains("dark"));
+    new MutationObserver(syncTheme).observe(root, { attributes: true, attributeFilter: ["class"] });
+    syncTheme();
+
+    const INTERACTIVE =
+      'button,input,textarea,select,a,summary,[role="button"],[role="menuitem"],[role="tab"],[contenteditable="true"],[class*="app-region:no-drag"],.no-drag,#cc3-controls';
+    document.addEventListener(
+      "mousedown",
+      (e) => {
+        if (e.button !== 0 || !(e.target instanceof Element)) return;
+        if (!e.target.closest(".drag-region") || e.target.closest(INTERACTIVE)) return;
+        e.preventDefault();
+        if (e.detail === 2) native("win_toggle_maximize").then(refresh);
+        else native("win_start_drag");
+      },
+      true,
+    );
+  };
+  if (document.readyState === "loading") addEventListener("DOMContentLoaded", installChrome);
+  else installChrome();
+
   let closeMenu = null;
   const showContextMenu = (items, position) =>
     new Promise((resolve) => {

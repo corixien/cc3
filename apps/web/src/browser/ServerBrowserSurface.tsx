@@ -329,7 +329,8 @@ export function ServerBrowserSurface(props: {
       capTimer = null;
       const size = sizeRef.current;
       if (!size) return;
-      const ratio = window.devicePixelRatio || 1;
+      // Render at least 2x: a 1x frame on a 1x screen shows JPEG softness.
+      const ratio = Math.max(window.devicePixelRatio || 1, 2);
       const width = Math.round(size.width * ratio);
       const height = Math.round(size.height * ratio);
       setCap((current) =>

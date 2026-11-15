@@ -192,10 +192,13 @@ fn main() {
             let script = format!("window.__CC3__={init};\n{BRIDGE_JS}");
             let window = WebviewWindowBuilder::new(app, "main", WebviewUrl::External(http.parse()?))
                 .title("CC3")
+                .decorations(false)
                 .inner_size(1400.0, 900.0)
                 .min_inner_size(640.0, 480.0)
                 .initialization_script(script)
                 .build()?;
+            // Window controls live in the page (bridge.js); the menu keeps its shortcuts but stays hidden.
+            let _ = window.hide_menu();
             if std::env::var("CC3_DEVTOOLS").is_ok() {
                 window.open_devtools();
             }

@@ -164,6 +164,27 @@ pub async fn cc3_native(
             set_badge(count);
             Ok(Value::Null)
         }
+        "win_minimize" => {
+            let _ = window.minimize();
+            Ok(Value::Null)
+        }
+        "win_toggle_maximize" => {
+            if window.is_maximized().unwrap_or(false) {
+                let _ = window.unmaximize();
+            } else {
+                let _ = window.maximize();
+            }
+            Ok(json!(window.is_maximized().unwrap_or(false)))
+        }
+        "win_is_maximized" => Ok(json!(window.is_maximized().unwrap_or(false))),
+        "win_close" => {
+            let _ = window.close();
+            Ok(Value::Null)
+        }
+        "win_start_drag" => {
+            let _ = window.start_dragging();
+            Ok(Value::Null)
+        }
         "is_fullscreen" => Ok(json!(window.is_fullscreen().unwrap_or(false))),
         _ => Err(format!("unknown native op: {op}")),
     }
