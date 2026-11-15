@@ -15,12 +15,18 @@ Goal: Linux desktop app = Tauri (Rust) shell replacing the Electron shell of t3c
 
 ## Current state
 
-M2 done: server runs in desktop mode (bootstrap JSON over stdin, `--bootstrap-fd 0`); Rust waits for `GET / == 200`, opens window with init script (src-tauri/src/bridge.js) that defines window.desktopBridge. Native ops in src-tauri/src/native.rs (`cc3_native` command, ACL via build.rs app manifest + capabilities/default.json, required for the remote http origin). Native app menu, DOM context menu, file-backed client settings/connection catalog, folder/file dialogs, openExternal, theme, zoom, fullscreen, readMedia work. Bearer token: same-origin form POST /oauth/token in bridge.js.
-Debug: CC3_DEBUG=1 (renderer log via local HTTP listener, bridge calls logged), CC3_DEVTOOLS=1 (open devtools).
-Not implemented (stubbed in bridge.js, typed defaults/rejects): SSH environments, server exposure/tailscale, CLI command install, updater, WSL (n/a on Linux), snapshot, provider auth callback, probeRemoteEditors, embedded preview browser (`preview` intentionally absent so web disables it).
+Working (verified by running the app, incl. the extracted .deb with bundled node/server/host):
 
-## Next
+- Tauri shell (src-tauri/src): server lifecycle (desktop mode, stdin bootstrap, same port/token on restart), native menu, `cc3_native` (dialogs, openExternal, theme, zoom, readMedia), `cc3_host` RPC, paths.rs (bundled vs dev paths).
+- bridge.js defines window.desktopBridge; DOM context menu; same-origin bearer exchange.
+- Node host (apps/cc3-desktop/host/main.ts) registers existing apps/desktop IPC methods against a fake ipcMain over stdio: SSH environments, client settings, connection catalog (keyring-based safeStorage replacement in host/safeStorage.ts), server exposure + Tailscale (restarts server via cc3:relaunch-backend), CLI command, provider sign-in callback. `electron` is stubbed (host/electron-stub.mjs loader in dev, host/electron-inert.mjs when bundled).
+- Packaging: `vp pack` (host bundle) -> `node scripts/stage.mjs` -> `pnpm tauri build --bundles deb` (240 MB).
+- Upstream pre-commit hooks (fmt, lint, knip) run on commit; fix lint instead of bypassing.
 
-- Node host (or Rust) for SSH/exposure/tailscale/cli/updater using packages/ssh etc.
-- Packaging: bundle node+server as resources, deb/AppImage.
-- Preview browser via Tauri child webviews (WebKitGTK limits).
+## Not implemented
+
+Embedded preview browser (bridge omits `preview`), snapshots, auto-update (state is "disabled"), CLI installer reports supported:false, t3:// deep links, notification badge, AppImage bundle (only deb built), arm64.
+
+## Next ideas
+
+- Preview browser via Tauri child webviews; updater against GitHub releases of corixien/cc3; deep-link plugin for webLinks; AppImage.
