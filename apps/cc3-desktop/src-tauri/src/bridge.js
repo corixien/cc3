@@ -4,6 +4,8 @@
   if (window.desktopBridge) return;
   const init = window.__CC3__ || {};
   const native = (op, ...args) => window.__TAURI_INTERNALS__.invoke("cc3_native", { op, args });
+  const host = (channel, arg = null) =>
+    window.__TAURI_INTERNALS__.invoke("cc3_host", { channel, arg });
   const listeners = new Map();
   const on = (channel, fn) => {
     if (!listeners.has(channel)) listeners.set(channel, new Set());
@@ -217,8 +219,8 @@
     getConnectionCatalog: async () =>
       (await native("store_read", "connection-catalog.json")) ?? null,
     setConnectionCatalog: (catalog) => native("store_write", "connection-catalog.json", catalog),
-    discoverSshHosts: async () => [],
-    resolveSshHost: unsupported("resolveSshHost"),
+    discoverSshHosts: () => host("desktop:discover-ssh-hosts"),
+    resolveSshHost: (alias) => host("desktop:resolve-ssh-host", alias),
     requestSnapShotPermissions: async () => {},
     getSnapShotState: async () => snapState,
     setupSnapShot: async () => {},
@@ -234,14 +236,26 @@
     setSnapShotAnimationDestination: async () => {},
     dismissSnapShotAnimation: async () => {},
     acknowledgeSnapShot: async () => {},
-    ensureSshEnvironment: unsupported("ensureSshEnvironment"),
-    disconnectSshEnvironment: async () => {},
-    fetchSshEnvironmentDescriptor: unsupported("fetchSshEnvironmentDescriptor"),
-    bootstrapSshBearerSession: unsupported("bootstrapSshBearerSession"),
-    fetchSshSessionState: unsupported("fetchSshSessionState"),
-    onSshPasswordPrompt: noop,
-    onSshPasswordPromptSettled: noop,
-    resolveSshPasswordPrompt: async () => {},
+    ensureSshEnvironment: async (target, options) => {
+      const result = await host("desktop:ensure-ssh-environment", {
+        target,
+        ...(options === undefined ? {} : { options }),
+      });
+      if (result?.type === "ssh-password-prompt-cancelled")
+        throw new Error(result.message || "SSH authentication cancelled.");
+      return result;
+    },
+    disconnectSshEnvironment: (target) => host("desktop:disconnect-ssh-environment", target),
+    fetchSshEnvironmentDescriptor: (httpBaseUrl) =>
+      host("desktop:fetch-ssh-environment-descriptor", { httpBaseUrl }),
+    bootstrapSshBearerSession: (httpBaseUrl, credential) =>
+      host("desktop:bootstrap-ssh-bearer-session", { httpBaseUrl, credential }),
+    fetchSshSessionState: (httpBaseUrl, bearerToken) =>
+      host("desktop:fetch-ssh-session-state", { httpBaseUrl, bearerToken }),
+    onSshPasswordPrompt: (fn) => on("desktop:ssh-password-prompt", fn),
+    onSshPasswordPromptSettled: (fn) => on("desktop:ssh-password-prompt-settled", fn),
+    resolveSshPasswordPrompt: (requestId, password) =>
+      host("desktop:resolve-ssh-password-prompt", { requestId, password }),
     getServerExposureState: async () => exposureState,
     setServerExposureMode: unsupported("setServerExposureMode"),
     setTailscaleServeEnabled: unsupported("setTailscaleServeEnabled"),
@@ -298,12 +312,12 @@
   };
 
   if (init.debugPort) {
-    const log = (m) => {
+    const log = (window.__cc3Log = (m) => {
       try {
         new Image().src =
           `http://127.0.0.1:${init.debugPort}/` + encodeURIComponent(String(m).slice(0, 400));
       } catch {}
-    };
+    });
     log("bridge installed; tauri=" + typeof window.__TAURI_INTERNALS__);
     addEventListener("unhandledrejection", (e) =>
       log("unhandledrejection: " + (e.reason?.stack || e.reason)),
@@ -328,6 +342,17 @@
         return r;
       };
     }
+  }
+
+  if (init.debugPort && init.selfTest) {
+    setTimeout(
+      () =>
+        window.desktopBridge.discoverSshHosts().then(
+          (r) => window.__cc3Log?.("selftest " + JSON.stringify(r)),
+          (e) => window.__cc3Log?.("selftest failed " + e),
+        ),
+      3000,
+    );
   }
 
   let localEnabled = true;

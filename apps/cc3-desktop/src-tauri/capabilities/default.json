@@ -4,5 +4,5 @@
   "description": "Bridge IPC for the local T3 server origin",
   "windows": ["main"],
   "remote": { "urls": ["http://127.0.0.1:*", "http://localhost:*"] },
-  "permissions": ["core:default", "allow-cc3-native"]
+  "permissions": ["core:default", "allow-cc3-native", "allow-cc3-host"]
 }

@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-cc3-host"
+description = "Enables the cc3_host command without any pre-configured scope."
+commands.allow = ["cc3_host"]
+
+[[permission]]
+identifier = "deny-cc3-host"
+description = "Denies the cc3_host command without any pre-configured scope."
+commands.deny = ["cc3_host"]

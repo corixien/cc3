@@ -8,6 +8,14 @@
     "dev": "tauri dev",
     "build": "tauri build"
   },
+  "dependencies": {
+    "@effect/platform-node": "catalog:",
+    "@t3tools/client-runtime": "workspace:*",
+    "@t3tools/contracts": "workspace:*",
+    "@t3tools/shared": "workspace:*",
+    "@t3tools/ssh": "workspace:*",
+    "effect": "catalog:"
+  },
   "devDependencies": {
     "@tauri-apps/cli": "^2"
   }

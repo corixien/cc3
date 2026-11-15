@@ -1,5 +1,6 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
+mod host;
 mod native;
 mod server;
 
@@ -14,7 +15,7 @@ const BRIDGE_JS: &str = include_str!("bridge.js");
 struct ServerState(Mutex<Option<server::Server>>);
 
 /// Calls `window.__cc3emit(channel, payload)` in the renderer.
-fn emit(window: &tauri::WebviewWindow, channel: &str, payload: serde_json::Value) {
+pub fn emit(window: &tauri::WebviewWindow, channel: &str, payload: serde_json::Value) {
     let _ = window.eval(format!("window.__cc3emit&&window.__cc3emit({},{})", json!(channel), payload));
 }
 
@@ -96,8 +97,9 @@ fn main() {
     tauri::Builder::default()
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_opener::init())
-        .invoke_handler(tauri::generate_handler![native::cc3_native])
+        .invoke_handler(tauri::generate_handler![native::cc3_native, host::cc3_host])
         .on_menu_event(|app, event| on_menu(app, event.id().as_ref()))
+        .manage(host::Host::default())
         .setup(|app| {
             let srv = server::start()?;
             let (port, token) = (srv.port, srv.token.clone());
@@ -127,6 +129,7 @@ fn main() {
             let init = json!({
                 "version": env!("CARGO_PKG_VERSION"),
                 "debugPort": debug_port,
+                "selfTest": std::env::var("CC3_SELFTEST").is_ok(),
                 "arch": std::env::consts::ARCH,
                 "locale": std::env::var("LANG").ok()
                     .and_then(|l| l.split('.').next().map(|s| s.replace('_', "-")))
@@ -161,6 +164,9 @@ fn main() {
         .expect("error while building CC3")
         .run(|app, event| {
             if let RunEvent::Exit = event {
+                if let Some(h) = app.try_state::<host::Host>() {
+                    h.shutdown();
+                }
                 if let Some(state) = app.try_state::<ServerState>() {
                     if let Some(mut srv) = state.0.lock().unwrap().take() {
                         let _ = srv.child.kill();
