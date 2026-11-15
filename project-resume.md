@@ -15,12 +15,12 @@ Goal: Linux desktop app = Tauri (Rust) shell replacing the Electron shell of t3c
 
 ## Current state
 
-M1 done: Rust spawns `node server/dist/bin.mjs --no-browser --port <free> --base-dir ~/.cc3`, parses `pairingUrl:` from stdout, opens window on it, kills server on exit. UI loads and works.
+M2 done: server runs in desktop mode (bootstrap JSON over stdin, `--bootstrap-fd 0`); Rust waits for `GET / == 200`, opens window with init script (src-tauri/src/bridge.js) that defines window.desktopBridge. Native ops in src-tauri/src/native.rs (`cc3_native` command, ACL via build.rs app manifest + capabilities/default.json, required for the remote http origin). Native app menu, DOM context menu, file-backed client settings/connection catalog, folder/file dialogs, openExternal, theme, zoom, fullscreen, readMedia work. Bearer token: same-origin form POST /oauth/token in bridge.js.
+Debug: CC3_DEBUG=1 (renderer log via local HTTP listener, bridge calls logged), CC3_DEVTOOLS=1 (open devtools).
+Not implemented (stubbed in bridge.js, typed defaults/rejects): SSH environments, server exposure/tailscale, CLI command install, updater, WSL (n/a on Linux), snapshot, provider auth callback, probeRemoteEditors, embedded preview browser (`preview` intentionally absent so web disables it).
 
-## Next (target: 1:1 with Electron bridge)
+## Next
 
-- Inject window.desktopBridge (Tauri IPC) so desktop-only UI works: folder picker, context menu, app menu, openExternal, settings, badge, zoom, fullscreen state.
-- Use desktop mode + bootstrap (stdin/fd3, bearer token) instead of web-mode pairing URL.
-- Port logic from apps/desktop/src: backend manager, SSH, connection catalog, Tailscale/server exposure, updater, linux URL handler, CLI shim, snapshot, embedded preview browser (hard in WebKitGTK).
-- Packaging: bundle node/server as resources, deb/AppImage via tauri build.
-  Risks: WebKitGTK vs Chromium rendering/perf; preview browser tabs.
+- Node host (or Rust) for SSH/exposure/tailscale/cli/updater using packages/ssh etc.
+- Packaging: bundle node+server as resources, deb/AppImage.
+- Preview browser via Tauri child webviews (WebKitGTK limits).

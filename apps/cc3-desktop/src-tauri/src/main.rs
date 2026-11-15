@@ -1,91 +1,170 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
-use std::io::{BufRead, BufReader};
-use std::net::TcpListener;
-use std::path::PathBuf;
-use std::process::{Child, Command, Stdio};
-use std::sync::mpsc;
+mod native;
+mod server;
+
 use std::sync::Mutex;
-use std::time::Duration;
 
-use tauri::{Manager, RunEvent, WebviewUrl, WebviewWindowBuilder};
+use serde_json::json;
+use tauri::menu::{Menu, MenuItem, PredefinedMenuItem, Submenu};
+use tauri::{Manager, RunEvent, WebviewUrl, WebviewWindowBuilder, WindowEvent};
 
-/// Holds the T3 server child process so it is stopped when the app exits.
-struct Server(Mutex<Option<Child>>);
+const BRIDGE_JS: &str = include_str!("bridge.js");
 
-fn server_entry() -> PathBuf {
-    if let Ok(p) = std::env::var("CC3_SERVER_ENTRY") {
-        return PathBuf::from(p);
-    }
-    // Dev layout: apps/cc3-desktop/src-tauri -> apps/server/dist/bin.mjs
-    PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../server/dist/bin.mjs")
+struct ServerState(Mutex<Option<server::Server>>);
+
+/// Calls `window.__cc3emit(channel, payload)` in the renderer.
+fn emit(window: &tauri::WebviewWindow, channel: &str, payload: serde_json::Value) {
+    let _ = window.eval(format!("window.__cc3emit&&window.__cc3emit({},{})", json!(channel), payload));
 }
 
-/// Data dir. Separate from `~/.t3` so CC3 can run next to the Electron T3 Code app
-/// (the server allows only one instance per data dir). Override with CC3_HOME.
-fn base_dir() -> PathBuf {
-    std::env::var("CC3_HOME").map(PathBuf::from).unwrap_or_else(|_| {
-        PathBuf::from(std::env::var("HOME").expect("HOME not set")).join(".cc3")
-    })
+fn build_menu(app: &tauri::AppHandle) -> tauri::Result<Menu<tauri::Wry>> {
+    let item = |id: &str, label: &str, accel: Option<&str>| MenuItem::with_id(app, id, label, true, accel);
+    let file = Submenu::with_items(
+        app,
+        "File",
+        true,
+        &[
+            &item("open-settings", "Settings...", Some("CmdOrCtrl+,"))?,
+            &PredefinedMenuItem::separator(app)?,
+            &PredefinedMenuItem::close_window(app, None)?,
+            &PredefinedMenuItem::quit(app, None)?,
+        ],
+    )?;
+    let edit = Submenu::with_items(
+        app,
+        "Edit",
+        true,
+        &[
+            &PredefinedMenuItem::undo(app, None)?,
+            &PredefinedMenuItem::redo(app, None)?,
+            &PredefinedMenuItem::separator(app)?,
+            &PredefinedMenuItem::cut(app, None)?,
+            &PredefinedMenuItem::copy(app, None)?,
+            &PredefinedMenuItem::paste(app, None)?,
+            &item("paste-as-text", "Paste as Text", Some("CmdOrCtrl+Shift+V"))?,
+            &PredefinedMenuItem::select_all(app, None)?,
+        ],
+    )?;
+    let view = Submenu::with_items(
+        app,
+        "View",
+        true,
+        &[
+            &item("reload", "Reload", Some("CmdOrCtrl+R"))?,
+            &item("force-reload", "Force Reload", Some("CmdOrCtrl+Shift+R"))?,
+            &item("devtools", "Toggle Developer Tools", Some("Ctrl+Shift+I"))?,
+            &PredefinedMenuItem::separator(app)?,
+            &item("zoom-reset", "Actual Size", Some("CmdOrCtrl+0"))?,
+            &item("zoom-in", "Zoom In", Some("CmdOrCtrl+="))?,
+            &item("zoom-out", "Zoom Out", Some("CmdOrCtrl+-"))?,
+            &PredefinedMenuItem::separator(app)?,
+            &PredefinedMenuItem::fullscreen(app, None)?,
+        ],
+    )?;
+    let window = Submenu::with_items(app, "Window", true, &[&PredefinedMenuItem::minimize(app, None)?])?;
+    let help = Submenu::with_items(
+        app,
+        "Help",
+        true,
+        &[&item("check-for-updates", "Check for Updates...", None)?],
+    )?;
+    Menu::with_items(app, &[&file, &edit, &view, &window, &help])
 }
 
-fn free_port() -> u16 {
-    TcpListener::bind("127.0.0.1:0")
-        .and_then(|l| l.local_addr())
-        .map(|a| a.port())
-        .expect("no free port")
-}
-
-/// Starts the T3 server and returns it with its one-time pairing URL.
-fn start_server() -> Result<(Child, String), String> {
-    let mut child = Command::new(std::env::var("CC3_NODE").unwrap_or_else(|_| "node".into()))
-        .arg(server_entry())
-        .args(["--no-browser", "--port", &free_port().to_string(), "--base-dir"])
-        .arg(base_dir())
-        .stdout(Stdio::piped())
-        .stderr(Stdio::null())
-        .spawn()
-        .map_err(|e| format!("failed to start node server: {e}"))?;
-
-    let stdout = child.stdout.take().ok_or("no server stdout")?;
-    let (tx, rx) = mpsc::channel();
-    std::thread::spawn(move || {
-        for line in BufReader::new(stdout).lines().map_while(Result::ok) {
-            if let Some(url) = line.trim().strip_prefix("pairingUrl:") {
-                let _ = tx.send(url.trim().to_string());
+fn on_menu(app: &tauri::AppHandle, id: &str) {
+    let Some(window) = app.get_webview_window("main") else { return };
+    match id {
+        "reload" | "force-reload" => {
+            let _ = window.eval("location.reload()");
+        }
+        "devtools" => {
+            if window.is_devtools_open() {
+                window.close_devtools();
+            } else {
+                window.open_devtools();
             }
         }
-    });
-
-    match rx.recv_timeout(Duration::from_secs(90)) {
-        Ok(url) => Ok((child, url)),
-        Err(_) => {
-            let _ = child.kill();
-            Err("server did not announce a pairing URL in time".into())
+        "zoom-in" | "zoom-out" | "zoom-reset" => {
+            emit(&window, "zoom-step", json!(id));
         }
+        other => emit(&window, "menu-action", json!(other)),
     }
 }
 
 fn main() {
     tauri::Builder::default()
+        .plugin(tauri_plugin_dialog::init())
+        .plugin(tauri_plugin_opener::init())
+        .invoke_handler(tauri::generate_handler![native::cc3_native])
+        .on_menu_event(|app, event| on_menu(app, event.id().as_ref()))
         .setup(|app| {
-            let (child, url) = start_server()?;
-            app.manage(Server(Mutex::new(Some(child))));
-            WebviewWindowBuilder::new(app, "main", WebviewUrl::External(url.parse()?))
+            let srv = server::start()?;
+            let (port, token) = (srv.port, srv.token.clone());
+            app.manage(ServerState(Mutex::new(Some(srv))));
+            app.set_menu(build_menu(app.handle())?)?;
+
+            let debug_port = if std::env::var("CC3_DEBUG").is_ok() {
+                let l = std::net::TcpListener::bind("127.0.0.1:0")?;
+                let port = l.local_addr()?.port();
+                std::thread::spawn(move || {
+                    use std::io::{BufRead, BufReader, Write};
+                    for conn in l.incoming().flatten() {
+                        std::thread::spawn(move || {
+                            let mut conn = conn;
+                            let mut line = String::new();
+                            let _ = BufReader::new(&conn).read_line(&mut line);
+                            eprintln!("[renderer] {}", line.trim());
+                            let _ = conn.write_all(b"HTTP/1.1 204 No Content\r\nConnection: close\r\n\r\n");
+                        });
+                    }
+                });
+                Some(port)
+            } else {
+                None
+            };
+            let http = format!("http://127.0.0.1:{port}/");
+            let init = json!({
+                "version": env!("CARGO_PKG_VERSION"),
+                "debugPort": debug_port,
+                "arch": std::env::consts::ARCH,
+                "locale": std::env::var("LANG").ok()
+                    .and_then(|l| l.split('.').next().map(|s| s.replace('_', "-")))
+                    .filter(|l| l != "C" && l != "POSIX"),
+                "bootstraps": [{
+                    "id": "primary",
+                    "label": "This device",
+                    "httpBaseUrl": http,
+                    "wsBaseUrl": format!("ws://127.0.0.1:{port}/"),
+                    "bootstrapToken": token,
+                }],
+            });
+            let script = format!("window.__CC3__={init};\n{BRIDGE_JS}");
+            let window = WebviewWindowBuilder::new(app, "main", WebviewUrl::External(http.parse()?))
                 .title("CC3")
                 .inner_size(1400.0, 900.0)
                 .min_inner_size(640.0, 480.0)
+                .initialization_script(script)
                 .build()?;
+            if std::env::var("CC3_DEVTOOLS").is_ok() {
+                window.open_devtools();
+            }
+            let w = window.clone();
+            window.on_window_event(move |e| {
+                if let WindowEvent::Resized(_) = e {
+                    emit(&w, "fullscreen", json!(w.is_fullscreen().unwrap_or(false)));
+                }
+            });
             Ok(())
         })
         .build(tauri::generate_context!())
         .expect("error while building CC3")
         .run(|app, event| {
             if let RunEvent::Exit = event {
-                if let Some(server) = app.try_state::<Server>() {
-                    if let Some(mut child) = server.0.lock().unwrap().take() {
-                        let _ = child.kill();
-                        let _ = child.wait();
+                if let Some(state) = app.try_state::<ServerState>() {
+                    if let Some(mut srv) = state.0.lock().unwrap().take() {
+                        let _ = srv.child.kill();
+                        let _ = srv.child.wait();
                     }
                 }
             }

@@ -3,6 +3,7 @@
   // Exported types are part of our contracts even before they have consumers.
   "rules": { "types": "off", "nsTypes": "off" },
   // These executables are supplied by the OS or installed separately from npm.
+  "ignore": ["apps/cc3-desktop/**"],
   "ignoreBinaries": ["eas", "file", "mkfifo", "pkill", "pkg-config", "plutil", "sips"],
   "workspaces": {
     ".": {

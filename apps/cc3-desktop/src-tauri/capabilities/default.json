@@ -1,7 +1,8 @@
 {
   "$schema": "../gen/schemas/desktop-schema.json",
   "identifier": "default",
-  "description": "Default capabilities",
+  "description": "Bridge IPC for the local T3 server origin",
   "windows": ["main"],
-  "permissions": ["core:default"]
+  "remote": { "urls": ["http://127.0.0.1:*", "http://localhost:*"] },
+  "permissions": ["core:default", "allow-cc3-native"]
 }
