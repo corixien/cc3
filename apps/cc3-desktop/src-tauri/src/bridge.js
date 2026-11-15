@@ -14,8 +14,6 @@
   };
   const dispatch = (channel, payload) => listeners.get(channel)?.forEach((fn) => fn(payload));
   const noop = () => () => {};
-  const unsupported = (name) => () =>
-    Promise.reject(new Error(`${name} is not supported in CC3 yet`));
 
   let fullscreen = false;
   let zoom = 1;
@@ -166,21 +164,14 @@
     distros: [],
     preflightError: null,
   };
-  const snapState = {
-    mode: "unavailable",
-    shortcut: { kind: "both-shift-keys" },
-    shortcutRegistered: false,
-    shortcutMessage: null,
-  };
-
   window.desktopBridge = {
     getAppBranding: () => ({ baseName: "CC3", stageLabel: "Alpha", displayName: "CC3 (Alpha)" }),
     getRelayTelemetryEnabled: () => false,
     getPathForFile: () => "",
     getClientPlatform: () => "linux",
     restartAudioService: async () => false,
-    setNotificationBadge: async () => {},
-    onNotificationBadgeClear: noop,
+    setNotificationBadge: (badge) => native("set_badge", badge),
+    onNotificationBadgeClear: (fn) => on("notification-badge-clear", fn),
     onTrackpadScrollBegin: noop,
     onTrackpadScrollEnd: noop,
     revealWindow: () => native("reveal_window"),
@@ -202,21 +193,21 @@
     setConnectionCatalog: (catalog) => host("desktop:set-connection-catalog", catalog),
     discoverSshHosts: () => host("desktop:discover-ssh-hosts"),
     resolveSshHost: (alias) => host("desktop:resolve-ssh-host", alias),
-    requestSnapShotPermissions: async () => {},
-    getSnapShotState: async () => snapState,
-    setupSnapShot: async () => {},
-    previewSnapShotConfig: async () => null,
-    applySnapShotConfig: unsupported("applySnapShotConfig"),
-    checkSnapShotShortcut: async () => ({
-      available: false,
-      message: "Snapshots are not supported in CC3 yet",
-    }),
-    setSnapShotShortcutSuppressed: async () => {},
-    listPendingSnapShots: async () => [],
-    readSnapShot: unsupported("readSnapShot"),
-    setSnapShotAnimationDestination: async () => {},
-    dismissSnapShotAnimation: async () => {},
-    acknowledgeSnapShot: async () => {},
+    requestSnapShotPermissions: (includeAccessibility) =>
+      host("desktop:request-snap-shot-permissions", includeAccessibility),
+    getSnapShotState: () => host("desktop:get-snap-shot-state"),
+    setupSnapShot: (action) => host("desktop:setup-snap-shot", action),
+    previewSnapShotConfig: (request) => host("desktop:preview-snap-shot-config", request),
+    applySnapShotConfig: (previewId) => host("desktop:apply-snap-shot-config", previewId),
+    checkSnapShotShortcut: (shortcut) => host("desktop:check-snap-shot-shortcut", shortcut),
+    setSnapShotShortcutSuppressed: (suppressed) =>
+      host("desktop:set-snap-shot-shortcut-suppressed", suppressed),
+    listPendingSnapShots: () => host("desktop:list-pending-snap-shots"),
+    readSnapShot: (id) => host("desktop:read-snap-shot", id),
+    setSnapShotAnimationDestination: (destination) =>
+      host("desktop:set-snap-shot-animation-destination", destination),
+    dismissSnapShotAnimation: (id) => host("desktop:dismiss-snap-shot-animation", id),
+    acknowledgeSnapShot: (id) => host("desktop:acknowledge-snap-shot", id),
     ensureSshEnvironment: async (target, options) => {
       const result = await host("desktop:ensure-ssh-environment", {
         target,
@@ -266,7 +257,7 @@
       if (text) document.execCommand("insertText", false, text);
     },
     onMenuAction: (fn) => on("menu-action", fn),
-    onSnapShotEvent: noop,
+    onSnapShotEvent: (fn) => on("desktop:snap-shot-event", fn),
     onQuitShortcut: noop,
     getWindowFullscreenState: () => fullscreen,
     onWindowFullscreenStateChange: (fn) => on("fullscreen", fn),
@@ -283,13 +274,16 @@
       uninstall: () => host("desktop:cli-command-uninstall"),
       addToPath: () => host("desktop:cli-command-add-to-path"),
     },
-    webLinks: { setReady: async () => {}, onOpen: (fn) => on("web-link-open", fn) },
+    webLinks: {
+      setReady: (ready) => native("web_links_ready", ready),
+      onOpen: (fn) => on("web-link-open", fn),
+    },
     appActivation: {
       setReady: async () => {},
       complete: async () => {},
       onRequest: (fn) => on("app-activation", fn),
     },
-    // `preview` is intentionally absent: the embedded browser needs Electron <webview>.
+    // `preview` is intentionally absent: the UI then uses the server-hosted browser (screencast).
   };
 
   if (init.debugPort) {
@@ -328,7 +322,12 @@
   if (init.debugPort && init.selfTest) {
     const bridge = window.desktopBridge;
     const report = (label) => (r) => window.__cc3Log?.(`selftest ${label} ${JSON.stringify(r)}`);
+    bridge.webLinks.onOpen((url) => window.__cc3Log?.(`selftest web-link ${url}`));
+    bridge.onSnapShotEvent((e) => window.__cc3Log?.(`selftest snap-event ${JSON.stringify(e)}`));
+    bridge.webLinks.setReady(true);
     setTimeout(async () => {
+      await bridge.getSnapShotState().then(report("snapState"), report("snapState failed"));
+      await bridge.cliCommand.getState().then(report("cli"), report("cli failed"));
       await bridge
         .getClientSettings()
         .then(report("clientSettings"), report("clientSettings failed"));

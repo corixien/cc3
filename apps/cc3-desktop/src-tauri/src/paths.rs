@@ -16,11 +16,11 @@ pub struct Paths {
 static PATHS: OnceLock<Paths> = OnceLock::new();
 
 pub fn init(app: &AppHandle) {
-    let bundled = app.path().resource_dir().ok().map(|d| d.join("resources")).filter(|d| d.join("server/dist/bin.mjs").exists());
+    let bundled = app.path().resource_dir().ok().map(|d| d.join("resources")).filter(|d| d.join("app/apps/server/dist/bin.mjs").exists());
     let paths = match bundled {
         Some(dir) => Paths {
             node: dir.join("node"),
-            server_entry: dir.join("server/dist/bin.mjs"),
+            server_entry: dir.join("app/apps/server/dist/bin.mjs"),
             host_args: vec![dir.join("host/main.mjs").into()],
         },
         None => {

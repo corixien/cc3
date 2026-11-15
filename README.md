@@ -38,9 +38,11 @@ cd apps/cc3-desktop && pnpm exec vp pack && node scripts/stage.mjs && pnpm tauri
 
 Works: window and native menu, folder/file pickers, context menus, client settings, saved
 connections, SSH environments, network exposure and Tailscale Serve, provider sign-in callback,
-zoom, fullscreen, theme.
+zoom, fullscreen, theme, `t3` CLI installer (launcher in `~/.cc3/bin`), `t3code://` and web links
+(second launch forwards to the running window), launcher badge (D-Bus), screen snapshots (portal,
+KDE, Hyprland, GNOME extension helpers bundled), preview browser via the server-hosted browser
+(needs Chrome on the host; the bridge omits `preview`, so there is no in-app `<webview>` runtime).
 
-Not yet: embedded preview browser (needs Electron `<webview>`; the bridge omits `preview`, so the
-UI disables it), screen snapshots, auto-update, `t3` CLI installer, `t3://` deep links.
+Not yet: auto-update, AppImage, arm64, snapshot overlay animation.
 
 Debug switches: `CC3_DEBUG=1` (log bridge calls), `CC3_DEVTOOLS=1` (open devtools).

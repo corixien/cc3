@@ -1,6 +1,7 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
 mod host;
+mod links;
 mod native;
 mod paths;
 mod server;
@@ -129,11 +130,19 @@ fn on_menu(app: &tauri::AppHandle, id: &str) {
 
 fn main() {
     tauri::Builder::default()
+        .plugin(tauri_plugin_single_instance::init(|app, argv, _cwd| {
+            if !links::receive_args(app, argv.into_iter().skip(1)) {
+                if let Some(w) = app.get_webview_window("main") {
+                    links::reveal(&w);
+                }
+            }
+        }))
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_opener::init())
         .invoke_handler(tauri::generate_handler![native::cc3_native, host::cc3_host])
         .on_menu_event(|app, event| on_menu(app, event.id().as_ref()))
         .manage(host::Host::default())
+        .manage(links::Links::default())
         .setup(|app| {
             paths::init(app.handle());
             let port = server::free_port()?;
@@ -190,11 +199,15 @@ fn main() {
             if std::env::var("CC3_DEVTOOLS").is_ok() {
                 window.open_devtools();
             }
+            links::receive_args(app.handle(), std::env::args().skip(1));
             let w = window.clone();
-            window.on_window_event(move |e| {
-                if let WindowEvent::Resized(_) = e {
-                    emit(&w, "fullscreen", json!(w.is_fullscreen().unwrap_or(false)));
+            window.on_window_event(move |e| match e {
+                WindowEvent::Resized(_) => emit(&w, "fullscreen", json!(w.is_fullscreen().unwrap_or(false))),
+                WindowEvent::Focused(true) => {
+                    native::set_badge(0);
+                    emit(&w, "notification-badge-clear", json!(null));
                 }
+                _ => {}
             });
             Ok(())
         })

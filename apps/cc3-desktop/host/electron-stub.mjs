@@ -28,6 +28,7 @@ const names = [
   "globalShortcut",
   "utilityProcess",
   "MessageChannelMain",
+  "ClipboardItem",
   "powerSaveBlocker",
   "Tray",
   "crashReporter",

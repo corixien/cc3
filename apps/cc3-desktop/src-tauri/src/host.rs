@@ -66,6 +66,10 @@ fn spawn(app: &AppHandle) -> Result<Running, String> {
                             let _ = app.opener().open_url(url, None::<&str>);
                         }
                     }
+                } else if event == "cc3:activate" {
+                    if let Some(w) = app.get_webview_window("main") {
+                        crate::links::reveal(&w);
+                    }
                 } else if event == "cc3:relaunch-backend" {
                     let app = app.clone();
                     std::thread::spawn(move || crate::restart_server(&app));

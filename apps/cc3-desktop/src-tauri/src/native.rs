@@ -19,6 +19,25 @@ fn str_arg<'a>(args: &'a Value, i: usize) -> Option<&'a str> {
     args.get(i).and_then(Value::as_str)
 }
 
+/// Launcher badge via the Unity LauncherEntry D-Bus signal (GNOME dash-to-dock, KDE). Best effort.
+pub fn set_badge(count: i64) {
+    let props = format!("{{'count': <int64 {count}>, 'count-visible': <{}>}}", count > 0);
+    let _ = std::process::Command::new("gdbus")
+        .args([
+            "emit",
+            "--session",
+            "--object-path",
+            "/com/canonical/unity/launcherentry/1",
+            "--signal",
+            "com.canonical.Unity.LauncherEntry.Update",
+            "application://CC3.desktop",
+            &props,
+        ])
+        .stdout(std::process::Stdio::null())
+        .stderr(std::process::Stdio::null())
+        .spawn();
+}
+
 #[tauri::command]
 pub async fn cc3_native(
     app: AppHandle,
@@ -129,6 +148,20 @@ pub async fn cc3_native(
         }
         "log" => {
             eprintln!("[renderer] {}", args.get(0).and_then(Value::as_str).unwrap_or(""));
+            Ok(Value::Null)
+        }
+        "web_links_ready" => {
+            crate::links::set_ready(&app, args.get(0).and_then(Value::as_bool).unwrap_or(false));
+            Ok(Value::Null)
+        }
+        "set_badge" => {
+            // A focused window has already seen the notification.
+            let count = if window.is_focused().unwrap_or(false) {
+                0
+            } else {
+                args.get(0).and_then(|b| b["count"].as_i64()).unwrap_or(0).max(0)
+            };
+            set_badge(count);
             Ok(Value::Null)
         }
         "is_fullscreen" => Ok(json!(window.is_fullscreen().unwrap_or(false))),

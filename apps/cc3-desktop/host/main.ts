@@ -9,6 +9,7 @@ import * as Effect from "effect/Effect";
 import * as Layer from "effect/Layer";
 import * as Option from "effect/Option";
 import * as NodeOS from "node:os";
+import * as NodeFS from "node:fs";
 import * as NodePath from "node:path";
 import * as NodeReadline from "node:readline";
 import * as Schema from "effect/Schema";
@@ -22,6 +23,11 @@ import {
 import * as DesktopIpc from "../../desktop/src/ipc/DesktopIpc.ts";
 import * as sshMethods from "../../desktop/src/ipc/methods/sshEnvironment.ts";
 import * as providerAuthMethods from "../../desktop/src/ipc/methods/providerAuth.ts";
+import * as ElectronDialog from "../../desktop/src/electron/ElectronDialog.ts";
+import * as MacPermissions from "../../desktop/src/permissions/MacPermissions.ts";
+import * as DesktopWindow from "../../desktop/src/window/DesktopWindow.ts";
+import * as DesktopSnapShot from "../../desktop/src/snapShot/DesktopSnapShot.ts";
+import * as snapShotMethods from "../../desktop/src/ipc/methods/snapShot.ts";
 import * as ElectronShell from "../../desktop/src/electron/ElectronShell.ts";
 import * as cliMethods from "../../desktop/src/ipc/methods/cliCommand.ts";
 import * as catalogMethods from "../../desktop/src/ipc/methods/connectionCatalog.ts";
@@ -41,6 +47,9 @@ import * as ElectronWindow from "../../desktop/src/electron/ElectronWindow.ts";
 import * as DesktopSshEnvironment from "../../desktop/src/ssh/DesktopSshEnvironment.ts";
 import * as DesktopSshPasswordPrompts from "../../desktop/src/ssh/DesktopSshPasswordPrompts.ts";
 import serverPackageJson from "../../server/package.json" with { type: "json" };
+
+// DesktopSnapShot resolves its worker scripts against the CommonJS __dirname.
+Object.assign(globalThis, { __dirname: import.meta.dirname });
 
 // Effect's default logger writes to stdout, which carries the protocol.
 console.log = console.error;
@@ -63,12 +72,36 @@ const window = {
   focus: () => {},
   once: () => {},
   removeListener: () => {},
-  webContents: { send: (event: string, payload: unknown) => send({ event, payload }) },
+  getContentBounds: () => ({ x: 0, y: 0, width: 1400, height: 900 }),
+  webContents: {
+    id: 0,
+    getZoomFactor: () => 1,
+    send: (event: string, payload: unknown) => send({ event, payload }),
+  },
 };
 
 const layerWindow = Layer.succeed(ElectronWindow.ElectronWindow, {
   main: Effect.succeed(Option.some(window)),
   currentMainOrFirst: Effect.succeed(Option.none()),
+} as never);
+
+// Only what DesktopSnapShot touches; the window itself lives in Rust.
+const layerDesktopWindow = Layer.succeed(DesktopWindow.DesktopWindow, {
+  activate: Effect.sync(() => send({ event: "cc3:activate", payload: null })),
+  prepareCaptureReveal: Effect.void,
+  dispatchSnapShotEvent: (event: { type: string }) =>
+    Effect.sync(() => {
+      if (event.type === "started") send({ event: "cc3:activate", payload: null });
+      send({ event: IpcChannels.SNAP_SHOT_EVENT_CHANNEL, payload: event });
+    }),
+} as never);
+
+const layerMacPermissions = Layer.succeed(MacPermissions.MacPermissions, {
+  showHelper: () => Effect.void,
+} as never);
+
+const layerDialog = Layer.succeed(ElectronDialog.ElectronDialog, {
+  pickFiles: () => Effect.succeed([]),
 } as never);
 
 const layerShell = Layer.succeed(ElectronShell.ElectronShell, {
@@ -85,6 +118,11 @@ const layerRuntime = Layer.mergeAll(NodeServices.layer, NodeCrypto.layer).pipe(
 
 const repoRoot = NodePath.resolve(import.meta.dirname, "../../..");
 
+const bundledApp = NodePath.resolve(import.meta.dirname, "../app");
+const appPath = NodeFS.existsSync(NodePath.join(bundledApp, "apps/server/dist/bin.mjs"))
+  ? bundledApp
+  : repoRoot;
+
 const layerEnvironment = DesktopEnvironment.layer({
   dirname: import.meta.dirname,
   homeDirectory: NodeOS.homedir(),
@@ -92,9 +130,10 @@ const layerEnvironment = DesktopEnvironment.layer({
   // oxlint-disable-next-line t3code/no-global-process-runtime -- standalone host, no Effect runtime services
   processArch: process.arch,
   appVersion: serverPackageJson.version,
-  appPath: repoRoot,
-  isPackaged: false,
-  resourcesPath: repoRoot,
+  appPath,
+  // The CLI launcher only exists for a "packaged" app; here that means a stable node + server entry.
+  isPackaged: true,
+  resourcesPath: appPath === bundledApp ? NodePath.dirname(bundledApp) : appPath,
   runningUnderArm64Translation: false,
 });
 
@@ -110,6 +149,12 @@ const layerFoundation = Layer.mergeAll(
   DesktopCliCommand.layer,
   DesktopServerExposure.layer,
 ).pipe(Layer.provideMerge(layerBase));
+
+const layerSnapShot = DesktopSnapShot.layer.pipe(
+  Layer.provideMerge(layerDesktopWindow),
+  Layer.provideMerge(layerMacPermissions),
+  Layer.provideMerge(layerFoundation),
+);
 
 const layerSsh = Layer.unwrap(
   Effect.gen(function* () {
@@ -130,7 +175,8 @@ const layerServices = Layer.mergeAll(
     DesktopIpc.make(ipcMain, () => Effect.succeed(true)),
   ),
   layerSsh,
-  layerFoundation,
+  layerSnapShot,
+  layerDialog,
 ).pipe(
   Layer.provideMerge(layerWindow),
   Layer.provideMerge(layerShell),
@@ -142,6 +188,7 @@ const program = Effect.gen(function* () {
   const exposure = yield* DesktopServerExposure.DesktopServerExposure;
   const clientSettings = yield* DesktopClientSettings.DesktopClientSettings;
   const appSettings = yield* DesktopAppSettings.DesktopAppSettings;
+  const snapShot = yield* DesktopSnapShot.DesktopSnapShot;
 
   const wrap = <A, S>(
     channel: string,
@@ -179,7 +226,7 @@ const program = Effect.gen(function* () {
       () => clientSettings.get.pipe(Effect.map(Option.getOrNull)),
     ),
     wrap(IpcChannels.SET_CLIENT_SETTINGS_CHANNEL, ClientSettingsSchema, Schema.Void, (settings) =>
-      clientSettings.set(settings),
+      clientSettings.set(settings).pipe(Effect.andThen(snapShot.configure(settings))),
     ),
     wrap(
       IpcChannels.SET_SERVER_EXPOSURE_MODE_CHANNEL,
@@ -231,12 +278,15 @@ const program = Effect.gen(function* () {
       ...Object.values(sshMethods),
       ...Object.values(providerAuthMethods),
       ...Object.values(cliMethods),
+      ...Object.values(snapShotMethods).filter((m) => typeof m === "object"),
       ...Object.values(catalogMethods),
       ...custom,
     ],
     (method) => ipc.handle(method),
     { discard: true },
   ).pipe(Effect.catchDefect(Effect.die));
+
+  yield* snapShot.initialize;
 
   const lines = NodeReadline.createInterface({ input: process.stdin });
   lines.on("line", (line) => {

@@ -23,10 +23,15 @@ Working (verified by running the app, incl. the extracted .deb with bundled node
 - Packaging: `vp pack` (host bundle) -> `node scripts/stage.mjs` -> `pnpm tauri build --bundles deb` (240 MB).
 - Upstream pre-commit hooks (fmt, lint, knip) run on commit; fix lint instead of bypassing.
 
+- Added: CLI installer (host isPackaged=true, server at resources/app/apps/server), links.rs (single-instance + `t3code:` argv forwarding, queued until webLinks.setReady), launcher badge via gdbus (native::set_badge, cleared on focus), snapshots (DesktopSnapShot runs in the host with fake DesktopWindow/MacPermissions/ElectronDialog; workers bundled to host/dist/snapShot/*.cjs; stage.mjs builds native/kde-snap-shot + hyprland and copies gnome-extension), custom deb desktop template (Exec %U, MimeType t3code).
+- Preview browser: bridge has no `preview`; web falls back to the server runtime (Playwright + Chrome on the host, screencast in ServerBrowserSurface). Not exercised in the UI.
+- Verified by running the extracted .deb: snapshot state, CLI state, web-link forwarding from a second launch. Not verified: an actual capture, badge on a real launcher, preview UI.
+- Caveat: CLI install relinks ~/.local/bin/t3 to the CC3 home; the original T3 app restores its own launcher on start. SIGTERM on the app leaves the server child running (only RunEvent::Exit cleans up).
+
 ## Not implemented
 
-Embedded preview browser (bridge omits `preview`), snapshots, auto-update (state is "disabled"), CLI installer reports supported:false, t3:// deep links, notification badge, AppImage bundle (only deb built), arm64.
+Auto-update (state is "disabled"), AppImage bundle (only deb built), arm64, snapshot overlay animation, in-app `<webview>` preview runtime.
 
 ## Next ideas
 
-- Preview browser via Tauri child webviews; updater against GitHub releases of corixien/cc3; deep-link plugin for webLinks; AppImage.
+- Updater against GitHub releases of corixien/cc3; AppImage; handle SIGTERM to stop the server child.

@@ -21,7 +21,7 @@ NodeChildProcess.execFileSync(
     "deploy",
     "--prod",
     "--config.node-linker=hoisted",
-    NodePath.join(out, "server"),
+    NodePath.join(out, "app/apps/server"),
   ],
   { cwd: root, stdio: "inherit" },
 );
@@ -46,4 +46,28 @@ for (const [name, dir] of Object.entries(externals)) {
     dereference: true,
   });
 }
+// Native capture helpers and the GNOME extension that DesktopSnapShot looks up under resources/.
+const native = NodePath.join(root, "native");
+for (const [crate, exe, dest] of [
+  ["kde-snap-shot", "t3-kde-snap-shot", "kde-capture"],
+  ["hyprland-snap-shot", "t3-hyprland-snap-shot", "hyprland-capture"],
+]) {
+  NodeChildProcess.execFileSync("cargo", ["build", "--release"], {
+    cwd: NodePath.join(native, crate),
+    stdio: "inherit",
+  });
+  NodeFS.mkdirSync(NodePath.join(out, dest), { recursive: true });
+  NodeFS.copyFileSync(
+    NodePath.join(native, crate, "target/release", exe),
+    NodePath.join(out, dest, exe),
+  );
+}
+NodeFS.cpSync(
+  NodePath.join(appDir, "../desktop/gnome-extension"),
+  NodePath.join(out, "gnome-extension"),
+  {
+    recursive: true,
+  },
+);
+
 console.log(`staged ${out}`);

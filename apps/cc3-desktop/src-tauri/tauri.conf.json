@@ -19,7 +19,15 @@
     "resources": ["resources/**/*"],
     "linux": {
       "deb": {
-        "depends": []
+        "depends": [],
+        "desktopTemplate": "cc3.desktop"
+      }
+    }
+  },
+  "plugins": {
+    "deep-link": {
+      "desktop": {
+        "schemes": ["t3code"]
       }
     }
   }
