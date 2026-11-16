@@ -42,3 +42,7 @@ Auto-update (state is "disabled"), AppImage bundle (only deb built), arm64, snap
 ## Next ideas
 
 - Updater against GitHub releases of corixien/cc3; AppImage; handle SIGTERM to stop the server child.
+
+## Branch cc3-performance
+
+Plan only: see CC3-PERFORMANCE-PLAN.md (no code changed yet).
