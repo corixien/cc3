@@ -1,7 +1,7 @@
 import { createMemoryHistory } from "@tanstack/react-router";
 import { DEFAULT_CLIENT_SETTINGS } from "@t3tools/contracts/settings";
 import { expect } from "vite-plus/test";
-import { page } from "vite-plus/test/browser";
+import { commands, page } from "vite-plus/test/browser";
 
 import "~/index.css";
 
@@ -16,6 +16,50 @@ const compare = (allowedMismatchedPixels: number) =>
     comparatorName: "pixelmatch",
     comparatorOptions: { threshold: 0, allowedMismatchedPixels },
   }) as const;
+
+declare module "vite-plus/test/browser" {
+  interface BrowserCommands {
+    domExportEnabled: () => Promise<boolean>;
+    writeDomSnapshot: (name: string, html: string) => Promise<void>;
+    writeGeometry: (name: string, json: string) => Promise<void>;
+  }
+}
+
+/** Whole page as standalone HTML (DOM plus every stylesheet) for the native renderer. */
+function standaloneHtml(): string {
+  const css = [...document.styleSheets]
+    .map((sheet) => {
+      try {
+        return [...sheet.cssRules].map((rule) => rule.cssText).join("\n");
+      } catch {
+        return "";
+      }
+    })
+    .join("\n");
+  const root = document.documentElement;
+  return `<!doctype html><html class="${root.className}" style="${root.getAttribute("style") ?? ""}"><head><meta charset="utf-8"><style>${css}</style></head>${document.body.outerHTML}</html>`;
+}
+
+/**
+ * Box of every layout-relevant element in document order: [tag, x, y, width, height, display].
+ * Descendants of <svg> are left out (they are not CSS boxes); the native side skips the same ones.
+ */
+function geometry(): string {
+  const boxes: Array<[string, number, number, number, number, string]> = [];
+  for (const element of document.body.querySelectorAll("*")) {
+    if (element.closest("svg") !== null && element.tagName.toLowerCase() !== "svg") continue;
+    const r = element.getBoundingClientRect();
+    boxes.push([
+      element.tagName.toLowerCase(),
+      r.x,
+      r.y,
+      r.width,
+      r.height,
+      getComputedStyle(element).display,
+    ]);
+  }
+  return JSON.stringify(boxes);
+}
 
 export async function setupGolden() {
   await page.viewport(1400, 900);
@@ -68,6 +112,10 @@ export async function mountGolden(
     settle,
     snap: async (name, tolerance) => {
       await settle();
+      if (await commands.domExportEnabled()) {
+        await commands.writeDomSnapshot(`${name}-${theme}`, standaloneHtml());
+        await commands.writeGeometry(`${name}-${theme}`, geometry());
+      }
       await capture(name, tolerance);
     },
     frames: async (name, trigger, times = [0, 60, 120, 200, 400]) => {

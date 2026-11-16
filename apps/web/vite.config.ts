@@ -200,10 +200,16 @@ const goldenProject = {
       commands: {
         ...browserTestProject.test.browser.commands,
         // Writes the DOM snapshot a native renderer is compared against (docs/native/README.md).
+        domExportEnabled: async () => process.env.GOLDEN_EXPORT === "1",
         writeDomSnapshot: async (_context, name: string, html: string) => {
           const dir = NodePath.join(import.meta.dirname, "../../apps/cc3-native/snapshots");
           await NodeFSP.mkdir(dir, { recursive: true });
           await NodeFSP.writeFile(NodePath.join(dir, `${name}.html`), html);
+        },
+        writeGeometry: async (_context, name: string, json: string) => {
+          const dir = NodePath.join(import.meta.dirname, "../../apps/cc3-native/snapshots");
+          await NodeFSP.mkdir(dir, { recursive: true });
+          await NodeFSP.writeFile(NodePath.join(dir, `${name}.geometry.json`), json);
         },
       },
       expect: {
