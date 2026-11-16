@@ -8,6 +8,8 @@ use blitz_traits::shell::ColorScheme;
 use std::path::PathBuf;
 
 fn main() {
+    // Chromium at 1x on Linux: whole-pixel glyph advances.
+    parley_engine::ROUND_ADVANCES.store(true, std::sync::atomic::Ordering::Relaxed);
     let args: Vec<String> = std::env::args().skip(1).collect();
     match args.first().map(String::as_str) {
         Some("render") => {
@@ -18,6 +20,13 @@ fn main() {
             let html = std::fs::read_to_string(input).expect("read snapshot");
             let r = render::render(&html, width, height, scheme);
             image::save_buffer(output, &r.rgba, width, height, image::ColorType::Rgba8).expect("write png");
+        }
+        Some("boxes") => {
+            let html = std::fs::read_to_string(&args[1]).expect("read html");
+            let r = render::render(&html, 1400, 900, ColorScheme::Light);
+            for (tag, x, y, w, h) in r.boxes {
+                println!("{tag} {x:.2} {y:.2} {w:.2} {h:.2}");
+            }
         }
         Some("report") => {
             let results = report::run(&PathBuf::from(&args[1]), &PathBuf::from(&args[2]), &PathBuf::from(&args[3]));

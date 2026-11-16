@@ -7,6 +7,7 @@ import "~/index.css";
 
 import { AppRoot } from "~/AppRoot";
 import { __setClientSettingsForTests } from "~/hooks/useSettings";
+import { setAppearanceMode, setTheme } from "~/hooks/useTheme";
 import { getRouter } from "~/router";
 import { fakeTimers, render } from "../render";
 
@@ -41,11 +42,11 @@ function standaloneHtml(): string {
 }
 
 /**
- * Box of every layout-relevant element in document order: [tag, x, y, width, height, display].
+ * Box of every layout-relevant element in document order: [tag, x, y, width, height, display, class].
  * Descendants of <svg> are left out (they are not CSS boxes); the native side skips the same ones.
  */
 function geometry(): string {
-  const boxes: Array<[string, number, number, number, number, string]> = [];
+  const boxes: Array<[string, number, number, number, number, string, string]> = [];
   for (const element of document.body.querySelectorAll("*")) {
     if (element.closest("svg") !== null && element.tagName.toLowerCase() !== "svg") continue;
     const r = element.getBoundingClientRect();
@@ -56,6 +57,7 @@ function geometry(): string {
       r.width,
       r.height,
       getComputedStyle(element).display,
+      (element.getAttribute("class") ?? "").slice(0, 80),
     ]);
   }
   return JSON.stringify(boxes);
@@ -89,7 +91,9 @@ export async function mountGolden(
   { animated = false }: { animated?: boolean } = {},
 ): Promise<GoldenApp> {
   const clock = fakeTimers({ toFake: ["Date"], now: new Date("2026-03-18T09:00:30.000Z") });
-  window.localStorage.setItem("t3code:theme", theme);
+  // The theme store reads storage once at import, so changing the key alone does not apply it.
+  setTheme(theme);
+  setAppearanceMode(theme);
   const style = document.createElement("style");
   style.textContent = FREEZE_CSS;
   if (!animated) document.head.append(style);
