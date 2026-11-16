@@ -1,0 +1,20 @@
+[package]
+name = "cc3-native"
+version = "0.1.0"
+edition = "2021"
+publish = false
+
+# Separate workspace: the Tauri shell (apps/cc3-desktop/src-tauri) is untouched.
+[workspace]
+
+[dependencies]
+blitz-dom = "0.3.0-beta.4"
+blitz-html = "0.3.0-beta.4"
+blitz-paint = "0.3.0-beta.4"
+blitz-traits = "0.3.0-beta.4"
+anyrender = "0.14"
+anyrender_vello_cpu = "0.18"
+image = { version = "0.25", default-features = false, features = ["png"] }
+
+[profile.release]
+opt-level = 3

@@ -1,5 +1,6 @@
 // @effect-diagnostics-next-line nodeBuiltinImport:off -- Vite config runs before any Effect runtime.
 import * as NodeFSP from "node:fs/promises";
+import * as NodePath from "node:path";
 import * as NodeZlib from "node:zlib";
 
 import react from "@vitejs/plugin-react";
@@ -196,6 +197,15 @@ const goldenProject = {
     browser: {
       ...browserTestProject.test.browser,
       instances: [{ browser: "chromium" }],
+      commands: {
+        ...browserTestProject.test.browser.commands,
+        // Writes the DOM snapshot a native renderer is compared against (docs/native/README.md).
+        writeDomSnapshot: async (_context, name: string, html: string) => {
+          const dir = NodePath.join(import.meta.dirname, "../../apps/cc3-native/snapshots");
+          await NodeFSP.mkdir(dir, { recursive: true });
+          await NodeFSP.writeFile(NodePath.join(dir, `${name}.html`), html);
+        },
+      },
       expect: {
         toMatchScreenshot: {
           resolveScreenshotPath: ({ arg, ext, root }: { arg: string; ext: string; root: string }) =>

@@ -312,6 +312,8 @@ Alle Massnahmen in dieser Phase aendern **nicht** das gerenderte Ergebnis. Die G
 
 Nur wenn nach Phase 5 und 6 die Budgets (insbesondere RAM unter 250 MB, Frame-Zeiten) nicht erreicht sind **und** der Nutzer den Mehraufwand ausdruecklich freigibt.
 
+**Status Phase 7:** Architektur entschieden (Blitz als HTML/CSS-Renderer in Rust, gleiche CSS-Klassen) und Spike gemessen: siehe `docs/native/README.md` und `apps/cc3-native/`.
+
 ### 7.1 Was eine native UI bedeutet
 
 Die Web-UI wird durch eine GPU-beschleunigte Rust-Oberflaeche ersetzt. Der Server bleibt unveraendert (gleiche WebSocket-/RPC-Schnittstelle, Vertraege aus `packages/contracts`, Client-Logik aus `packages/client-runtime`).

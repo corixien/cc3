@@ -52,3 +52,4 @@ Plan only: see CC3-PERFORMANCE-PLAN.md (no code changed yet).
 - Phase 2 done as far as safe: server flag verified in app (server 320 MB, host 110, webview 363, shell 95 = 888 MB PSS). Next: Phase 3.1 (merge host into server, ~110 MB), Phase 4 webview spike. Details docs/perf/SERVER-MEMORY.md.
 - Phase 3.1 done: host idle-exits after 60s (unless snapshots enabled / ssh pinned), respawned by host.rs; total 807 MB idle. Open: 3.2 release profile, 3.3 orphan server, Phase 4.
 - Phase 4 spike done (measurement only): Chromium layout ~50% faster than WebKitGTK in microbench, RAM no gain, CEF-in-Tauri experimental -> recommend not integrating now; see docs/perf/WEBVIEW-DECISION.md. User decision pending.
+- Phase 7 started: apps/cc3-native (Blitz-based renderer spike), docs/native/README.md. Baseline: static DOM snapshot renders in 1.3s with 10.38% pixel diff vs Chromium golden. Next: N1 geometry/pixel tooling, N2 fix SVG icons/gradients.
