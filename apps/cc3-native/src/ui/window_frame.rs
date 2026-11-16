@@ -94,7 +94,7 @@ pub fn WindowFrame(dark: bool, background: String, title_content: Element, child
                             maximized.set(next);
                         },
                     }
-                    CaptionButton { class: "close", icon: CLOSE, label: "Close", onclick: move |_| { std::process::exit(0); #[allow(unreachable_code)] () } }
+                    CaptionButton { class: "close", icon: CLOSE, label: "Close", onclick: move |_| crate::shell::quit() }
                 }
             }
             div { style: "position:absolute;top:0;left:0;right:0;bottom:0;", {children} }

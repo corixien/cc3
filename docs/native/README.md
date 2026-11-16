@@ -77,6 +77,13 @@ Erste Messung: leeres Fenster mit einer Ueberschrift und einem Zaehler-Knopf, 85
 
 Fenster (umgesetzt, `src/ui/window_frame.rs`, `src/bin/app.rs`): rahmenlos und transparent, Radius 14 px mit 1-px-Rand `#252525` (beim Maximieren eckig und ohne Rand), eigene Titelleiste (40 px) mit Minimieren, Maximieren/Wiederherstellen und Schliessen wie im Tauri-Shell (`bridge.js`), Verschieben per Titelleiste (Doppelklick maximiert), Groessenaenderung ueber acht Kanten-/Eckgriffe (`drag_resize_window`), CC3-Icon als Fensterbild. Geprueft per Screenshot (Ecken transparent, Rand 37/37/37, Schrift Lexend Deca) und per Selbsttest `CC3_SELFTEST=1` (Maximieren auf 1920x1034, Wiederherstellen auf 1400x900, Minimieren; die Fenster-API muss im UI-Thread aufgerufen werden, aus fremden Threads wird sie ignoriert). Verschieben und Groessenaendern per Maus sind verdrahtet, aber nicht automatisch getestet.
 
+Shell-Funktionen (umgesetzt, `src/shell/`, Port von `links.rs`, `alert.rs`, `native.rs` des Tauri-Shells):
+
+- Single-Instance ueber einen Unix-Socket in `$XDG_RUNTIME_DIR/cc3-native.sock`; ein zweiter Start reicht seine Links (`t3code:`, http(s)) oder "activate" weiter und beendet sich (getestet: zweiter Start Exit 0, Ereignis kommt beim ersten an).
+- Ereigniswarteschlange (`ShellEvent::OpenLink|NotificationClick|Activate`), die das Fenster nach vorn holt (Anzeige im Test: "Last shell event: NotificationClick(42)").
+- Launcher-Badge per `gdbus` (`badge::set`).
+- Alert-Karte als eigener kurzlebiger Prozess `cc3 --alert <id> <title> <body>`: 560x190, dunkle Karte mit Rand `#252525` und Radius 22 px, 30 s Laufzeit, Klick sendet `alert-click <id>` an die Hauptinstanz; `kdotool` setzt sie unter KWin/Wayland nach oben und auf 680,72 (im Test ueber anderen Fenstern sichtbar). Der Mausklick selbst ist nicht automatisch getestet.
+
 Naechste Schritte (Rest): Fenster-Attribute (rahmenlos, transparent, abgerundete Ecken mit `#252525`-Rand, Titelleiste mit Steuerknoepfen, Drag, Maximieren), Alert-Fenster, Single-Instance, Deep Links; danach Server-Anbindung (Effect-RPC ueber WebSocket, Contracts aus `packages/contracts`) und Zustandsspeicher, dann Komponenten von klein nach gross (N5 bis N10).
 
 ## Arbeitspaket-Reihenfolge

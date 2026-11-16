@@ -56,3 +56,4 @@ Plan only: see CC3-PERFORMANCE-PLAN.md (no code changed yet).
 - Native UI: see docs/native/README.md "Stand N1/N2". Tools: cc3-native report. Vendored Blitz/Parley/Stylo patches (CC3: markers). Backlog: svg pattern, Search label, avatar monogram, noise overlay.
 - Native UI: apps/cc3-native bin "cc3" = Dioxus-native skeleton, 85.6 MB PSS empty window. Next: window attrs (frameless/rounded), server RPC client, components.
 - Native window done: frameless/rounded/outline, caption buttons, resize handles (src/ui/window_frame.rs). Next: alert window, single instance, deep links, then server RPC client.
+- Native shell: single instance (unix socket), links queue, badge, alert card process (src/shell). Next: server RPC client + state.
