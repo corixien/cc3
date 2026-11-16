@@ -7,7 +7,23 @@ publish = false
 # Separate workspace: the Tauri shell (apps/cc3-desktop/src-tauri) is untouched.
 [workspace]
 
+[[bin]]
+name = "cc3-native"
+path = "src/main.rs"
+
+[[bin]]
+name = "cc3"
+path = "src/bin/app.rs"
+
 [dependencies]
+dioxus = { version = "0.8.0-alpha.3", default-features = false, features = [
+  "native",
+  "launch",
+  "macro",
+  "hooks",
+  "signals",
+  "html",
+] }
 blitz-dom = "0.3.0-beta.4"
 blitz-html = "0.3.0-beta.4"
 blitz-paint = "0.3.0-beta.4"

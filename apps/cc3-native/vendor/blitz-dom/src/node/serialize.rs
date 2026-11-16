@@ -307,6 +307,10 @@ impl Node {
         if !has_attr("stroke") && stroke != "none" {
             out.push(format!("stroke:{stroke}"));
         }
+        if matches!(&*data.name.local, "text" | "tspan") && !has_attr("font-family") {
+            use style_traits::ToCss;
+            out.push(format!("font-family:{}", styles.clone_font_family().to_css_string()));
+        }
         if &*data.name.local == "stop" {
             let stop = styles.get_svg();
             if !has_attr("stop-color") {
