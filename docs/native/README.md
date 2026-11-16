@@ -43,6 +43,32 @@ Pixelgleichheit bei Text ist zwischen zwei Rasterisierern prinzipiell nicht null
 1. **Geometrie:** Position und Groesse aller sichtbaren Elemente (Chromium `getBoundingClientRect` gegen Blitz-Layout) muessen auf 0,5 px uebereinstimmen. Das ist exakt und deterministisch.
 2. **Pixel:** Anteil abweichender Pixel (Schwelle 8/255) in Flaechen ohne Text muss 0 sein; mit Text wird eine feste Obergrenze je Zustand festgelegt und nur gesenkt, nie erhoeht.
 
+## Stand N1/N2 (16. Nov 2026, abends)
+
+Werkzeuge:
+
+- Golden-Harness exportiert je Zustand `<name>.html` (DOM plus gesamtes CSS), `<name>.geometry.json` (Box jedes Elements: Tag, x, y, Breite, Hoehe, display, Klasse) und das Chromium-PNG (`GOLDEN_EXPORT=1 pnpm exec vp test run --project golden -u` in `apps/web`, ca. 3 Minuten). Snapshots liegen nicht im Repo (`apps/cc3-native/snapshots/`, 68 MB, per `.gitignore`).
+- `cc3-native report <snapshots> <goldens> <out>` rendert alle Zustaende (Vello CPU) und schreibt Pixel- und Geometrie-Vergleich (`report.md`), `DEBUG_GEOM=<name>` listet abweichende Elemente mit Klasse, `CC3_DEBUG_SVG=<teilstring>` gibt die an usvg uebergebene SVG-Quelle aus.
+- Golden-Fehler behoben: Das dunkle Theme wurde bisher nicht angewendet (alle "dark"-Bilder waren hell); die Harness ruft jetzt `setTheme`/`setAppearanceMode` auf.
+
+Angepasste Bibliotheken (vendored unter `apps/cc3-native/vendor/`, jede Aenderung mit `CC3:` markiert, `[patch.crates-io]` in `Cargo.toml`):
+
+1. `blitz-dom/serialize.rs`: SVG-Farben (`currentColor`, oklch, color-mix) werden vor usvg nach sRGB `rgba()` umgerechnet; berechnete `fill`, `stroke`, `stop-color`, `stop-opacity` aus der Seiten-CSS (Klassen wie `fill-current`, `var()`) werden als `style` in die SVG geschrieben; `var()`-Deklarationen werden entfernt.
+2. `parley_engine/shape/shaped_text.rs`: Glyph-Vorschuebe wie Chromium unter Linux bei 1x (Basisvorschub auf ganze Pixel gerundet, Kerning bruchteilig addiert), Schalter `parley_engine::ROUND_ADVANCES`; gemessen an 196 Buchstabenpaaren und 20 Zeichenketten (15 von 20 exakt, Rest 1 px).
+3. `stylo`: `text-box`, `text-box-trim`, `text-box-edge`, `stop-color`, `stop-opacity` auch fuer die Servo-Engine aktiviert (`properties/longhands.toml`, `shorthands.toml`, `shorthands.rs`).
+4. `blitz-dom/layout/inline.rs`: `text-box-trim` mit `cap alphabetic` (erste Zeile auf Versalhoehe, letzte auf Grundlinie), Hoehen und Positionen stimmen mit Chromium ueberein.
+5. Mitgelieferte Schriften: `assets/fonts` (Lexend Deca, Liberation Mono), per Parley registriert.
+
+Messung (88 Zustaende, Schwelle 8/255): Geometrie je nach Zustand 73 bis 98 Prozent der Elemente auf 0,5 px, Pixel 0,9 bis 13 Prozent abweichend (Text-Kantenglaettung ist der Grundsockel).
+
+Offene Abweichungen (Backlog N2):
+
+- SVG `<pattern>` wird von `anyrender_svg` nicht gezeichnet (stattdessen rote Flaeche): betrifft das Blueprint-Banner im Sidebar-Kopf. Loesung: Kachel-Schleife in `anyrender_svg::render::fill`.
+- Text "Search" im Sidebar-Suchfeld, Projekt-Monogramm "RR" und mehrere Avatare fehlen.
+- Rauschen/Korn-Overlay der Seite (Chromium-Hintergrund hat 3 bis 5 Stufen Rauschen).
+- `overflow: hidden` schneidet getrimmte Texte (Unterlaengen) ab; Chromium schneidet nicht.
+- Positionen langer Texte um 1 px (Kerning-Reste), Scroll-Container (Timeline-Liste) kommen aus JS.
+
 ## Arbeitspaket-Reihenfolge
 
 1. **N0 (erledigt):** Spike, Renderer ohne Fenster, Vergleichswerkzeug.

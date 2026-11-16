@@ -1974,7 +1974,7 @@ affects = "layout"
 type = "Color"
 initial = "computed::Color::BLACK"
 struct = "svg"
-engine = "gecko"
+servo_pref = "layout.unimplemented" # CC3: usvg needs resolved stop colors
 spec = "https://svgwg.org/svg2-draft/pservers.html#StopColorProperties"
 affects = "paint"
 
@@ -1982,7 +1982,7 @@ affects = "paint"
 type = "Opacity"
 initial = "1.0"
 struct = "svg"
-engine = "gecko"
+servo_pref = "layout.unimplemented" # CC3: usvg needs resolved stop colors
 spec = "https://svgwg.org/svg2-draft/pservers.html#StopOpacityProperty"
 affects = "paint"
 

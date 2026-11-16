@@ -109,6 +109,9 @@ impl Node {
             declare_xlink_ns: true,
         };
         self.write_outer_html_in_style(&mut output, opts, 0);
+        if std::env::var("CC3_DEBUG_SVG").is_ok_and(|v| output.contains(&v)) {
+            eprintln!("SVG SOURCE: {output}");
+        }
         output
     }
 
@@ -190,7 +193,16 @@ impl Node {
                     writer.push('"');
                 }
 
+                // CC3: inside <svg> the page CSS (classes such as `fill-current`, `var()` stop
+                // colors) is not visible to usvg, so computed paint values are written as a
+                // `style` attribute after the original one.
+                let svg_style = (opts.resolve_current_color && data.name.ns == ns!(svg))
+                    .then(|| self.computed_svg_declarations(data))
+                    .flatten();
                 for attr in data.attrs() {
+                    if svg_style.is_some() && &*attr.name.local == "style" {
+                        continue;
+                    }
                     writer.push(' ');
                     write_attr_name(&attr.name, writer);
                     writer.push_str("=\"");
@@ -203,6 +215,30 @@ impl Node {
                     } else {
                         encode_quoted_attribute_to_string(&attr.value, writer);
                     }
+                    writer.push('"');
+                }
+                if let Some(computed) = svg_style {
+                    let original = data
+                        .attrs()
+                        .iter()
+                        .find(|attr| &*attr.name.local == "style")
+                        .map(|attr| {
+                            // Declarations with var() are unusable for usvg; computed values follow.
+                            attr.value
+                                .split(';')
+                                .filter(|decl| !decl.contains("var("))
+                                .collect::<Vec<_>>()
+                                .join(";")
+                        })
+                        .unwrap_or_default();
+                    writer.push_str(" style=\"");
+                    let original = original.trim_matches(|c: char| c == ';' || c.is_whitespace());
+                    let merged = if original.is_empty() {
+                        computed
+                    } else {
+                        format!("{original};{computed}")
+                    };
+                    encode_quoted_attribute_to_string(&merged, writer);
                     writer.push('"');
                 }
                 if !has_children {
@@ -232,5 +268,54 @@ impl Node {
                 }
             }
         }
+    }
+}
+
+fn css_rgba(color: &style::color::AbsoluteColor) -> String {
+    let c = color.into_srgb_legacy();
+    let byte = |v: f32| (v.clamp(0.0, 1.0) * 255.0).round() as u8;
+    format!("rgba({},{},{},{})", byte(c.components.0), byte(c.components.1), byte(c.components.2), c.alpha)
+}
+
+impl Node {
+    /// Computed SVG paint declarations (`fill:..;stroke:..`) that differ from the initial values
+    /// and are not already given as an attribute on this element (CC3 patch).
+    fn computed_svg_declarations(&self, data: &crate::node::ElementData) -> Option<String> {
+        use style::values::generics::svg::SVGPaintKind;
+        let styles = self.primary_styles()?;
+        let current = styles.clone_color();
+        let has_attr = |name: &str| data.attrs().iter().any(|a| &*a.name.local == name);
+        let paint = |paint: &style::values::computed::SVGPaint| -> String {
+            match &paint.kind {
+                SVGPaintKind::None => "none".into(),
+                SVGPaintKind::Color(c) => css_rgba(&c.resolve_to_absolute(&current)),
+                SVGPaintKind::PaintServer(url) => {
+                    use style_traits::ToCss;
+                    format!("url({})", url.to_css_string().trim_start_matches("url(").trim_end_matches(')'))
+                }
+                SVGPaintKind::ContextFill => "context-fill".into(),
+                SVGPaintKind::ContextStroke => "context-stroke".into(),
+            }
+        };
+        let mut out = Vec::new();
+        let svg = styles.get_inherited_svg();
+        let fill = paint(&svg.fill);
+        if !has_attr("fill") && fill != "rgba(0,0,0,1)" {
+            out.push(format!("fill:{fill}"));
+        }
+        let stroke = paint(&svg.stroke);
+        if !has_attr("stroke") && stroke != "none" {
+            out.push(format!("stroke:{stroke}"));
+        }
+        if &*data.name.local == "stop" {
+            let stop = styles.get_svg();
+            if !has_attr("stop-color") {
+                out.push(format!("stop-color:{}", css_rgba(&stop.stop_color.resolve_to_absolute(&current))));
+            }
+            if !has_attr("stop-opacity") {
+                out.push(format!("stop-opacity:{}", stop.stop_opacity));
+            }
+        }
+        (!out.is_empty()).then(|| out.join(";"))
     }
 }
