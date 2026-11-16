@@ -75,7 +75,9 @@ Offene Abweichungen (Backlog N2):
 
 Erste Messung: leeres Fenster mit einer Ueberschrift und einem Zaehler-Knopf, 85,6 MB PSS im Leerlauf, 0 Prozent CPU, ein Prozess (zum Vergleich CC3 mit Tauri 807 bis 888 MB, Electron-T3 ca. 350 MB; ohne Server, der in jedem Fall dazukommt).
 
-Naechste Schritte: Fenster-Attribute (rahmenlos, transparent, abgerundete Ecken mit `#252525`-Rand, Titelleiste mit Steuerknoepfen, Drag, Maximieren), Alert-Fenster, Single-Instance, Deep Links; danach Server-Anbindung (Effect-RPC ueber WebSocket, Contracts aus `packages/contracts`) und Zustandsspeicher, dann Komponenten von klein nach gross (N5 bis N10).
+Fenster (umgesetzt, `src/ui/window_frame.rs`, `src/bin/app.rs`): rahmenlos und transparent, Radius 14 px mit 1-px-Rand `#252525` (beim Maximieren eckig und ohne Rand), eigene Titelleiste (40 px) mit Minimieren, Maximieren/Wiederherstellen und Schliessen wie im Tauri-Shell (`bridge.js`), Verschieben per Titelleiste (Doppelklick maximiert), Groessenaenderung ueber acht Kanten-/Eckgriffe (`drag_resize_window`), CC3-Icon als Fensterbild. Geprueft per Screenshot (Ecken transparent, Rand 37/37/37, Schrift Lexend Deca) und per Selbsttest `CC3_SELFTEST=1` (Maximieren auf 1920x1034, Wiederherstellen auf 1400x900, Minimieren; die Fenster-API muss im UI-Thread aufgerufen werden, aus fremden Threads wird sie ignoriert). Verschieben und Groessenaendern per Maus sind verdrahtet, aber nicht automatisch getestet.
+
+Naechste Schritte (Rest): Fenster-Attribute (rahmenlos, transparent, abgerundete Ecken mit `#252525`-Rand, Titelleiste mit Steuerknoepfen, Drag, Maximieren), Alert-Fenster, Single-Instance, Deep Links; danach Server-Anbindung (Effect-RPC ueber WebSocket, Contracts aus `packages/contracts`) und Zustandsspeicher, dann Komponenten von klein nach gross (N5 bis N10).
 
 ## Arbeitspaket-Reihenfolge
 

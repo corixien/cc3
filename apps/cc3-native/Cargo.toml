@@ -30,6 +30,8 @@ blitz-paint = "0.3.0-beta.4"
 blitz-traits = "0.3.0-beta.4"
 parley = "0.12"
 parley_engine = "0.12"
+winit = "=0.31.0-beta.3"
+tokio = { version = "1", default-features = false, features = ["time"] }
 anyrender = "0.14"
 anyrender_vello_cpu = "0.18"
 serde_json = "1"

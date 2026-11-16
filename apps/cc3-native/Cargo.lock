@@ -642,6 +642,8 @@ dependencies = [
  "parley",
  "parley_engine",
  "serde_json",
+ "tokio",
+ "winit",
 ]
 
 [[package]]
