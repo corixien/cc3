@@ -1,5 +1,6 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
+mod alert;
 mod host;
 mod links;
 mod native;
@@ -193,6 +194,7 @@ fn main() {
             let window = WebviewWindowBuilder::new(app, "main", WebviewUrl::External(http.parse()?))
                 .title("CC3")
                 .decorations(false)
+                .transparent(true)
                 .inner_size(1400.0, 900.0)
                 .min_inner_size(640.0, 480.0)
                 .initialization_script(script)

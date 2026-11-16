@@ -167,11 +167,20 @@ html[data-mobile-composer-route-transition="true"]::view-transition-old(t3-mobil
 /* The font tokens are declared outside the inline theme so utilities reference
    the variables and Settings -> Appearance can override them at runtime. The
    default stacks are mirrored in `appearanceFonts.ts`. */
+@font-face {
+  font-family: "Lexend Deca";
+  src: url("/fonts/LexendDeca.ttf") format("truetype");
+  font-weight: 100 900;
+  font-style: normal;
+  font-display: swap;
+}
+
 @theme {
   --font-sans:
-    -apple-system, BlinkMacSystemFont, "Inter Variable", "Segoe UI", system-ui, sans-serif;
+    "Lexend Deca", -apple-system, BlinkMacSystemFont, "Inter Variable", "Segoe UI", system-ui,
+    sans-serif;
   --font-mono:
-    ui-monospace, "SF Mono", "SFMono-Regular", Menlo, Consolas, "Liberation Mono", monospace;
+    "Liberation Mono", ui-monospace, "SF Mono", "SFMono-Regular", Menlo, Consolas, monospace;
 }
 
 @theme inline {

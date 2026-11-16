@@ -54,15 +54,11 @@ function Surface({
         surfaceColors,
         "relative isolate border-0 bg-transparent shadow-none [--chat-composer-attached-tint:transparent]",
         variantColors[variant],
-        detached
-          ? "[--chat-composer-attachment-overlap:0px] before:rounded-2xl"
-          : // Bleed the mask 1px past the seam to cover Chromium's fractional-pixel backdrop loss.
-            "[--chat-composer-attachment-overlap:calc(1rem+1px)] before:rounded-t-2xl before:mask-t-from-transparent before:mask-t-from-4 before:mask-t-to-black before:mask-t-to-4",
+        // Every surface is a whole card with its own edge; none tucks under the composer.
+        "[--chat-composer-attachment-overlap:0px] before:rounded-2xl",
         "before:pointer-events-none before:absolute before:inset-0 before:-z-1 before:border before:border-(--chat-composer-attached-outline)",
         "before:bg-(--chat-composer-attached-surface)/(--glass-opacity) before:bg-linear-to-b before:from-(--chat-composer-attached-tint) before:to-(--chat-composer-attached-tint) before:backdrop-blur-(--glass-blur) before:backdrop-saturate-(--glass-saturation)",
         "before:shadow-composer dark:before:shadow-composer-dark",
-        !detached &&
-          "dark:supports-[(backdrop-filter:blur(1px))_or_(-webkit-backdrop-filter:blur(1px))]:before:bg-composer-seam-above",
         "not-supports-[((backdrop-filter:blur(1px))_or_(-webkit-backdrop-filter:blur(1px)))]:before:bg-(--chat-composer-attached-surface)",
         className,
       )}
@@ -75,13 +71,7 @@ function Attachment({ className, ...props }: ComponentProps<"div">) {
   return (
     <div
       data-slot="composer-banner-attachment"
-      className={cn(
-        "mx-auto -mb-[calc(1rem+1px)] w-[calc(100%-2*var(--chat-composer-drawer-inset))]",
-        // Only the banner touching the composer gets the dark seam shade; stacked ones would band.
-        "[&:has(+[data-slot=composer-banner-attachment])]:[--chat-composer-attached-seam:transparent]",
-        "[&+[data-slot=composer-banner-attachment]_[data-composer-banner-surface=attached]]:before:rounded-none [&+[data-slot=composer-banner-attachment]_[data-composer-banner-surface=attached]]:before:border-t-0 [&+[data-slot=composer-banner-attachment]_[data-composer-banner-surface=attached]]:[--composer-banner-corner-top:var(--control-radius)]",
-        className,
-      )}
+      className={cn("mx-auto mb-2 w-[calc(100%-2*var(--chat-composer-drawer-inset))]", className)}
       {...props}
     />
   );
@@ -136,8 +126,8 @@ function Root({
           "[&>[data-composer-banner-row]:first-child>[data-slot=composer-banner-actions]>[data-slot=button]:last-child]:rounded-se-(--composer-banner-corner-top)",
           "[&>[data-composer-banner-row]:first-child>[data-slot=composer-banner-actions]>:last-child>[data-slot=button]:last-of-type]:rounded-se-(--composer-banner-corner-top)",
           "[&>:first-child>[data-composer-banner-row]:first-child>[data-slot=composer-banner-actions]>[data-slot=button]:last-child]:rounded-se-(--composer-banner-corner-top)",
-          "data-[composer-banner-surface=detached]:[&>[data-composer-banner-row]:only-child>[data-slot=composer-banner-actions]>[data-slot=button]:last-child]:rounded-ee-xl",
-          "data-[composer-banner-surface=detached]:[&>[data-composer-banner-row]:only-child>[data-slot=composer-banner-actions]>:last-child>[data-slot=button]:last-of-type]:rounded-ee-xl",
+          "data-[composer-banner-surface]:[&>[data-composer-banner-row]:only-child>[data-slot=composer-banner-actions]>[data-slot=button]:last-child]:rounded-ee-xl",
+          "data-[composer-banner-surface]:[&>[data-composer-banner-row]:only-child>[data-slot=composer-banner-actions]>:last-child>[data-slot=button]:last-of-type]:rounded-ee-xl",
         ],
         className,
       )}

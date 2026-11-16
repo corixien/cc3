@@ -32,6 +32,9 @@ Working (verified by running the app, incl. the extracted .deb with bundled node
 - Preview sharpness: server stream quality default 92 and client requests >=2x frame size. Real desktop-runtime preview is impossible on WebKitGTK (no CDP, server drives pages over CDP); the server runtime with Chrome is used.
 - RAM (idle, PSS sum): CC3 ~650-850 MB (server ~320, WebKit ~110-310, host ~100, shell ~80) vs Electron T3 ~350 MB. Server node uses far more native memory than Electron's; unexplained, next thing to investigate. User-local install: ~/.local/share/cc3-app + ~/.local/share/applications/CC3.desktop.
 
+- UI pass 3: CC3 blueprint-style icon (/tmp generator not kept; icons/*), transparent window with 14px radius + #252525 outline (bridge.js, clip-path), Lexend Deca (public/fonts, appearanceFonts.ts; terminal default Lexend, code Liberation Mono), usage bars show used% (UsageLimits/Pooled/ThreadDetailsUsage), mini-player dot centred in corner, composer banners detached with gap (ComposerBanner.tsx), notifications: window.Notification shim -> alert.rs always-on-top card (kdotool keeps it above on KWin Wayland), click navigates via notification-click, volume slider (gain up to 3x, localStorage cc3:notification-volume).
+- Not possible: Anthropic promotions (no data source in server). `vp run check:changed` crashes (stack overflow in scripts/check-changed.ts); used web typecheck instead.
+
 ## Not implemented
 
 Auto-update (state is "disabled"), AppImage bundle (only deb built), arm64, snapshot overlay animation, in-app `<webview>` preview runtime.

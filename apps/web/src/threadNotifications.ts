@@ -112,6 +112,19 @@ export function unlockNotificationAudio() {
   }
 }
 
+const VOLUME_KEY = "cc3:notification-volume";
+export const NOTIFICATION_VOLUME_MAX = 3;
+
+/** Gain applied to alert sounds, 1 = original loudness. Stored per device. */
+export function getNotificationVolume(): number {
+  const stored = Number(globalThis.localStorage?.getItem(VOLUME_KEY));
+  return Number.isFinite(stored) && stored > 0 ? Math.min(stored, NOTIFICATION_VOLUME_MAX) : 1.5;
+}
+
+export function setNotificationVolume(volume: number) {
+  globalThis.localStorage?.setItem(VOLUME_KEY, String(volume));
+}
+
 export async function playNotificationSound(
   kind: "completion" | "input",
   shouldPlay: () => boolean,
@@ -126,7 +139,10 @@ export async function playNotificationSound(
     if (context.currentTime < (playingUntil.get(url) ?? 0)) return;
     const source = context.createBufferSource();
     source.buffer = decoded;
-    source.connect(context.destination);
+    const gain = context.createGain();
+    gain.gain.value = getNotificationVolume();
+    source.connect(gain);
+    gain.connect(context.destination);
     source.start();
     playingUntil.set(url, context.currentTime + decoded.duration);
   } catch {

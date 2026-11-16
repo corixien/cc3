@@ -473,7 +473,8 @@ function MiniPlayerShell({
   const frame = canvas?.previewKey === sourceKey ? canvas.layout.frame : null;
 
   const radius = frame ? cornerRadius(frame) : PREVIEW_MINI_PLAYER_CORNER_RADIUS;
-  const pillInset = Math.max(8, Math.round(radius * 0.55));
+  // Distance of the dot centre from both edges: concentric with the corner curve.
+  const pillInset = Math.max(10, Math.round(radius * 0.5));
 
   const close = () => {
     usePreviewMiniPlayerStore.getState().close(threadRef);
@@ -603,7 +604,7 @@ function MiniPlayerShell({
             ref={handleRef}
             data-pill-open={pillOpen ? "" : undefined}
             className="group pointer-events-auto absolute z-[49] size-3 touch-none cursor-grab active:cursor-grabbing pointer-coarse:-m-2.5 pointer-coarse:size-8"
-            style={{ right: pillInset, top: pillInset }}
+            style={{ right: pillInset - 6, top: pillInset - 6 }}
             onPointerDown={(event) => beginGesture(event, null)}
             onPointerMove={handlePointerMove}
             onPointerUp={endGesture}
@@ -619,7 +620,7 @@ function MiniPlayerShell({
               role={recording ? "status" : undefined}
               aria-label={recording ? "Recording preview" : undefined}
               aria-hidden={!recording}
-              className="absolute right-0 top-0 size-2 transition-opacity group-hover:opacity-0 group-focus-within:opacity-0 group-data-pill-open:opacity-0 pointer-coarse:right-2.5 pointer-coarse:top-2.5"
+              className="absolute right-1 top-1 size-2 transition-opacity group-hover:opacity-0 group-focus-within:opacity-0 group-data-pill-open:opacity-0 pointer-coarse:right-2.5 pointer-coarse:top-2.5"
             >
               <span
                 className={cn(

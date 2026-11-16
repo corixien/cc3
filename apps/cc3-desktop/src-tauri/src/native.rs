@@ -164,6 +164,14 @@ pub async fn cc3_native(
             set_badge(count);
             Ok(Value::Null)
         }
+        "show_alert" => {
+            crate::alert::show(&app, args.get(0).unwrap_or(&Value::Null))?;
+            Ok(Value::Null)
+        }
+        "close_alert" => {
+            crate::alert::close(&app);
+            Ok(Value::Null)
+        }
         "win_minimize" => {
             let _ = window.minimize();
             Ok(Value::Null)

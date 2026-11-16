@@ -61,6 +61,11 @@
         --workspace-controls-right: calc(${CONTROLS_WIDTH}px + 0.75rem);
         --workspace-native-controls-inset: calc(${CONTROLS_WIDTH}px + 0.75rem);
       }
+      html { clip-path: inset(0 round 14px); }
+      html.cc3-square { clip-path: none; }
+      html::after { content: ""; position: fixed; inset: 0; border: 1px solid #252525;
+        border-radius: 14px; pointer-events: none; z-index: 2147483646; }
+      html.cc3-square::after { display: none; }
       #cc3-controls { position: fixed; top: 0; right: 0; z-index: 2147483647; display: flex;
         height: ${TITLEBAR_HEIGHT}px; color: #f8fafc; user-select: none; }
       #cc3-controls.light { color: #1f2937; }
@@ -99,9 +104,9 @@
     function refresh() {
       native("win_is_maximized").then((maximized) => {
         maxButton.innerHTML = `<svg viewBox="0 0 10 10">${maximized ? icons.restore : icons.max}</svg>`;
+        document.documentElement.classList.toggle("cc3-square", maximized || fullscreen);
       });
-      const fullscreenNow = fullscreen;
-      bar.style.display = fullscreenNow ? "none" : "flex";
+      bar.style.display = fullscreen ? "none" : "flex";
     }
     addEventListener("resize", refresh);
     refresh();
@@ -127,6 +132,37 @@
   };
   if (document.readyState === "loading") addEventListener("DOMContentLoaded", installChrome);
   else installChrome();
+
+  // Desktop notifications go to the native alert card (alert.rs); a click comes back as an event.
+  {
+    const alerts = new Map();
+    let nextAlert = 0;
+    class CC3Notification extends EventTarget {
+      static permission = "granted";
+      static requestPermission = async () => "granted";
+      constructor(title, options = {}) {
+        super();
+        this.title = title;
+        this.body = options.body ?? "";
+        this.tag = options.tag ?? "";
+        this._id = ++nextAlert;
+        alerts.set(this._id, this);
+        native("show_alert", { id: this._id, title, body: this.body }).catch((e) =>
+          window.__cc3Log?.(`show_alert failed ${e}`),
+        );
+      }
+      close() {
+        alerts.delete(this._id);
+        native("close_alert").catch(() => {});
+      }
+    }
+    Object.defineProperty(window, "Notification", {
+      configurable: true,
+      writable: true,
+      value: CC3Notification,
+    });
+    on("notification-click", (id) => alerts.get(id)?.dispatchEvent(new Event("click")));
+  }
 
   let closeMenu = null;
   const showContextMenu = (items, position) =>
@@ -421,6 +457,11 @@
     bridge.webLinks.onOpen((url) => window.__cc3Log?.(`selftest web-link ${url}`));
     bridge.onSnapShotEvent((e) => window.__cc3Log?.(`selftest snap-event ${JSON.stringify(e)}`));
     bridge.webLinks.setReady(true);
+    setTimeout(() => {
+      window.__cc3Log?.("selftest notify " + typeof Notification + " " + Notification.permission);
+      const n = new Notification("Input needed", { body: "Ping Check, No Task Yet" });
+      n.addEventListener("click", () => window.__cc3Log?.("selftest notification-click"));
+    }, 8000);
     setTimeout(async () => {
       await bridge.getSnapShotState().then(report("snapState"), report("snapState failed"));
       await bridge.cliCommand.getState().then(report("cli"), report("cli failed"));
