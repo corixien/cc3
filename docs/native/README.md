@@ -69,6 +69,14 @@ Offene Abweichungen (Backlog N2):
 - `overflow: hidden` schneidet getrimmte Texte (Unterlaengen) ab; Chromium schneidet nicht.
 - Positionen langer Texte um 1 px (Kerning-Reste), Scroll-Container (Timeline-Liste) kommen aus JS.
 
+## App-Geruest (N3-Anfang)
+
+`apps/cc3-native/src/bin/app.rs` (Binary `cc3`): Dioxus-native (Komponenten, Signals, RSX) auf dem gepatchten Blitz, Vello-GPU-Fenster, Schriften und Glyph-Rundung wie in `cc3-native`. Dioxus-native 0.8.0-alpha.3 verlangt exakt Blitz 0.3.0-beta.4, die vendored Patches greifen deshalb auch hier.
+
+Erste Messung: leeres Fenster mit einer Ueberschrift und einem Zaehler-Knopf, 85,6 MB PSS im Leerlauf, 0 Prozent CPU, ein Prozess (zum Vergleich CC3 mit Tauri 807 bis 888 MB, Electron-T3 ca. 350 MB; ohne Server, der in jedem Fall dazukommt).
+
+Naechste Schritte: Fenster-Attribute (rahmenlos, transparent, abgerundete Ecken mit `#252525`-Rand, Titelleiste mit Steuerknoepfen, Drag, Maximieren), Alert-Fenster, Single-Instance, Deep Links; danach Server-Anbindung (Effect-RPC ueber WebSocket, Contracts aus `packages/contracts`) und Zustandsspeicher, dann Komponenten von klein nach gross (N5 bis N10).
+
 ## Arbeitspaket-Reihenfolge
 
 1. **N0 (erledigt):** Spike, Renderer ohne Fenster, Vergleichswerkzeug.
