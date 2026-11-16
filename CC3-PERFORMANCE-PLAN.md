@@ -395,9 +395,10 @@ Gesamt ohne Phase 7: ca. 3 bis 5 Wochen reine Arbeitszeit. Phasen 2 und 3 liefer
 
 ---
 
-## 15. Offene Entscheidungen fuer den Nutzer
+## 15. Entscheidungen des Nutzers (verbindlich)
 
-1. Soll Phase 4 (CEF/Chromium statt WebKitGTK) schon bei einem Gewinn von 30 Prozent entschieden werden oder erst nach Phase 5?
-2. Darf der Node-Host in den Server-Prozess integriert werden (Phase 3.1, leichter Eingriff in die Architektur)?
-3. Soll die Golden-Suite Referenzbilder im Repo (LFS) oder ausserhalb liegen?
-4. Ist Phase 7 (native UI) grundsaetzlich gewuenscht oder nur als Rueckfallplan?
+1. Phase 4: CEF/Chromium statt WebKitGTK wird uebernommen, sobald der Spike mindestens 30 Prozent Gewinn zeigt.
+2. Phase 3.1: Der Node-Host darf in den Server-Prozess integriert werden.
+3. Golden-Suite-Referenzbilder liegen im Repo.
+4. Phase 7 (native UI) ist **Pflicht** und der Hauptfokus. Dafuer wird bewusst sehr viel Zeit eingeplant, damit jeder Effekt, jede Animation und jedes Pop-up identisch bleibt. Das Entscheidungstor aus Abschnitt 10 entfaellt; Phasen 0 bis 6 laufen weiter als Basis und als Rueckfallebene (`--ui=web|native`).
+5. Branch: `cc3-performance`, direkter Push, keine Pull Requests.

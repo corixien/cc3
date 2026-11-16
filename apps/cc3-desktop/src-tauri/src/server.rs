@@ -76,6 +76,8 @@ pub fn start(port: u16, token: String, config: &Config) -> Result<Server, String
         "desktopAppUpdate": false,
     });
     let mut child = Command::new(&crate::paths::get().node)
+        // Small V8 young generation: about 100 MB less resident memory (docs/perf/SERVER-MEMORY.md).
+        .arg("--max-semi-space-size=1")
         .arg(&crate::paths::get().server_entry)
         .args(["--bootstrap-fd", "0"])
         .stdin(Stdio::piped())

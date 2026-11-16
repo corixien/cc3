@@ -1,0 +1,128 @@
+{
+  "at": "2026-11-16T14:55:28.549Z",
+  "seconds": 20,
+  "pssTotalMb": 1175.7,
+  "cpuPercentOverWindow": 72.68,
+  "procs": [
+    {
+      "pid": 1911334,
+      "name": "WebKitWebProcess libexec/webkit2gtk-4.1/WebKitWebProcess",
+      "pssMb": 347,
+      "cpuS": 94.66
+    },
+    {
+      "pid": 1911016,
+      "name": "node server/dist/bin.mjs",
+      "pssMb": 228.4,
+      "cpuS": 64.5
+    },
+    {
+      "pid": 2050162,
+      "name": "claude",
+      "pssMb": 210.3,
+      "cpuS": 2.87
+    },
+    {
+      "pid": 2050609,
+      "name": "claude",
+      "pssMb": 163.5,
+      "cpuS": 1.12
+    },
+    {
+      "pid": 2050266,
+      "name": "node",
+      "pssMb": 78.4,
+      "cpuS": 0.45
+    },
+    {
+      "pid": 2050265,
+      "name": "node-22",
+      "pssMb": 47.3,
+      "cpuS": 0.18
+    },
+    {
+      "pid": 2050318,
+      "name": "bun",
+      "pssMb": 38.1,
+      "cpuS": 0.3
+    },
+    {
+      "pid": 2050264,
+      "name": "caveman-mcp",
+      "pssMb": 22.7,
+      "cpuS": 0.05
+    },
+    {
+      "pid": 1910974,
+      "name": "cc3",
+      "pssMb": 21.9,
+      "cpuS": 63.9
+    },
+    {
+      "pid": 1910998,
+      "name": "node resources/host/main.mjs",
+      "pssMb": 8.2,
+      "cpuS": 1.02
+    },
+    {
+      "pid": 1911280,
+      "name": "WebKitNetworkProcess libexec/webkit2gtk-4.1/WebKitNetworkProcess",
+      "pssMb": 7.6,
+      "cpuS": 3.5
+    },
+    {
+      "pid": 2050111,
+      "name": "systemd-inhibit",
+      "pssMb": 1.5,
+      "cpuS": 0
+    },
+    {
+      "pid": 2050163,
+      "name": "sh",
+      "pssMb": 0.5,
+      "cpuS": 0
+    },
+    {
+      "pid": 2050119,
+      "name": "tail",
+      "pssMb": 0.3,
+      "cpuS": 0
+    },
+    {
+      "pid": 1911342,
+      "name": "",
+      "pssMb": 0,
+      "cpuS": 0
+    },
+    {
+      "pid": 1911481,
+      "name": "",
+      "pssMb": 0,
+      "cpuS": 0
+    },
+    {
+      "pid": 2044107,
+      "name": "",
+      "pssMb": 0,
+      "cpuS": 0
+    },
+    {
+      "pid": 2048057,
+      "name": "",
+      "pssMb": 0,
+      "cpuS": 0
+    },
+    {
+      "pid": 2048279,
+      "name": "",
+      "pssMb": 0,
+      "cpuS": 0
+    },
+    {
+      "pid": 2049545,
+      "name": "",
+      "pssMb": 0,
+      "cpuS": 0
+    }
+  ]
+}

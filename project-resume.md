@@ -46,3 +46,5 @@ Auto-update (state is "disabled"), AppImage bundle (only deb built), arm64, snap
 ## Branch cc3-performance
 
 Plan only: see CC3-PERFORMANCE-PLAN.md (no code changed yet).
+
+- cc3-performance: Phase 0/2.1 started. Scripts in apps/cc3-desktop/scripts/perf, findings docs/perf/SERVER-MEMORY.md, server.rs now passes --max-semi-space-size=1 (not rebuilt/verified in-app). Decisions in plan section 15 (Phase 7 mandatory).
