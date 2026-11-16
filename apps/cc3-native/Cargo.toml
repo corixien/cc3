@@ -31,3 +31,4 @@ blitz-paint = { path = "vendor/blitz-paint" }
 blitz-traits = { path = "vendor/blitz-traits" }
 stylo_taffy = { path = "vendor/stylo_taffy" }
 parley_engine = { path = "vendor/parley_engine" }
+stylo = { path = "vendor/stylo" }

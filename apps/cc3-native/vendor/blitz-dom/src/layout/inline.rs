@@ -870,6 +870,15 @@ impl LayoutPassState<'_> {
             };
         }
 
+        // CC3: `text-box-trim` (with `text-box-edge: cap alphabetic`): the first line is trimmed to
+        // the cap height and the last line to the alphabetic baseline, as in Chromium.
+        let (trim_top, trim_bottom) = if has_inline_content {
+            self.text_box_trim_amounts(node_id, &inline_layout.layout)
+        } else {
+            (0.0, 0.0)
+        };
+        height -= trim_top + trim_bottom;
+
         // Note: `width` and `height` are content-box measurements of the inline content.
         // `known_dimensions` must not be substituted in here: those are border-box sizes, and
         // using them for the scrollable overflow rect (which adds padding below) would
@@ -913,6 +922,7 @@ impl LayoutPassState<'_> {
                 final_size.height - content_box_inset.vertical_axis_sum() - measured_size.height;
             taffy::compute_block_align_content_offset(align_content, free_space)
         };
+        let block_offset = block_offset - trim_top / scale;
         inline_layout.block_offset = block_offset;
         let line_box_top = container_pb.top + block_offset;
 
@@ -1169,4 +1179,34 @@ impl LayoutPassState<'_> {
 #[inline(always)]
 fn f32_max(a: f32, b: f32) -> f32 {
     a.max(b)
+}
+
+impl LayoutPassState<'_> {
+    /// Amount (in layout px) to cut from the top of the first line and the bottom of the last line
+    /// for `text-box-trim` (CC3 patch, see docs/native/README.md).
+    fn text_box_trim_amounts(&self, node_id: NodeId, layout: &parley::layout::Layout<crate::node::TextBrush>) -> (f32, f32) {
+        use style::values::computed::TextBoxTrim;
+        let Some(styles) = self.nodes[node_id].primary_styles() else { return (0.0, 0.0) };
+        let trim = styles.get_text().text_box_trim;
+        if trim == TextBoxTrim::NONE {
+            return (0.0, 0.0);
+        }
+        let (Some(first), Some(last)) = (layout.get(0), layout.get(layout.len().saturating_sub(1))) else {
+            return (0.0, 0.0);
+        };
+        let mut top = 0.0;
+        let mut bottom = 0.0;
+        if trim.contains(TextBoxTrim::TRIM_START) {
+            let baseline = first.metrics().baseline;
+            let cap = first
+                .runs()
+                .find_map(|run| run.font_metrics().cap_height)
+                .unwrap_or(baseline * 0.7);
+            top = (baseline - first.metrics().block_min_coord - cap).max(0.0);
+        }
+        if trim.contains(TextBoxTrim::TRIM_END) {
+            bottom = (last.metrics().block_max_coord - last.metrics().baseline).max(0.0);
+        }
+        (top, bottom)
+    }
 }
