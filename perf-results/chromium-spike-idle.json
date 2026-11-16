@@ -1,0 +1,74 @@
+{
+  "at": "2026-11-16T17:05:04.438Z",
+  "seconds": 15,
+  "pssTotalMb": 515.5,
+  "cpuPercentOverWindow": 0.13,
+  "procs": [
+    {
+      "pid": 2247483,
+      "name": "playwright_chromiumdev_profile-iaVrFR --remote-debugging-pipe --no-startup-window",
+      "group": "agent-children",
+      "pssMb": 141.6,
+      "cpuS": 1.82
+    },
+    {
+      "pid": 2247602,
+      "name": "playwright_chromiumdev_profile-iaVrFR --change-stack-guard-on-fork=enable --no-sandbox --disable-dev-shm-usage --disable-back-forward-cache --disable-background-timer-throttling --disable-breakpad --force-color-profile=srgb --remote-debugging-pipe --allow-pre-commit-input --ozone-platform=wayland --lang=de --num-raster-threads=4 --enable-main-frame-before-activation --renderer-client-id=6 --launch-time-ticks=121786296836 --shared-files=v8_context_snapshot_data:100 --metrics-shmem-handle=4,i,3933261427106202708,12426327101842500330,1572864 --field-trial-handle=3,i,6518280195297219384,4617597363511655687,262144 --enable-features=CDPScreenshotNewSurface --disable-features=AimEnabled,AutoDeElevate,AvoidCorsURLLoaderRestartOnRedirect,AvoidUnnecessaryBeforeUnloadCheckSync,BlockOriginHeaderModificationOnRedirect,DestroyProfileOnBrowserClose,DialMediaRouteProvider,GlobalMediaControls,HttpsUpgrades,LensOverlay,MediaRouter,NetworkTimeServiceQuerying,OptimizationHints,PaintHolding,ThirdPartyStoragePartitioning,Translate,msEdgeUpdateLaunchServicesPreferredVersion,msForceBrowserSignIn --variations-seed-version --pseudonymization-salt-handle=7,i,7846335569390083200,14945714582597190766,4 --trace-process-track-uuid=3190708991934122588",
+      "group": "agent-children",
+      "pssMb": 130.7,
+      "cpuS": 3.19
+    },
+    {
+      "pid": 2247535,
+      "name": "playwright_chromiumdev_profile-iaVrFR --change-stack-guard-on-fork=enable --gpu-preferences=YAAAAAAAAAAgAAAEAAAAAAAAAAAAAGAASAAAAAAAAAABAAAAAAAAAEAAAAAAAAAAAAAAAAAAAAACAAAAAAAAAAAAAAAAAAAAMAAAAAAAAAAwAAAAAAAAAAAAAAAAAAAACAAAAAAAAAAMAAAAAQAAAAAAAAAAAAAACAAAAAAAAAAIAAAAAAAAAA== --shared-files --metrics-shmem-handle=4,i,17540956865532459536,12882014694978816941,262144 --field-trial-handle=3,i,6518280195297219384,4617597363511655687,262144 --enable-features=CDPScreenshotNewSurface --disable-features=AimEnabled,AutoDeElevate,AvoidCorsURLLoaderRestartOnRedirect,AvoidUnnecessaryBeforeUnloadCheckSync,BlockOriginHeaderModificationOnRedirect,DestroyProfileOnBrowserClose,DialMediaRouteProvider,GlobalMediaControls,HttpsUpgrades,LensOverlay,MediaRouter,NetworkTimeServiceQuerying,OptimizationHints,PaintHolding,ThirdPartyStoragePartitioning,Translate,msEdgeUpdateLaunchServicesPreferredVersion,msForceBrowserSignIn --variations-seed-version --pseudonymization-salt-handle=7,i,7846335569390083200,14945714582597190766,4 --trace-process-track-uuid=3190708988185955192",
+      "group": "agent-children",
+      "pssMb": 83.9,
+      "cpuS": 0.87
+    },
+    {
+      "pid": 2247590,
+      "name": "playwright_chromiumdev_profile-iaVrFR --change-stack-guard-on-fork=enable --no-sandbox --disable-dev-shm-usage --disable-back-forward-cache --disable-background-timer-throttling --disable-breakpad --force-color-profile=srgb --remote-debugging-pipe --allow-pre-commit-input --ozone-platform=wayland --lang=de --num-raster-threads=4 --enable-main-frame-before-activation --renderer-client-id=5 --launch-time-ticks=121786269026 --shared-files=v8_context_snapshot_data:100 --metrics-shmem-handle=4,i,3725523111976282018,7712770629735910122,1572864 --field-trial-handle=3,i,6518280195297219384,4617597363511655687,262144 --enable-features=CDPScreenshotNewSurface --disable-features=AimEnabled,AutoDeElevate,AvoidCorsURLLoaderRestartOnRedirect,AvoidUnnecessaryBeforeUnloadCheckSync,BlockOriginHeaderModificationOnRedirect,DestroyProfileOnBrowserClose,DialMediaRouteProvider,GlobalMediaControls,HttpsUpgrades,LensOverlay,MediaRouter,NetworkTimeServiceQuerying,OptimizationHints,PaintHolding,ThirdPartyStoragePartitioning,Translate,msEdgeUpdateLaunchServicesPreferredVersion,msForceBrowserSignIn --variations-seed-version --pseudonymization-salt-handle=7,i,7846335569390083200,14945714582597190766,4 --trace-process-track-uuid=3190708990997080739",
+      "group": "agent-children",
+      "pssMb": 52.2,
+      "cpuS": 0.48
+    },
+    {
+      "pid": 2247538,
+      "name": "playwright_chromiumdev_profile-iaVrFR --change-stack-guard-on-fork=enable --shared-files=v8_context_snapshot_data:100 --metrics-shmem-handle=4,i,18010857082757128840,6820151633389592574,524288 --field-trial-handle=3,i,6518280195297219384,4617597363511655687,262144 --enable-features=CDPScreenshotNewSurface --disable-features=AimEnabled,AutoDeElevate,AvoidCorsURLLoaderRestartOnRedirect,AvoidUnnecessaryBeforeUnloadCheckSync,BlockOriginHeaderModificationOnRedirect,DestroyProfileOnBrowserClose,DialMediaRouteProvider,GlobalMediaControls,HttpsUpgrades,LensOverlay,MediaRouter,NetworkTimeServiceQuerying,OptimizationHints,PaintHolding,ThirdPartyStoragePartitioning,Translate,msEdgeUpdateLaunchServicesPreferredVersion,msForceBrowserSignIn --variations-seed-version --pseudonymization-salt-handle=7,i,7846335569390083200,14945714582597190766,4 --trace-process-track-uuid=3190708989122997041",
+      "group": "agent-children",
+      "pssMb": 47.1,
+      "cpuS": 0.49
+    },
+    {
+      "pid": 2247492,
+      "name": "playwright_chromiumdev_profile-iaVrFR --change-stack-guard-on-fork=enable",
+      "group": "agent-children",
+      "pssMb": 18.7,
+      "cpuS": 0.03
+    },
+    {
+      "pid": 2247601,
+      "name": "playwright_chromiumdev_profile-iaVrFR --change-stack-guard-on-fork=enable --no-sandbox --disable-dev-shm-usage --disable-back-forward-cache --disable-background-timer-throttling --disable-breakpad --force-color-profile=srgb --remote-debugging-pipe --allow-pre-commit-input --ozone-platform=wayland --lang=de --num-raster-threads=4 --enable-main-frame-before-activation --renderer-client-id=7 --launch-time-ticks=121786295152 --shared-files=v8_context_snapshot_data:100 --metrics-shmem-handle=4,i,3161863440326791253,13105395828628770996,1572864 --field-trial-handle=3,i,6518280195297219384,4617597363511655687,262144 --enable-features=CDPScreenshotNewSurface --disable-features=AimEnabled,AutoDeElevate,AvoidCorsURLLoaderRestartOnRedirect,AvoidUnnecessaryBeforeUnloadCheckSync,BlockOriginHeaderModificationOnRedirect,DestroyProfileOnBrowserClose,DialMediaRouteProvider,GlobalMediaControls,HttpsUpgrades,LensOverlay,MediaRouter,NetworkTimeServiceQuerying,OptimizationHints,PaintHolding,ThirdPartyStoragePartitioning,Translate,msEdgeUpdateLaunchServicesPreferredVersion,msForceBrowserSignIn --variations-seed-version --pseudonymization-salt-handle=7,i,7846335569390083200,14945714582597190766,4 --trace-process-track-uuid=3190708992871164437",
+      "group": "agent-children",
+      "pssMb": 17.8,
+      "cpuS": 0.02
+    },
+    {
+      "pid": 2247493,
+      "name": "playwright_chromiumdev_profile-iaVrFR --change-stack-guard-on-fork=enable",
+      "group": "agent-children",
+      "pssMb": 13.5,
+      "cpuS": 0.03
+    },
+    {
+      "pid": 2247555,
+      "name": "playwright_chromiumdev_profile-iaVrFR --change-stack-guard-on-fork=enable --shared-files=v8_context_snapshot_data:100 --metrics-shmem-handle=4,i,9602634338025293058,16851408180079257893,524288 --field-trial-handle=3,i,6518280195297219384,4617597363511655687,262144 --enable-features=CDPScreenshotNewSurface --disable-features=AimEnabled,AutoDeElevate,AvoidCorsURLLoaderRestartOnRedirect,AvoidUnnecessaryBeforeUnloadCheckSync,BlockOriginHeaderModificationOnRedirect,DestroyProfileOnBrowserClose,DialMediaRouteProvider,GlobalMediaControls,HttpsUpgrades,LensOverlay,MediaRouter,NetworkTimeServiceQuerying,OptimizationHints,PaintHolding,ThirdPartyStoragePartitioning,Translate,msEdgeUpdateLaunchServicesPreferredVersion,msForceBrowserSignIn --variations-seed-version --pseudonymization-salt-handle=7,i,7846335569390083200,14945714582597190766,4 --trace-process-track-uuid=3190708990060038890",
+      "group": "agent-children",
+      "pssMb": 10,
+      "cpuS": 0
+    }
+  ],
+  "byGroup": {
+    "agent-children": 515.5
+  }
+}

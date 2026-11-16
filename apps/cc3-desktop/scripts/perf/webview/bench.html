@@ -1,0 +1,55 @@
+<!doctype html>
+<body style="margin: 0; font: 14px sans-serif">
+  <div id="l" style="height: 900px; overflow: auto; width: 1400px"></div>
+  <script>
+    (async () => {
+      const out = {};
+
+      let t = performance.now();
+      const l = document.getElementById("l");
+      for (let i = 0; i < 4000; i++) {
+        const d = document.createElement("div");
+        d.style.cssText =
+          "padding:8px 12px;border-bottom:1px solid #ddd;border-radius:10px;box-shadow:0 1px 6px rgba(0,0,0,.12);margin:4px;background:linear-gradient(#fff,#f3f3f3)";
+        d.innerHTML =
+          "<b>Row " +
+          i +
+          '</b> some message text that wraps across the line and keeps going for a bit to force layout <code style="background:#eee">code()</code>';
+        l.appendChild(d);
+      }
+      l.getBoundingClientRect();
+      out.build_ms = Math.round(performance.now() - t);
+      t = performance.now();
+      let acc = 0;
+      for (let i = 0; i < 3e7; i++) acc += Math.sqrt(i) % 7;
+      out.js_ms = Math.round(performance.now() - t);
+      const frames = [];
+      let last = performance.now();
+      let y = 0;
+      await new Promise((res) => {
+        const step = (now) => {
+          frames.push(now - last);
+          last = now;
+          y += 40;
+          l.scrollTop = y;
+          if (y < 40000) requestAnimationFrame(step);
+          else res();
+        };
+        requestAnimationFrame(step);
+      });
+      frames.sort((a, b) => a - b);
+      out.frame_median = +frames[frames.length >> 1].toFixed(1);
+      out.frame_p95 = +frames[Math.floor(frames.length * 0.95)].toFixed(1);
+      out.frames = frames.length;
+      t = performance.now();
+      for (let i = 0; i < 300; i++) {
+        l.children[i].style.width = 200 + (i % 50) + "px";
+        l.getBoundingClientRect();
+      }
+      out.relayout_ms = Math.round(performance.now() - t);
+      return out;
+    })().then((o) => {
+      document.title = "RESULT " + JSON.stringify(o);
+    });
+  </script>
+</body>

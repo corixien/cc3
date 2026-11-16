@@ -235,6 +235,8 @@ Jeweils ein kleiner Spike (1 bis 2 Tage), gemessen mit Phase-0-Skript und Golden
 
 Pruefpunkte je Kandidat: Golden-Suite-Treffer, Scroll-fps, Eingabe-Latenz, RAM, Startzeit, Webview-Anbindung der `window.desktopBridge` (`bridge.js`), transparentes Fenster mit abgerundeten Ecken (`clip-path` plus `::after` Rand), `windowControlsOverlay`-Polyfill, Drag-Region, Alert-Fenster, WebRTC/Audio fuer den Alert-Ton, Schriftrendering von Lexend Deca.
 
+**Status Phase 4:** Spike als Messvergleich (ohne CEF-Integration) durchgefuehrt, Ergebnis und Empfehlung in `docs/perf/WEBVIEW-DECISION.md`.
+
 ### 4.3 Entscheidungsregel
 
 - Wenn B die Golden-Suite bestanden und mindestens 30 Prozent bessere Rendering-Werte als A liefert: B uebernehmen.

@@ -1,0 +1,63 @@
+{
+  "at": "2026-11-16T17:23:18.563Z",
+  "seconds": 15,
+  "pssTotalMb": 758.1,
+  "cpuPercentOverWindow": 0.79,
+  "procs": [
+    {
+      "pid": 2264598,
+      "name": "node server/dist/bin.mjs",
+      "group": "server",
+      "pssMb": 362.4,
+      "cpuS": 9.36
+    },
+    {
+      "pid": 2264905,
+      "name": "WebKitWebProcess libexec/webkit2gtk-4.1/WebKitWebProcess",
+      "group": "webview",
+      "pssMb": 267.5,
+      "cpuS": 4.34
+    },
+    {
+      "pid": 2264545,
+      "name": "cc3",
+      "group": "shell",
+      "pssMb": 99,
+      "cpuS": 0.94
+    },
+    {
+      "pid": 2264885,
+      "name": "WebKitNetworkProcess libexec/webkit2gtk-4.1/WebKitNetworkProcess",
+      "group": "webview",
+      "pssMb": 29.2,
+      "cpuS": 1.34
+    },
+    {
+      "pid": 2264578,
+      "name": "",
+      "group": "agent-children",
+      "pssMb": 0,
+      "cpuS": 0.91
+    },
+    {
+      "pid": 2264930,
+      "name": "",
+      "group": "agent-children",
+      "pssMb": 0,
+      "cpuS": 0
+    },
+    {
+      "pid": 2265053,
+      "name": "",
+      "group": "agent-children",
+      "pssMb": 0,
+      "cpuS": 0
+    }
+  ],
+  "byGroup": {
+    "shell": 99,
+    "agent-children": 0,
+    "server": 362.4,
+    "webview": 296.7
+  }
+}
