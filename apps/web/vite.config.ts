@@ -182,6 +182,28 @@ const renderScenariosProject = {
   },
 } satisfies TestProjectInlineConfiguration;
 
+// Golden screenshots: pixel-exact references of the whole app (docs/perf/STATE-CATALOG.md).
+const goldenProject = {
+  ...browserTestProject,
+  test: {
+    ...browserTestProject.test,
+    name: "golden",
+    include: ["test/golden/*.golden.tsx"],
+    hookTimeout: 60_000,
+    testTimeout: 60_000,
+    browser: {
+      ...browserTestProject.test.browser,
+      instances: [{ browser: "chromium" }],
+      expect: {
+        toMatchScreenshot: {
+          resolveScreenshotPath: ({ arg, ext, root }: { arg: string; ext: string; root: string }) =>
+            `${root}/test/golden/__screenshots__/${arg}${ext}`,
+        },
+      },
+    },
+  },
+} satisfies TestProjectInlineConfiguration;
+
 function resolveDevProxyTarget(
   backendPort: string | undefined,
   wsUrl: string | undefined,
@@ -443,6 +465,7 @@ export default defineConfig(({ command }) => {
         defineProject(unitTestProject),
         defineProject(browserTestProject),
         defineProject(renderScenariosProject),
+        defineProject(goldenProject),
       ],
     },
   };
