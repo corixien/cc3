@@ -62,3 +62,15 @@ Fazit: Der Server liegt nach dem Flag bei ca. 340 MB RSS frisch gestartet; weite
 - Die frueheren 8 MB fuer den Host waren ausgelagert (Swap); real sind es ca. 110 MB. Das Zusammenlegen von Host und Server (Phase 3.1) bleibt damit der zweitgroesste sichere Hebel.
 - Shell mit 95 MB ist hoeher als erwartet (Tauri-Prozess selbst, GTK/WebKit-Bibliotheken).
 - Groesster Block ist der Webview (Phase 4).
+
+## Phase 3.1: Host (umgesetzt als Idle-Exit statt Prozess-Zusammenlegung)
+
+Eine Integration in den Server-Prozess haette den Host-Code (Effect, Contracts, Schemas) in einem eigenen Bundle doppelt laden muessen (die Server-Chunks lassen sich nicht teilen) und haette nur die Node-Laufzeit gespart. Stattdessen beendet sich der Host selbst:
+
+- `host/main.ts`: Exit nach 60 s ohne Anfrage, ausser (a) es laeuft eine Anfrage, (b) Snapshots sind aktiviert (`snapShotEnabled`, Watcher laufen im Host), (c) ein SSH-Tunnel wurde ueber `ensure-ssh*` geoeffnet.
+- `host.rs`: Neustart bei der naechsten Anfrage; schlaegt das Schreiben fehl, weil der Host dazwischen beendet wurde, wird er einmal neu gestartet.
+- `paths.rs`: Host startet mit `--max-semi-space-size=1` (119 auf 103 MB PSS, solange er laeuft).
+- Selbsttest (`CC3_SELFTEST`): ein Aufruf nach 110 s prueft den Neustart (`late clientSettings null` im Log, Aufruf erfolgreich).
+
+Messung (`perf-results/cc3-after-host-idle.json`, nach 130 s Leerlauf): Summe 807 MB (vorher 888 MB): Webview 363, Server 348, Shell 97, Host 0.
+Mit aktivierten Snapshots oder SSH bleibt der Host dauerhaft (ca. 100 MB).

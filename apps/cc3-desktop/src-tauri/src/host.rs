@@ -1,5 +1,6 @@
 //! Node sidecar (apps/cc3-desktop/host) that serves desktop features implemented in TypeScript.
-//! Started on first use; speaks line-delimited JSON over stdio.
+//! Started on first use, exits after a quiet minute (see host/main.ts), restarted on the next call.
+//! Speaks line-delimited JSON over stdio.
 use std::collections::HashMap;
 use std::io::{BufRead, BufReader, Write};
 use std::process::{Child, ChildStdin, Command, Stdio};
@@ -100,11 +101,21 @@ pub fn call(app: &AppHandle, channel: &str, arg: Value) -> Result<Value, String>
         if !alive {
             *guard = Some(spawn(app)?);
         }
-        let r = guard.as_mut().unwrap();
-        r.pending.lock().unwrap().insert(id, tx);
         let line = json!({ "id": id, "channel": channel, "arg": arg });
-        writeln!(r.stdin, "{line}").map_err(|e| e.to_string())?;
-        r.stdin.flush().map_err(|e| e.to_string())?;
+        // The host exits when idle; if it quit between the liveness check and the write, start it once more.
+        for attempt in 0..2 {
+            let r = guard.as_mut().unwrap();
+            r.pending.lock().unwrap().insert(id, tx.clone());
+            let sent = writeln!(r.stdin, "{line}").and_then(|_| r.stdin.flush());
+            match sent {
+                Ok(()) => break,
+                Err(e) if attempt == 1 => return Err(e.to_string()),
+                Err(_) => {
+                    r.pending.lock().unwrap().remove(&id);
+                    *guard = Some(spawn(app)?);
+                }
+            }
+        }
     }
     rx.recv().map_err(|e| e.to_string())?
 }

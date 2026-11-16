@@ -21,7 +21,7 @@ pub fn init(app: &AppHandle) {
         Some(dir) => Paths {
             node: dir.join("node"),
             server_entry: dir.join("app/apps/server/dist/bin.mjs"),
-            host_args: vec![dir.join("host/main.mjs").into()],
+            host_args: vec!["--max-semi-space-size=1".into(), dir.join("host/main.mjs").into()],
         },
         None => {
             let manifest = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
@@ -29,7 +29,7 @@ pub fn init(app: &AppHandle) {
             Paths {
                 node: "node".into(),
                 server_entry: manifest.join("../../server/dist/bin.mjs"),
-                host_args: vec!["--import".into(), host.join("register.mjs").into(), host.join("main.ts").into()],
+                host_args: vec!["--max-semi-space-size=1".into(), "--import".into(), host.join("register.mjs").into(), host.join("main.ts").into()],
             }
         }
     };

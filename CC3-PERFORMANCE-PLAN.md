@@ -207,6 +207,8 @@ Optionen, nach Aufwand und Gewinn:
 
 - Bekannte Luecke: bei SIGTERM bleibt der Server als Waise zurueck (nur `RunEvent::Exit` raeumt auf). Signal-Handler in `main.rs` ergaenzen und einen PID-Wachhund einbauen. Wichtig, damit ein Neustart nie zwei Server (doppelter RAM) hinterlaesst.
 
+**Status 3.1:** umgesetzt als Idle-Exit des Hosts (siehe `docs/perf/SERVER-MEMORY.md`), da eine Prozess-Zusammenlegung den Host-Code doppelt laden wuerde. Phase 3.2 (Release-Profil) und 3.3 (Waisen-Server) offen.
+
 **Abnahme Phase 3:** Ein Node-Prozess weniger oder ein lazy gestarteter, Gesamt-RAM um mindestens 100 MB tiefer, alle Host-Funktionen (CLI-Installer, Snapshots, Deep Links, Badge) weiterhin ok.
 
 ---

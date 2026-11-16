@@ -480,6 +480,12 @@
           .then(report("exposure-back"), report("exposure-back failed"));
       }, 15000);
     }, 3000);
+    // The host exits when idle (host/main.ts); a call after that must start it again.
+    setTimeout(() => {
+      bridge
+        .getClientSettings()
+        .then(report("late clientSettings"), report("late clientSettings failed"));
+    }, 110000);
   }
 
   let localEnabled = init.localEnvironmentEnabled !== false;

@@ -54,6 +54,12 @@ Object.assign(globalThis, { __dirname: import.meta.dirname });
 // Effect's default logger writes to stdout, which carries the protocol.
 console.log = console.error;
 
+// The host is only needed for occasional requests, so it exits after a quiet minute and Rust starts
+// it again on the next call (about 110 MB less resident). It stays up while something lives in it:
+// snapshot watchers (settings.snapShotEnabled) or an SSH tunnel it opened.
+const IDLE_EXIT_MS = 60_000;
+const idle = { last: Date.now(), inflight: 0, pinned: false, snapShotEnabled: false };
+
 const send = (message: unknown) => process.stdout.write(`${JSON.stringify(message)}\n`);
 
 const handlers = new Map<string, DesktopIpc.DesktopIpcHandleListener>();
@@ -226,7 +232,12 @@ const program = Effect.gen(function* () {
       () => clientSettings.get.pipe(Effect.map(Option.getOrNull)),
     ),
     wrap(IpcChannels.SET_CLIENT_SETTINGS_CHANNEL, ClientSettingsSchema, Schema.Void, (settings) =>
-      clientSettings.set(settings).pipe(Effect.andThen(snapShot.configure(settings))),
+      clientSettings.set(settings).pipe(
+        Effect.tap(() =>
+          Effect.sync(() => void (idle.snapShotEnabled = settings.snapShotEnabled === true)),
+        ),
+        Effect.andThen(snapShot.configure(settings)),
+      ),
     ),
     wrap(
       IpcChannels.SET_SERVER_EXPOSURE_MODE_CHANNEL,
@@ -287,16 +298,31 @@ const program = Effect.gen(function* () {
   ).pipe(Effect.catchDefect(Effect.die));
 
   yield* snapShot.initialize;
+  idle.snapShotEnabled = yield* clientSettings.get.pipe(
+    Effect.map((settings) => Option.isSome(settings) && settings.value.snapShotEnabled === true),
+  );
+  setInterval(() => {
+    const quiet = Date.now() - idle.last > IDLE_EXIT_MS;
+    if (quiet && idle.inflight === 0 && !idle.pinned && !idle.snapShotEnabled) process.exit(0);
+  }, 10_000).unref();
 
   const lines = NodeReadline.createInterface({ input: process.stdin });
   lines.on("line", (line) => {
     const { id, channel, arg } = JSON.parse(line) as { id: number; channel: string; arg: unknown };
     const handler = handlers.get(channel);
     if (!handler) return send({ id, error: `no handler for ${channel}` });
-    Promise.resolve(handler({ sender: { id: 0 } }, arg)).then(
-      (result) => send({ id, result: result ?? null }),
-      (error) => send({ id, error: String(error?.message ?? error) }),
-    );
+    if (channel.includes("ensure-ssh")) idle.pinned = true;
+    idle.inflight++;
+    idle.last = Date.now();
+    Promise.resolve(handler({ sender: { id: 0 } }, arg))
+      .then(
+        (result) => send({ id, result: result ?? null }),
+        (error) => send({ id, error: String(error?.message ?? error) }),
+      )
+      .finally(() => {
+        idle.inflight--;
+        idle.last = Date.now();
+      });
   });
   yield* Effect.callback<never>((_resume) => {
     lines.on("close", () => process.exit(0));
