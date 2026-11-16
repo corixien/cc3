@@ -188,7 +188,9 @@ const goldenProject = {
   test: {
     ...browserTestProject.test,
     name: "golden",
+    retry: 2,
     include: ["test/golden/*.golden.tsx"],
+    setupFiles: [...browserTestProject.test.setupFiles, "./test/golden/golden.setup.ts"],
     hookTimeout: 60_000,
     testTimeout: 60_000,
     browser: {

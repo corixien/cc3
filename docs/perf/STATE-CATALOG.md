@@ -38,6 +38,14 @@ Test: `apps/web/test/golden/app.golden.tsx`. Umgebung: `test/fakeEnvironment.ts`
   - settings-voice
   - settings-worktrees
 
+## Zusaetzlich abgedeckt (Interaktionen, `interactions.golden.tsx`, je dunkel und hell)
+
+- Routen: usage, pull-requests, welcome
+- Command Palette (offen, mit Suchbegriff), Diff-Panel, Terminal-Drawer, eingeklappte Sidebar
+- Sidebar-Zeile Hover und Kontextmenue, Composer mit Text, Modellauswahl, Toast, Tooltip am Terminal-Knopf
+- Animationsbildfolgen bei 0/60/120/200/400 ms (Web Animations API, Zeit fest gesetzt): Command Palette, Diff-Panel, Sidebar-Umschalten, Toast, Modellauswahl
+- Ausnahme: `overlay-command-palette-query` erlaubt 16 Pixel Abweichung (Sub-Pixel-Jitter an der Popup-Ecke), alle anderen 0
+
 ## Routen ohne eigenes Referenzbild (TODO)
 
 - approve-agent

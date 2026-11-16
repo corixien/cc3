@@ -131,7 +131,7 @@ Alle Bildschirme und Zustaende werden als Liste in `docs/perf/STATE-CATALOG.md` 
 - Bekannte Luecke: `ComposerBannerStack.browser.test.tsx` ist nach der Banner-Aenderung moeglicherweise veraltet. Aktualisieren, bevor irgendeine Phase startet.
 - Zusaetzlich ein End-zu-End-Ablauf pro Hauptfunktion (Checkliste in Abschnitt 12).
 
-**Status:** 1.1 (Teil), 1.2 (60 Bilder, 0 Pixel Toleranz, zweimal identisch reproduziert) und 1.3 (Animationskatalog automatisch erzeugt) begonnen, siehe `docs/perf/`.
+**Status:** 1.2: 138 Referenzbilder (Routen, Overlays, Hover, Panels), Toleranz 0 Pixel (eine Ausnahme mit 16). 1.3: Animationskatalog automatisch erzeugt, Bildfolgen fuer 5 Animationen. Weitere Zustaende siehe `docs/perf/STATE-CATALOG.md`.
 
 **Abnahme Phase 1:** Die Suite laeuft gruen gegen den unveraenderten Stand und ist in `vp run`-Skripten erreichbar (`perf:golden`, `perf:anim`).
 
