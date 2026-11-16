@@ -49,3 +49,4 @@ Plan only: see CC3-PERFORMANCE-PLAN.md (no code changed yet).
 
 - cc3-performance: Phase 0/2.1 started. Scripts in apps/cc3-desktop/scripts/perf, findings docs/perf/SERVER-MEMORY.md, server.rs now passes --max-semi-space-size=1 (not rebuilt/verified in-app). Decisions in plan section 15 (Phase 7 mandatory).
 - Phase 1 started: golden suite apps/web/test/golden (vitest project "golden", 60 refs, tolerance 0), catalogs in docs/perf. Needs playwright chromium-headless-shell 1248 (installed).
+- Phase 2 done as far as safe: server flag verified in app (server 320 MB, host 110, webview 363, shell 95 = 888 MB PSS). Next: Phase 3.1 (merge host into server, ~110 MB), Phase 4 webview spike. Details docs/perf/SERVER-MEMORY.md.
