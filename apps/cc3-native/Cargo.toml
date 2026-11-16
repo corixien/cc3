@@ -15,6 +15,10 @@ path = "src/main.rs"
 name = "cc3"
 path = "src/bin/app.rs"
 
+[[bin]]
+name = "rpc_probe"
+path = "src/bin/rpc_probe.rs"
+
 [dependencies]
 dioxus = { version = "0.8.0-alpha.3", default-features = false, features = [
   "native",
@@ -31,6 +35,8 @@ blitz-traits = "0.3.0-beta.4"
 parley = "0.12"
 parley_engine = "0.12"
 winit = "=0.31.0-beta.3"
+ureq = { version = "3", default-features = false, features = ["json"] }
+tungstenite = { version = "0.30", default-features = false, features = ["handshake"] }
 tokio = { version = "1", default-features = false, features = ["time"] }
 anyrender = "0.14"
 anyrender_vello_cpu = "0.18"

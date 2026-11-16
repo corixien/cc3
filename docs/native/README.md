@@ -86,6 +86,20 @@ Shell-Funktionen (umgesetzt, `src/shell/`, Port von `links.rs`, `alert.rs`, `nat
 
 Naechste Schritte (Rest): Fenster-Attribute (rahmenlos, transparent, abgerundete Ecken mit `#252525`-Rand, Titelleiste mit Steuerknoepfen, Drag, Maximieren), Alert-Fenster, Single-Instance, Deep Links; danach Server-Anbindung (Effect-RPC ueber WebSocket, Contracts aus `packages/contracts`) und Zustandsspeicher, dann Komponenten von klein nach gross (N5 bis N10).
 
+## Server-Anbindung (N4-Anfang, `src/net/`)
+
+Ablauf, wie ihn der Web-Client und `bridge.js` fahren (per Playwright-Mitschnitt gegen einen echten Server ermittelt):
+
+1. `POST /oauth/token` (Formular: Token-Exchange mit dem Bootstrap-Token, `client_label=CC3`, `client_device_type=desktop`) liefert `access_token` (Bearer).
+2. `POST /api/auth/websocket-ticket/rpc` mit `Authorization: Bearer` liefert `{ticket, expiresAt}`.
+3. `ws://host/ws?wsTicket=..&clientSurface=desktop&clientAppVersion=..&clientDeviceType=desktop&clientOs=Linux&connectionMethod=direct&clientDevice=<id>&orchestrationProtocol=2&clientCapabilities=settingsSecretReferences`. Der Web-Client haengt `frameParts=1` an (grosse Nachrichten werden dann in Teile mit vorangestelltem RS-Zeichen `\u001e` zerlegt); der native Client laesst es weg und bekommt ganze Nachrichten.
+4. Effect-RPC als JSON-Text: `Request{id,tag,payload,traceId,spanId,sampled,headers}`, Antworten `Chunk{requestId,values}` (jedes Chunk wird mit `Ack{requestId}` bestaetigt) und `Exit{requestId,exit:{_tag:Success,value}|{_tag:Failure,cause}}`, `Ping`/`Pong` alle paar Sekunden.
+5. HTTP-Snapshot: `GET /api/orchestration/shell?omitIdleSubagents=1&omitOlderSettled=1` mit Header `x-t3-orchestration-protocol: 2`.
+
+Umsetzung: `server.rs` (startet den unveraenderten Node-Server mit Bootstrap ueber stdin, `--max-semi-space-size=1`), `auth.rs` (Schritte 1, 2, 5), `rpc.rs` (blockierender WebSocket-Client in einem Thread, `request()` liefert einen Strom aus Chunks und Exit, `call()` wartet auf den Exit). Test: `cargo run --release --bin rpc_probe` startet einen Server in `CC3_HOME`, verbindet sich und liest `subscribeServerConfig` (Snapshot mit Serverversion 0.1.9) und `orchestration.subscribeShell` (Marker `synchronized`) sowie den HTTP-Snapshot. Die RPC-Gruppe hat mehrere hundert Methoden (`packages/contracts/src/rpc.ts`); getippt wird nur, was die portierten Komponenten brauchen, Payloads laufen bis dahin als `serde_json::Value`.
+
+Offen: Zustandsspeicher (Projektion der Orchestrierungs-Ereignisse zu Projekten, Threads, Nachrichten wie `packages/client-runtime/src/state` und `apps/web/src/state`), Wiederverbindung mit neuem Ticket, wss fuer entfernte Umgebungen, Anbindung an die UI-Signale.
+
 ## Arbeitspaket-Reihenfolge
 
 1. **N0 (erledigt):** Spike, Renderer ohne Fenster, Vergleichswerkzeug.
