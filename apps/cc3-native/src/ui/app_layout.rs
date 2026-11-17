@@ -11,7 +11,7 @@ use crate::ui::composer::{ComposerMode, ComposerNormal, ComposerQuestion};
 use crate::ui::timeline::Timeline;
 
 #[component]
-pub fn AppLayout(rows: Vec<ThreadRowData>, thread: ThreadView, environment_id: String, onselect: EventHandler<String>, composer: ComposerMode, #[props(default)] onsend: Option<EventHandler<String>>, #[props(default)] page: Option<String>, #[props(default)] onaction: EventHandler<String>) -> Element {
+pub fn AppLayout(rows: Vec<ThreadRowData>, thread: ThreadView, environment_id: String, onselect: EventHandler<String>, composer: ComposerMode, #[props(default)] onsend: Option<EventHandler<String>>, #[props(default)] page: Option<String>, #[props(default)] onaction: EventHandler<String>, #[props(default)] onstop: Option<EventHandler<()>>) -> Element {
     let page_def = page.as_deref().and_then(crate::ui::fragments::page);
     let page_main = page_def.and_then(|p| p.main);
     let page_overlay = page_def.filter(|p| !p.overlay_after_toasts).and_then(|p| p.overlay);
@@ -2167,7 +2167,7 @@ pub fn AppLayout(rows: Vec<ThreadRowData>, thread: ThreadView, environment_id: S
                                                             "class": "relative",
                                                             match composer {
                                                                 ComposerMode::Question => rsx! { ComposerQuestion {} },
-                                                                ComposerMode::Normal => rsx! { ComposerNormal { onsend } },
+                                                                ComposerMode::Normal => rsx! { ComposerNormal { onsend, onstop, running: thread.running } },
                                                             }
                                                         }
                                                         div {

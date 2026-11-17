@@ -104,6 +104,17 @@ impl Store {
         Some(thread_id)
     }
 
+    /// Stops the open thread's run (`thread.stop`).
+    pub fn stop_thread(self: &Arc<Self>) {
+        let Some(client) = self.client.lock().unwrap().clone() else { return };
+        let Some(thread_id) = self.thread.lock().unwrap().as_ref().map(|t| t.thread_id.clone()) else { return };
+        let seed = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).map(|d| d.as_nanos()).unwrap_or(0);
+        let command = serde_json::json!({"type": "thread.stop", "commandId": format!("cc3-cmd-s-{seed:x}"), "threadId": thread_id});
+        std::thread::spawn(move || {
+            let _ = client.call("orchestration.dispatchCommand", command, std::time::Duration::from_secs(30));
+        });
+    }
+
     /// Writes one server-owned setting (`server.updateSettings`) on a background thread.
     pub fn update_server_setting(self: &Arc<Self>, key: &str, value: serde_json::Value) {
         let Some(client) = self.client.lock().unwrap().clone() else { return };

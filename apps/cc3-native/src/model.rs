@@ -214,6 +214,8 @@ pub struct ThreadState {
 
 #[derive(Debug, Clone, Default, PartialEq)]
 pub struct ThreadView {
+    /// A run is active: the composer offers Stop.
+    pub running: bool,
     /// Workspace folder name; file paths in tool-call rows are shown below it.
     pub workspace_name: String,
     pub thread_id: String,
@@ -336,7 +338,7 @@ impl ThreadState {
                 _ => {}
             }
         }
-        ThreadView { workspace_name: String::new(), thread_id: self.thread_id.clone(), title: self.title.clone(), rows }
+        ThreadView { running: self.has_active_run(), workspace_name: String::new(), thread_id: self.thread_id.clone(), title: self.title.clone(), rows }
     }
 }
 

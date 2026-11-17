@@ -392,7 +392,7 @@ pub fn ComposerQuestion() -> Element {
 }
 
 #[component]
-pub fn ComposerNormal(#[props(default)] onsend: Option<EventHandler<String>>) -> Element {
+pub fn ComposerNormal(#[props(default)] onsend: Option<EventHandler<String>>, #[props(default)] onstop: Option<EventHandler<()>>, #[props(default)] running: bool) -> Element {
     let mut text = use_signal(String::new);
     let live = onsend.is_some();
     let empty = text().trim().is_empty();
@@ -628,10 +628,16 @@ pub fn ComposerNormal(#[props(default)] onsend: Option<EventHandler<String>>) ->
                                                     button {
                                                         "type": "submit",
                                                         "class": "relative isolate flex h-9 w-9 items-center justify-center overflow-hidden rounded-full shadow-xs transition-all duration-150 enabled:cursor-pointer enabled:inset-shadow-control-highlight hover:scale-105 active:inset-shadow-control-pressed active:shadow-none disabled:pointer-events-none disabled:shadow-none disabled:hover:scale-100 sm:h-8 sm:w-8 [&_svg]:pointer-events-none bg-transparent text-white enabled:shadow-black/24 enabled:hover:brightness-110 disabled:opacity-64",
-                                                        disabled: !live || empty,
-                                                        "aria-label": "Submit message",
+                                                        disabled: !live || (empty && !running),
+                                                        "aria-label": if running && empty { "Stop generation" } else { "Submit message" },
                                                         onclick: move |e| {
                                                             e.prevent_default();
+                                                            if running && text().trim().is_empty() {
+                                                                if let Some(stop) = onstop {
+                                                                    stop.call(());
+                                                                }
+                                                                return;
+                                                            }
                                                             let message = text();
                                                             if let Some(send) = onsend {
                                                                 if !message.trim().is_empty() {
@@ -640,6 +646,12 @@ pub fn ComposerNormal(#[props(default)] onsend: Option<EventHandler<String>>) ->
                                                                 }
                                                             }
                                                         },
+                                                        if running && empty {
+                                                            span {
+                                                                "class": "absolute inset-0 z-10 flex items-center justify-center rounded-full bg-destructive/90 text-white",
+                                                                svg { "width": "12", "height": "12", "viewBox": "0 0 12 12", "fill": "currentColor", "aria-hidden": "true", rect { "x": "2", "y": "2", "width": "8", "height": "8", "rx": "1.5" } }
+                                                            }
+                                                        }
                                                         span {
                                                             "class": "pointer-events-none absolute inset-0 -z-10",
                                                             "aria-hidden": "true",
