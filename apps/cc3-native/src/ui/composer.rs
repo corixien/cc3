@@ -17,7 +17,7 @@ pub struct QuestionOption {
 }
 
 #[component]
-pub fn ComposerQuestion(#[props(default)] header: String, #[props(default)] question: String, #[props(default)] options: Vec<QuestionOption>, #[props(default)] onanswer: Option<EventHandler<String>>) -> Element {
+pub fn ComposerQuestion(#[props(default)] onaction: EventHandler<String>, #[props(default)] header: String, #[props(default)] question: String, #[props(default)] options: Vec<QuestionOption>, #[props(default)] onanswer: Option<EventHandler<String>>) -> Element {
     let header = if header.is_empty() { "Choice".to_string() } else { header };
     let question = if question.is_empty() { "Which approach should I take?".to_string() } else { question };
     let options = if options.is_empty() { vec![QuestionOption { label: "Continue".into(), description: "Resume work".into(), value: "continue".into() }] } else { options };
@@ -56,6 +56,7 @@ pub fn ComposerQuestion(#[props(default)] header: String, #[props(default)] ques
                                                 "data-slot": "collapsible",
                                                 "dir": "ltr",
                                                 button {
+                                                    onclick: move |e| { e.prevent_default(); onaction.call("question:dismiss".to_string()); },
                                                     "type": "button",
                                                     "class": "group/banner-row grid min-h-(--composer-banner-icon-column) w-full min-w-0 grid-cols-[var(--composer-banner-icon-column)_minmax(0,1fr)_auto] items-center gap-x-1 text-start not-has-[>[data-slot=composer-banner-actions]]:grid-cols-[var(--composer-banner-icon-column)_minmax(0,1fr)] [&:is(button)]:cursor-pointer [&:is(button)]:rounded-xl [&:is(button)]:hover:bg-foreground/5 [&:is(button)]:focus-visible:outline-2 [&:is(button)]:focus-visible:-outline-offset-2 [&:is(button)]:focus-visible:outline-ring cursor-pointer px-4 py-1.5",
                                                     "data-composer-banner-row": "true",
@@ -306,6 +307,7 @@ for (i, opt) in options.iter().enumerate() {
                                                         "inert": "",
                                                         "class": "min-w-0 shrink-0 pointer-events-none invisible absolute",
                                                         button {
+                                                            onclick: move |e| { e.prevent_default(); onaction.call("unavailable:Composer options (attachments, plan mode)".to_string()); },
                                                             "type": "button",
                                                             "class": "relative inline-flex cursor-pointer items-center justify-center whitespace-nowrap rounded-(--control-radius) border border-transparent text-base outline-none hover:bg-accent data-pressed:bg-accent focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring focus-visible:ring-offset-1 focus-visible:ring-offset-background disabled:pointer-events-none disabled:opacity-64 data-disabled:pointer-events-none data-disabled:opacity-64 pointer-coarse:after:absolute pointer-coarse:after:size-full pointer-coarse:after:min-h-11 pointer-coarse:after:min-w-11 [&:active:not([aria-haspopup])]:scale-[0.97] [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg]:-mx-0.5 [&_svg[data-composer-control-icon]]:mx-0 [&_:is([data-composer-control-label],[data-chat-provider-model-picker-label])]:[text-box:trim-both_cap_alphabetic] supports-[text-box:trim-both_cap_alphabetic]:[&_:is([data-composer-control-label],[data-chat-provider-model-picker-label])]:py-1.5 h-7 gap-1.5 px-2 font-medium text-foreground/80 [&_svg:not([class*='text-'])]:text-muted-foreground hover:text-foreground sm:text-sm [&_svg:not([class*='size-'])]:size-4.5 sm:[&_svg:not([class*='size-'])]:size-4 aria-pressed:bg-accent aria-pressed:text-accent-foreground aria-pressed:hover:bg-accent/80 shrink-0",
                                                             "aria-label": "More composer controls",
@@ -348,6 +350,7 @@ for (i, opt) in options.iter().enumerate() {
                                                 div {
                                                     "class": "flex items-center justify-end gap-1.5",
                                                     button {
+                                                        onclick: move |e| { e.prevent_default(); onaction.call("unavailable:Voice input".to_string()); },
                                                         "type": "button",
                                                         "class": "[&_svg]:-mx-0.5 relative inline-flex cursor-pointer items-center justify-center gap-2 whitespace-nowrap rounded-[var(--control-radius)] border font-medium text-base outline-none transition-[box-shadow,scale] [&:not([aria-haspopup]):not(:disabled):not([aria-disabled=true])]:will-change-[scale] [&:active:not([aria-haspopup])]:scale-[0.97] before:pointer-events-none before:absolute before:inset-0 before:rounded-[calc(var(--control-radius)-1px)] pointer-coarse:after:absolute pointer-coarse:after:size-full pointer-coarse:after:min-h-11 pointer-coarse:after:min-w-11 focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring focus-visible:ring-offset-1 focus-visible:ring-offset-background disabled:pointer-events-none disabled:opacity-64 aria-disabled:cursor-not-allowed aria-disabled:opacity-64 sm:text-sm [&_svg:not([class*='text-'])]:text-[var(--control-icon-color)] [&_svg:not([class*='size-'])]:size-4.5 sm:[&_svg:not([class*='size-'])]:size-4 [&_svg]:pointer-events-none [&_svg]:shrink-0 size-8 sm:size-7 [--control-icon-color:var(--contrast-muted-foreground)] border-transparent text-foreground data-pressed:bg-accent [:hover,[data-pressed]]:bg-accent shrink-0",
                                                         "data-slot": "tooltip-trigger",
@@ -416,7 +419,7 @@ for (i, opt) in options.iter().enumerate() {
 }
 
 #[component]
-pub fn ComposerNormal(#[props(default)] onsend: Option<EventHandler<String>>, #[props(default)] onstop: Option<EventHandler<()>>, #[props(default)] running: bool, #[props(default)] model_label: String, #[props(default)] onmodel: Option<EventHandler<()>>) -> Element {
+pub fn ComposerNormal(#[props(default)] onsend: Option<EventHandler<String>>, #[props(default)] onstop: Option<EventHandler<()>>, #[props(default)] running: bool, #[props(default)] onaction: EventHandler<String>, #[props(default)] model_label: String, #[props(default)] onmodel: Option<EventHandler<()>>) -> Element {
     let label = if model_label.is_empty() { "GPT-5.4".to_string() } else { model_label };
     let mut text = use_signal(String::new);
     let live = onsend.is_some();
@@ -582,6 +585,7 @@ pub fn ComposerNormal(#[props(default)] onsend: Option<EventHandler<String>>, #[
                                                         "inert": "",
                                                         "class": "min-w-0 shrink-0 pointer-events-none invisible absolute",
                                                         button {
+                                                            onclick: move |e| { e.prevent_default(); onaction.call("unavailable:Composer options (attachments, plan mode)".to_string()); },
                                                             "type": "button",
                                                             "class": "relative inline-flex cursor-pointer items-center justify-center whitespace-nowrap rounded-(--control-radius) border border-transparent text-base outline-none hover:bg-accent data-pressed:bg-accent focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring focus-visible:ring-offset-1 focus-visible:ring-offset-background disabled:pointer-events-none disabled:opacity-64 data-disabled:pointer-events-none data-disabled:opacity-64 pointer-coarse:after:absolute pointer-coarse:after:size-full pointer-coarse:after:min-h-11 pointer-coarse:after:min-w-11 [&:active:not([aria-haspopup])]:scale-[0.97] [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg]:-mx-0.5 [&_svg[data-composer-control-icon]]:mx-0 [&_:is([data-composer-control-label],[data-chat-provider-model-picker-label])]:[text-box:trim-both_cap_alphabetic] supports-[text-box:trim-both_cap_alphabetic]:[&_:is([data-composer-control-label],[data-chat-provider-model-picker-label])]:py-1.5 h-7 gap-1.5 px-2 font-medium text-foreground/80 [&_svg:not([class*='text-'])]:text-muted-foreground hover:text-foreground sm:text-sm [&_svg:not([class*='size-'])]:size-4.5 sm:[&_svg:not([class*='size-'])]:size-4 aria-pressed:bg-accent aria-pressed:text-accent-foreground aria-pressed:hover:bg-accent/80 shrink-0",
                                                             "aria-label": "More composer controls",
@@ -622,6 +626,7 @@ pub fn ComposerNormal(#[props(default)] onsend: Option<EventHandler<String>>, #[
                                                     }
                                                 }
                                                 button {
+                                                    onclick: move |e| { e.prevent_default(); onaction.call("unavailable:Voice input".to_string()); },
                                                     "type": "button",
                                                     "class": "[&_svg]:-mx-0.5 relative inline-flex cursor-pointer items-center justify-center gap-2 whitespace-nowrap rounded-[var(--control-radius)] border font-medium text-base outline-none transition-[box-shadow,scale] [&:not([aria-haspopup]):not(:disabled):not([aria-disabled=true])]:will-change-[scale] [&:active:not([aria-haspopup])]:scale-[0.97] before:pointer-events-none before:absolute before:inset-0 before:rounded-[calc(var(--control-radius)-1px)] pointer-coarse:after:absolute pointer-coarse:after:size-full pointer-coarse:after:min-h-11 pointer-coarse:after:min-w-11 focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring focus-visible:ring-offset-1 focus-visible:ring-offset-background disabled:pointer-events-none disabled:opacity-64 aria-disabled:cursor-not-allowed aria-disabled:opacity-64 sm:text-sm [&_svg:not([class*='text-'])]:text-[var(--control-icon-color)] [&_svg:not([class*='size-'])]:size-4.5 sm:[&_svg:not([class*='size-'])]:size-4 [&_svg]:pointer-events-none [&_svg]:shrink-0 size-8 sm:size-7 [--control-icon-color:var(--contrast-muted-foreground)] border-transparent text-foreground data-pressed:bg-accent [:hover,[data-pressed]]:bg-accent shrink-0",
                                                     "data-slot": "tooltip-trigger",

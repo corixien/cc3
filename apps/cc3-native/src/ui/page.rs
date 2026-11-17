@@ -9,6 +9,7 @@ pub fn action_at(doc: &blitz_dom::BaseDocument, x: f32, y: f32) -> Option<String
     let hit = doc.hit(x, y)?;
     let mut id = Some(hit.node_id);
     let mut first = true;
+    let mut dead_button: Option<String> = None;
     while let Some(current) = id {
         let node = doc.get_node(current)?;
         if let Some(el) = node.element_data() {
@@ -32,11 +33,14 @@ pub fn action_at(doc: &blitz_dom::BaseDocument, x: f32, y: f32) -> Option<String
             if attr("aria-label").is_some_and(|l| l == "Close" || l == "Close settings") {
                 return Some("close".into());
             }
+            if dead_button.is_none() && (&*el.name.local == "button" || attr("role").as_deref() == Some("button")) {
+                dead_button = Some(attr("aria-label").or_else(|| attr("title")).unwrap_or_else(|| "This button".into()));
+            }
         }
         first = false;
         id = node.parent;
     }
-    None
+    dead_button.map(|label| format!("unavailable:{label}"))
 }
 
 #[component]

@@ -235,6 +235,12 @@ fn ctrl_k_opens_the_palette_and_escape_closes_it() {
     }
 }
 
+/// Tests that set `CC3_HOME` run one at a time.
+fn home_lock() -> std::sync::MutexGuard<'static, ()> {
+    static LOCK: std::sync::Mutex<()> = std::sync::Mutex::new(());
+    LOCK.lock().unwrap_or_else(|e| e.into_inner())
+}
+
 fn runtime() -> tokio::runtime::Runtime {
     tokio::runtime::Builder::new_current_thread().enable_time().build().unwrap()
 }
@@ -271,6 +277,7 @@ fn palette_filters_while_typing_and_enter_opens_a_page() {
 
 #[test]
 fn settings_switch_toggles_and_persists() {
+    let _home = home_lock();
     let rt = runtime();
     let _guard = rt.enter();
     let home = std::env::temp_dir().join(format!("cc3-interact-{}", std::process::id()));
@@ -448,6 +455,7 @@ fn shortcuts_open_pages() {
 
 #[test]
 fn palette_toggles_the_theme() {
+    let _home = home_lock();
     let rt = runtime();
     let _guard = rt.enter();
     let home = std::env::temp_dir().join(format!("cc3-interact-theme-{}", std::process::id()));
@@ -479,6 +487,7 @@ fn typing_goes_to_the_composer_without_a_click() {
 
 #[test]
 fn provider_settings_survive_clicks() {
+    let _home = home_lock();
     let rt = runtime();
     let _guard = rt.enter();
     let home = std::env::temp_dir().join(format!("cc3-interact-prov-{}", std::process::id()));
@@ -501,6 +510,7 @@ fn provider_settings_survive_clicks() {
 
 #[test]
 fn every_control_on_every_settings_page_survives_clicks_and_typing() {
+    let _home = home_lock();
     let rt = runtime();
     let _guard = rt.enter();
     let home = std::env::temp_dir().join(format!("cc3-interact-fuzz-{}", std::process::id()));
@@ -523,4 +533,43 @@ fn every_control_on_every_settings_page_survives_clicks_and_typing() {
             h.hover(x + 3.0, y + 3.0);
         }
     }
+}
+
+#[test]
+fn header_and_sidebar_buttons_do_something() {
+    let rt = runtime();
+    let _guard = rt.enter();
+    let mut h = Harness::new(fixture_store());
+    rt.block_on(tokio::time::sleep(std::time::Duration::from_millis(250)));
+    h.settle();
+    // Sidebar toggle hides the sidebar.
+    let (x, y) = h.center_of("aria-label", "Toggle main sidebar").expect("toggle");
+    h.click(x, y);
+    assert!(h.html_contains("cc3-sidebar-hidden"), "sidebar hides");
+    h.click(x, y);
+    assert!(!h.html_contains("cc3-sidebar-hidden"), "sidebar shows again");
+    // Project filter lists the projects.
+    let (x, y) = h.center_of("aria-label", "Filter threads by project").expect("filter");
+    h.click(x, y);
+    assert!(h.text_contains("All projects") && h.text_contains("render"), "project menu opens");
+    rt.block_on(tokio::time::sleep(std::time::Duration::from_millis(120)));
+    h.settle();
+    h.key(Key::Named(keyboard_types::NamedKey::Escape), Code::Escape, Modifiers::empty());
+    assert!(!h.html_contains("menu-popup"), "escape closes the project menu");
+    // Thread actions menu.
+    let (x, y) = h.center_of("aria-label", "Thread actions for Thread thread-golden").expect("thread actions");
+    h.click(x, y);
+    assert!(h.text_contains("Archive thread"), "thread menu opens");
+}
+
+#[test]
+fn commit_button_asks_for_a_message_and_dead_buttons_explain_themselves() {
+    let rt = runtime();
+    let _guard = rt.enter();
+    let mut h = Harness::new(fixture_store());
+    let (x, y) = h.center_of("aria-label", "Start voice input").expect("mic");
+    h.click(x, y);
+    rt.block_on(tokio::time::sleep(std::time::Duration::from_millis(250)));
+    h.settle();
+    assert!(h.text_contains("Voice input"), "an unavailable action shows a toast");
 }

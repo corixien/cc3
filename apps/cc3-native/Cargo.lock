@@ -660,6 +660,7 @@ dependencies = [
  "keyboard-types",
  "parley",
  "parley_engine",
+ "peniko",
  "pulldown-cmark",
  "serde",
  "serde_json",

@@ -10,6 +10,17 @@ pub struct ToastView {
     pub description: String,
 }
 
+static NOTICES: std::sync::Mutex<Vec<(String, String, String)>> = std::sync::Mutex::new(Vec::new());
+
+/// Queues a toast from anywhere in the UI; the root shows it on its next tick.
+pub fn notify(kind: &str, title: &str, description: &str) {
+    NOTICES.lock().unwrap().push((kind.into(), title.into(), description.into()));
+}
+
+pub fn drain_notices() -> Vec<(String, String, String)> {
+    std::mem::take(&mut *NOTICES.lock().unwrap())
+}
+
 #[component]
 pub fn ToastStack(items: Vec<ToastView>, ondismiss: EventHandler<u64>) -> Element {
     rsx! {

@@ -329,6 +329,81 @@ impl Store {
         });
     }
 
+    /// Dismisses the pending question (`thread.user-input.dismiss`).
+    pub fn dismiss_question(self: &Arc<Self>) {
+        let Some(client) = self.client.lock().unwrap().clone() else { return };
+        let Some((thread_id, request_id)) = self.thread.lock().unwrap().as_ref().and_then(|t| t.view().pending_question.map(|q| (t.thread_id.clone(), q.request_id))) else { return };
+        let seed = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).map(|d| d.as_nanos()).unwrap_or(0);
+        let command = serde_json::json!({"type": "thread.user-input.dismiss", "commandId": format!("cc3-cmd-d-{seed:x}"), "threadId": thread_id, "requestId": request_id});
+        std::thread::spawn(move || {
+            let _ = client.call("orchestration.dispatchCommand", command, std::time::Duration::from_secs(30));
+        });
+    }
+
+    /// Editor ids the server can launch.
+    pub fn editors(&self) -> Vec<String> {
+        self.config.lock().unwrap()["availableEditors"].as_array().map(|a| a.iter().filter_map(|e| e.as_str().map(String::from)).collect()).unwrap_or_default()
+    }
+
+    /// Opens the workspace in an editor (`shell.openInEditor`); toasts on failure.
+    pub fn open_in_editor(self: &Arc<Self>, editor: Option<String>) {
+        let Some(client) = self.client.lock().unwrap().clone() else { return };
+        let Some(cwd) = self.current_workspace() else {
+            self.notify("error", "No workspace", "Open a thread first");
+            return;
+        };
+        let Some(editor) = editor.or_else(|| self.editors().into_iter().next()) else {
+            self.notify("error", "No editor available", "The server found no installed editor");
+            return;
+        };
+        let store = self.clone();
+        std::thread::spawn(move || {
+            if let Err(e) = client.call("shell.openInEditor", serde_json::json!({"cwd": cwd, "editor": editor}), std::time::Duration::from_secs(20)) {
+                store.notify("error", "Could not open the editor", &format!("{e:?}").chars().take(160).collect::<String>());
+            }
+        });
+    }
+
+    /// Local branches of the open thread's workspace: (name, is current).
+    pub fn list_branches(&self) -> Vec<(String, bool)> {
+        let Some(client) = self.client.lock().unwrap().clone() else { return Vec::new() };
+        let Some(cwd) = self.current_workspace() else { return Vec::new() };
+        let Ok(result) = client.call("vcs.listRefs", serde_json::json!({"cwd": cwd, "refKind": "local"}), std::time::Duration::from_secs(10)) else { return Vec::new() };
+        result["refs"].as_array().map(|r| r.iter().filter_map(|b| Some((b["name"].as_str()?.to_string(), b["current"].as_bool().unwrap_or(false)))).collect()).unwrap_or_default()
+    }
+
+    pub fn switch_branch(self: &Arc<Self>, name: String) {
+        let Some(client) = self.client.lock().unwrap().clone() else { return };
+        let Some(cwd) = self.current_workspace() else { return };
+        let store = self.clone();
+        std::thread::spawn(move || match client.call("vcs.switchRef", serde_json::json!({"cwd": cwd, "refName": name}), std::time::Duration::from_secs(30)) {
+            Ok(_) => store.notify("success", "Switched branch", &name),
+            Err(e) => store.notify("error", "Could not switch branch", &format!("{e:?}").chars().take(160).collect::<String>()),
+        });
+    }
+
+    /// Commit / push through `git.runStackedAction`.
+    pub fn git_action(self: &Arc<Self>, action: &str, message: Option<String>) {
+        let Some(client) = self.client.lock().unwrap().clone() else { return };
+        let Some(cwd) = self.current_workspace() else { return };
+        let seed = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).map(|d| d.as_nanos()).unwrap_or(0);
+        let mut payload = serde_json::json!({"actionId": format!("cc3-git-{seed:x}"), "cwd": cwd, "action": action});
+        if let Some(m) = message.filter(|m| !m.trim().is_empty()) {
+            payload["commitMessage"] = m.into();
+        }
+        let label = action.replace('_', " ");
+        let store = self.clone();
+        std::thread::spawn(move || match client.call("git.runStackedAction", payload, std::time::Duration::from_secs(120)) {
+            Ok(_) => store.notify("success", "Done", &label),
+            Err(e) => store.notify("error", &format!("Git {label} failed"), &format!("{e:?}").chars().take(160).collect::<String>()),
+        });
+    }
+
+    /// Projects: (id, title).
+    pub fn projects(&self) -> Vec<(String, String)> {
+        self.shell.lock().unwrap().projects.iter().map(|p| (p.id.clone(), p.title.clone())).collect()
+    }
+
     /// Stops the open thread's run (`thread.stop`).
     pub fn stop_thread(self: &Arc<Self>) {
         let Some(client) = self.client.lock().unwrap().clone() else { return };

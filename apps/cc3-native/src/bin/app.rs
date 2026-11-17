@@ -43,7 +43,7 @@ fn main() {
             .with_surface_size(LogicalSize::new(alert::WIDTH, alert::HEIGHT))
             .with_position(LogicalPosition::new(680.0, 72.0));
         alert::keep_above();
-        dioxus::native::launch_cfg(AlertApp, vec![], vec![Box::new(Config::new().with_window_attributes(attributes).with_font_ctx(cc3_native::render::font_context()))]);
+        dioxus::native::launch_cfg(AlertApp, vec![], vec![Box::new(Config::new().with_window_attributes(attributes).with_font_ctx(cc3_native::render::font_context()).with_base_color(peniko::Color::TRANSPARENT).with_alpha_mode(anyrender::CompositeAlphaMode::Transparent))]);
         return;
     }
 
@@ -62,7 +62,7 @@ fn main() {
         .with_transparent(true)
         .with_surface_size(LogicalSize::new(1400.0, 900.0))
         .with_min_surface_size(LogicalSize::new(640.0, 480.0));
-    dioxus::native::launch_cfg(App, vec![], vec![Box::new(Config::new().with_window_attributes(attributes).with_font_ctx(cc3_native::render::font_context()))]);
+    dioxus::native::launch_cfg(App, vec![], vec![Box::new(Config::new().with_window_attributes(attributes).with_font_ctx(cc3_native::render::font_context()).with_base_color(peniko::Color::TRANSPARENT).with_alpha_mode(anyrender::CompositeAlphaMode::Transparent))]);
 }
 
 static ALERT: std::sync::OnceLock<(u64, String, String)> = std::sync::OnceLock::new();

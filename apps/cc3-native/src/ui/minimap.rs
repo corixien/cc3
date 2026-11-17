@@ -16,7 +16,7 @@ pub fn strips(count: usize) -> Vec<Strip> {
 }
 
 #[component]
-pub fn Minimap(strips: Vec<Strip>) -> Element {
+pub fn Minimap(strips: Vec<Strip>, #[props(default)] onnav: EventHandler<String>) -> Element {
     rsx! {
     div {
         "class": "group/minimap pointer-events-none absolute inset-y-0 left-0 z-40 w-18 opacity-100",
@@ -37,6 +37,7 @@ pub fn Minimap(strips: Vec<Strip>) -> Element {
                         "class": "[&_svg]:-mx-0.5 relative inline-flex shrink-0 cursor-pointer items-center justify-center gap-2 whitespace-nowrap border font-medium text-base outline-none transition-[box-shadow,scale] [&:not([aria-haspopup]):not(:disabled):not([aria-disabled=true])]:will-change-[scale] [&:active:not([aria-haspopup])]:scale-[0.97] before:pointer-events-none before:absolute before:inset-0 pointer-coarse:after:absolute pointer-coarse:after:size-full pointer-coarse:after:min-h-11 pointer-coarse:after:min-w-11 focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring focus-visible:ring-offset-1 focus-visible:ring-offset-background disabled:pointer-events-none disabled:opacity-64 aria-disabled:cursor-not-allowed aria-disabled:opacity-64 sm:text-sm [&_svg:not([class*='text-'])]:text-[var(--control-icon-color)] sm:[&_svg:not([class*='size-'])]:size-4 [&_svg]:pointer-events-none [&_svg]:shrink-0 size-5 rounded-sm p-0 before:rounded-[calc(var(--radius-sm)-1px)] [&_svg:not([class*='size-'])]:size-3 [--control-icon-color:currentColor] border-transparent text-muted-foreground data-pressed:bg-accent [:hover,[data-pressed]]:bg-accent [:hover,[data-pressed]]:text-foreground",
                         "data-slot": "button",
                         "aria-label": "Previous turn",
+                        onclick: move |_| onnav.call("prev".to_string()),
                         svg {
                             "width": "24",
                             "height": "24",
@@ -56,6 +57,7 @@ pub fn Minimap(strips: Vec<Strip>) -> Element {
                 }
                 button {
                     "aria-label": "Jump to message: User message",
+                    onclick: move |e| onnav.call(format!("frac:{}", (e.element_coordinates().y / 40.0).clamp(0.0, 1.0))),
                     "class": "absolute inset-y-0 left-0 w-full cursor-pointer bg-transparent before:absolute before:inset-x-0 before:-inset-y-1 before:content-[''] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring/70",
                     "type": "button",
                     div {
@@ -82,7 +84,7 @@ pub fn Minimap(strips: Vec<Strip>) -> Element {
                         "class": "[&_svg]:-mx-0.5 relative inline-flex shrink-0 cursor-pointer items-center justify-center gap-2 whitespace-nowrap border font-medium text-base outline-none transition-[box-shadow,scale] [&:not([aria-haspopup]):not(:disabled):not([aria-disabled=true])]:will-change-[scale] [&:active:not([aria-haspopup])]:scale-[0.97] before:pointer-events-none before:absolute before:inset-0 pointer-coarse:after:absolute pointer-coarse:after:size-full pointer-coarse:after:min-h-11 pointer-coarse:after:min-w-11 focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring focus-visible:ring-offset-1 focus-visible:ring-offset-background disabled:pointer-events-none disabled:opacity-64 aria-disabled:cursor-not-allowed aria-disabled:opacity-64 sm:text-sm [&_svg:not([class*='text-'])]:text-[var(--control-icon-color)] sm:[&_svg:not([class*='size-'])]:size-4 [&_svg]:pointer-events-none [&_svg]:shrink-0 size-5 rounded-sm p-0 before:rounded-[calc(var(--radius-sm)-1px)] [&_svg:not([class*='size-'])]:size-3 [--control-icon-color:currentColor] border-transparent text-muted-foreground data-pressed:bg-accent [:hover,[data-pressed]]:bg-accent [:hover,[data-pressed]]:text-foreground",
                         "data-slot": "button",
                         "aria-label": "Next turn",
-                        "disabled": "",
+                        onclick: move |_| onnav.call("next".to_string()),
                         svg {
                             "width": "24",
                             "height": "24",

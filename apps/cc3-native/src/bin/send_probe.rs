@@ -72,4 +72,7 @@ fn main() {
     if let Some(o) = config["settings"].as_object() {
         println!("boolkeys: {:?}", o.iter().filter(|(_, v)| v.is_boolean()).map(|(k, v)| format!("{k}={v}")).collect::<Vec<_>>());
     }
+    let r = client.call("vcs.listRefs", json!({"cwd": root.to_string_lossy(), "refKind": "local"}), Duration::from_secs(20));
+    println!("refs: {}", format!("{r:?}").chars().take(700).collect::<String>());
+    println!("editors: {}", config["availableEditors"]);
 }

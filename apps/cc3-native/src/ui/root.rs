@@ -21,11 +21,19 @@ impl PartialEq for StoreHandle {
 
 /// Sidebar rows from the shell model.
 pub fn rows_from_store(store: &Store, open: Option<String>) -> Vec<ThreadRowData> {
+    sidebar_rows(store, open, false)
+}
+
+/// Rows of the settled shelf.
+pub fn settled_rows_from_store(store: &Store, open: Option<String>) -> Vec<ThreadRowData> {
+    sidebar_rows(store, open, true)
+}
+
+fn sidebar_rows(store: &Store, open: Option<String>, settled: bool) -> Vec<ThreadRowData> {
     let shell = store.shell.lock().unwrap();
     let environment_id = store.environment_id.lock().unwrap().clone();
     let now = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).map(|d| d.as_secs() as i64).unwrap_or(0);
-    shell
-        .visible_threads()
+    (if settled { shell.settled_threads() } else { shell.visible_threads() })
         .iter()
         .enumerate()
         .map(|(i, t)| {
@@ -35,7 +43,7 @@ pub fn rows_from_store(store: &Store, open: Option<String>) -> Vec<ThreadRowData
                 thread_id: t.id.clone(),
                 thread_key: format!("{environment_id}:{}", t.id),
                 aria_label: format!("{}, {project}", t.title),
-                ui_id: format!("_r_{i}_"),
+                ui_id: format!("_r_{}{i}_", if settled { "s" } else { "" }),
                 title: t.title.clone(),
                 project,
                 monogram,
@@ -61,6 +69,15 @@ pub fn AppRoot(store: StoreHandle, #[props(default)] frame: bool) -> Element {
     let mut palette_active = use_signal(|| 0usize);
     let mut dark = use_signal(|| crate::ui::settings::SWITCHES.read().get("__theme_dark").copied().unwrap_or(true));
     let mut diff_open = use_signal(|| false);
+    let mut settled = use_signal(Vec::<ThreadRowData>::new);
+    let mut shelf_open = use_signal(|| false);
+    let mut sidebar_hidden = use_signal(|| false);
+    let mut details_hidden = use_signal(|| false);
+    let mut diff_wide = use_signal(|| false);
+    let mut project_filter = use_signal(|| None::<String>);
+    let mut popup = use_signal(|| None::<(String, i32, i32, Vec<(String, String)>)>);
+    let mut prompt = use_signal(|| None::<String>);
+    let mut prompt_value = use_signal(String::new);
     let mut menu = use_signal(|| None::<(String, i32, i32)>);
     let mut toasts = use_signal(Vec::<crate::ui::toast::ToastView>::new);
     let mut terminal_open = use_signal(|| false);
@@ -93,6 +110,9 @@ pub fn AppRoot(store: StoreHandle, #[props(default)] frame: bool) -> Element {
                 let mut seen = u64::MAX;
                 let mut last_alert: Option<String> = None;
                 loop {
+                    for (kind, title, description) in crate::ui::toast::drain_notices() {
+                        store.notify(&kind, &title, &description);
+                    }
                     if store.prune_toasts(None, std::time::Duration::from_secs(6)) {
                         toasts.set(store.toasts_view());
                     }
@@ -103,6 +123,7 @@ pub fn AppRoot(store: StoreHandle, #[props(default)] frame: bool) -> Element {
                         let settings = store.config.lock().unwrap()["settings"].clone();
                         crate::ui::settings::sync_from_server(&settings);
                         rows.set(rows_from_store(store, selected()));
+                        settled.set(settled_rows_from_store(store, selected()));
                         let mut view = if draft() { crate::model::ThreadView::default() } else { store.thread_view().unwrap_or_default() };
                         view.model_label = store.model_label();
                         // Needs-input card (only in the real app: it starts a process of the executable).
@@ -135,7 +156,8 @@ pub fn AppRoot(store: StoreHandle, #[props(default)] frame: bool) -> Element {
                 AppLayout {
                     rows: {
                         let q = sidebar_query().to_lowercase();
-                        rows().into_iter().filter(|r| q.is_empty() || r.title.to_lowercase().contains(&q) || r.project.to_lowercase().contains(&q)).collect::<Vec<_>>()
+                        let project = project_filter().and_then(|id| store.projects().into_iter().find(|p| p.0 == id).map(|p| p.1));
+                        rows().into_iter().filter(|r| (q.is_empty() || r.title.to_lowercase().contains(&q) || r.project.to_lowercase().contains(&q)) && project.as_ref().is_none_or(|p| &r.project == p)).collect::<Vec<_>>()
                     },
                     thread: thread(),
                     environment_id: store.environment_id.lock().unwrap().clone(),
@@ -150,6 +172,8 @@ pub fn AppRoot(store: StoreHandle, #[props(default)] frame: bool) -> Element {
                             store.send_message(&text);
                         }
                     },
+                    settled: settled(),
+                    shelf_open: shelf_open(),
                     page: page().or_else(|| no_projects.then(|| "route-welcome".to_string())),
                     onstop: move |_| store.stop_thread(),
                     onanswer: move |(request_id, value): (String, String)| store.answer_question(&request_id, &value),
@@ -165,6 +189,37 @@ pub fn AppRoot(store: StoreHandle, #[props(default)] frame: bool) -> Element {
                             let name = format!("settings-{}", section.trim_start_matches("/settings/"));
                             if crate::ui::fragments::page(&name).is_some() {
                                 page.set(Some(name));
+                            }
+                        } else if action == "ui:shelf" {
+                            shelf_open.set(!shelf_open());
+                        } else if action == "question:dismiss" {
+                            store.dismiss_question();
+                        } else if action == "ui:sidebar" {
+                            sidebar_hidden.set(!sidebar_hidden());
+                        } else if action == "ui:details" {
+                            details_hidden.set(!details_hidden());
+                        } else if action == "ui:panel-wide" {
+                            diff_wide.set(!diff_wide());
+                        } else if action == "editor:open" {
+                            store.open_in_editor(None);
+                        } else if action == "prompt:commit" {
+                            prompt_value.set(String::new());
+                            prompt.set(Some("commit".into()));
+                        } else if let Some(what) = action.strip_prefix("unavailable:") {
+                            store.notify("error", what, "This is not available in the native app yet");
+                        } else if let Some(rest) = action.strip_prefix("popup:") {
+                            // popup:<kind>:<x>:<y>
+                            let mut parts = rest.splitn(3, ':');
+                            if let (Some(kind), Some(x), Some(y)) = (parts.next(), parts.next().and_then(|v| v.parse::<i32>().ok()), parts.next().and_then(|v| v.parse::<i32>().ok())) {
+                                let items: Vec<(String, String)> = match kind {
+                                    "projects" => std::iter::once(("".to_string(), "All projects".to_string())).chain(store.projects().into_iter()).collect(),
+                                    "editors" => store.editors().into_iter().map(|e| (e.clone(), e)).collect(),
+                                    "branches" => store.list_branches().into_iter().map(|(n, cur)| (n.clone(), if cur { format!("{n}  (current)") } else { n })).collect(),
+                                    "git" => vec![("commit".into(), "Commit".into()), ("push".into(), "Push".into()), ("commit_push".into(), "Commit and push".into())],
+                                    "thread" => crate::ui::context_menu::ITEMS.iter().map(|(k, l)| (k.to_string(), l.to_string())).collect(),
+                                    _ => Vec::new(),
+                                };
+                                popup.set(Some((kind.to_string(), x, y, items)));
                             }
                         } else if action == "panel:terminal" {
                             if !terminal_open() {
@@ -210,6 +265,56 @@ pub fn AppRoot(store: StoreHandle, #[props(default)] frame: bool) -> Element {
                         rows.set(rows_from_store(store, Some(id.clone())));
                         store.open_thread(&id);
                     },
+                }
+                if let Some((kind, x, y, items)) = popup() {
+                    crate::ui::context_menu::ListMenu {
+                        x,
+                        y,
+                        items,
+                        onpick: {
+                            let kind = kind.clone();
+                            move |key: String| {
+                                popup.set(None);
+                                match kind.as_str() {
+                                    "projects" => project_filter.set(if key.is_empty() { None } else { Some(key) }),
+                                    "editors" => store.open_in_editor(Some(key)),
+                                    "branches" => store.switch_branch(key),
+                                    "git" if key == "commit" || key == "commit_push" => {
+                                        prompt_value.set(String::new());
+                                        prompt.set(Some(key));
+                                    }
+                                    "git" => store.git_action(&key, None),
+                                    "thread" => {
+                                        if let Some(id) = selected() {
+                                            store.thread_action(&id, &key);
+                                        }
+                                    }
+                                    _ => {}
+                                }
+                            }
+                        },
+                        onclose: move |_| popup.set(None),
+                    }
+                }
+                if let Some(action) = prompt() {
+                    crate::ui::add_project::AddProjectDialog {
+                        title: "Commit message".to_string(),
+                        hint: "Describe the changes. Leave empty to let the server write one.".to_string(),
+                        placeholder: "Commit message".to_string(),
+                        confirm: "Commit".to_string(),
+                        value: prompt_value(),
+                        error: String::new(),
+                        oninput: move |v: String| prompt_value.set(v),
+                        onsubmit: {
+                            let action = action.clone();
+                            move |_| {
+                                let action = if action == "commit" || action == "commit_push" { action.clone() } else { "commit".into() };
+                                store.git_action(&action, Some(prompt_value()));
+                                prompt.set(None);
+                            }
+                        },
+                        onclose: move |_| prompt.set(None),
+                    }
                 }
                 if let Some((id, x, y)) = menu() {
                     crate::ui::context_menu::ThreadMenu {
@@ -261,7 +366,7 @@ pub fn AppRoot(store: StoreHandle, #[props(default)] frame: bool) -> Element {
                             Some(Err(e)) => (Vec::new(), false, e.clone()),
                         };
                         rsx! {
-                            crate::ui::diff_panel::DiffPanel { files, loading, error, onrefresh: move |_| store.refresh_diff() }
+                            crate::ui::diff_panel::DiffPanel { files, loading, error, wide: diff_wide(), onrefresh: move |_| store.refresh_diff() }
                         }
                     }
                 }
@@ -355,7 +460,7 @@ pub fn AppRoot(store: StoreHandle, #[props(default)] frame: bool) -> Element {
     rsx! {
         style { {crate::ui::app_css()} }
         div {
-            class: if dark() { "cc3-root dark" } else { "cc3-root" },
+            class: format!("cc3-root{}{}{}", if dark() { " dark" } else { "" }, if sidebar_hidden() { " cc3-sidebar-hidden" } else { "" }, if details_hidden() { " cc3-details-hidden" } else { "" }),
             tabindex: "0",
             onmounted: move |e| {
                 // Hotkeys need a focused element to be routed to (children that autofocus do so later).
@@ -379,6 +484,12 @@ pub fn AppRoot(store: StoreHandle, #[props(default)] frame: bool) -> Element {
                     page.set(Some("route-usage".to_string()));
                 } else if (m.ctrl() || m.meta()) && key == "," {
                     page.set(Some("settings-general".to_string()));
+                } else if key == "Escape" && (popup().is_some() || menu().is_some() || prompt().is_some() || model_open() || add_project_open()) {
+                    popup.set(None);
+                    menu.set(None);
+                    prompt.set(None);
+                    model_open.set(false);
+                    add_project_open.set(false);
                 } else if key == "Escape" && palette_open() {
                     palette_open.set(false);
                 } else if key == "Escape" && page().is_some() {

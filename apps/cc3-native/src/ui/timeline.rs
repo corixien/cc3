@@ -33,7 +33,7 @@ pub fn Timeline(view: ThreadView, environment_id: String, spacer: u32) -> Elemen
                     div { key: "{index}", "style": "contain: layout style paint;",
                         match row {
                             TimelineRow::User { id, text, at } => rsx! {
-                                UserMessageRow { message_id: id.clone(), time: day_aware(at, now), uid: format!("-r{index}"), body: markdown::render(text) }
+                                UserMessageRow { message_id: id.clone(), time: day_aware(at, now), uid: format!("-r{index}"), body: markdown::render(text), text: text.clone() }
                             },
                             TimelineRow::Work { run_id, duration_ms, at, summary, first_item_id, entries } => rsx! {
                                 WorkSummaryRow {
@@ -71,7 +71,7 @@ pub fn Timeline(view: ThreadView, environment_id: String, spacer: u32) -> Elemen
                                 }
                             },
                             TimelineRow::Assistant { id, text, at } => rsx! {
-                                AssistantMessageRow { message_id: id.clone(), environment_id: environment_id.clone(), thread_id: view.thread_id.clone(), time: day_aware(at, now), uid: format!("-r{index}"), body: markdown::render(text) }
+                                AssistantMessageRow { message_id: id.clone(), environment_id: environment_id.clone(), thread_id: view.thread_id.clone(), time: day_aware(at, now), uid: format!("-r{index}"), body: markdown::render(text), text: text.clone() }
                             },
                         }
                     }

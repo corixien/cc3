@@ -49,13 +49,13 @@ fn line_style(line: &str) -> &'static str {
 }
 
 #[component]
-pub fn DiffPanel(files: Vec<DiffFile>, loading: bool, error: String, onrefresh: EventHandler<()>) -> Element {
+pub fn DiffPanel(files: Vec<DiffFile>, loading: bool, error: String, #[props(default)] wide: bool, onrefresh: EventHandler<()>) -> Element {
     let (adds, dels): (i64, i64) = files.iter().fold((0, 0), |(a, d), f| (a + f.additions, d + f.deletions));
     rsx! {
         div {
             "data-slot": "diff-panel",
             "class": "flex min-h-0 flex-col border-l bg-background text-foreground",
-            "style": "position: fixed; top: 40px; right: 0; bottom: 0; width: 540px; z-index: 30;",
+            "style": if wide { "position: fixed; top: 40px; right: 0; bottom: 0; left: 256px; z-index: 30;" } else { "position: fixed; top: 40px; right: 0; bottom: 0; width: 540px; z-index: 30;" },
             div {
                 "class": "flex h-10 shrink-0 items-center gap-2 border-b px-3 text-sm",
                 span { "class": "font-medium", "Diff" }

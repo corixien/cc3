@@ -21,6 +21,7 @@ pub struct ThreadShell {
     pub updated_at: String,
     pub archived_at: Option<String>,
     pub deleted_at: Option<String>,
+    pub settled_at: Option<String>,
 }
 
 #[derive(Debug, Clone, Default, Deserialize, PartialEq)]
@@ -41,7 +42,14 @@ impl Shell {
 
     /// Threads that appear in the sidebar, most recently updated first.
     pub fn visible_threads(&self) -> Vec<&ThreadShell> {
-        let mut threads: Vec<&ThreadShell> = self.threads.iter().filter(|t| t.archived_at.is_none() && t.deleted_at.is_none()).collect();
+        let mut threads: Vec<&ThreadShell> = self.threads.iter().filter(|t| t.archived_at.is_none() && t.deleted_at.is_none() && t.settled_at.is_none()).collect();
+        threads.sort_by(|a, b| b.updated_at.cmp(&a.updated_at));
+        threads
+    }
+
+    /// Threads on the "Settled" shelf, most recently updated first.
+    pub fn settled_threads(&self) -> Vec<&ThreadShell> {
+        let mut threads: Vec<&ThreadShell> = self.threads.iter().filter(|t| t.archived_at.is_none() && t.deleted_at.is_none() && t.settled_at.is_some()).collect();
         threads.sort_by(|a, b| b.updated_at.cmp(&a.updated_at));
         threads
     }

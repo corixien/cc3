@@ -2,6 +2,7 @@
 //! badge and the large notification card. Ports apps/cc3-desktop/src-tauri/src/{links,alert,native}.rs.
 pub mod alert;
 pub mod badge;
+pub mod clipboard;
 pub mod instance;
 
 use std::collections::VecDeque;

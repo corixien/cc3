@@ -2,7 +2,7 @@
 use dioxus::prelude::*;
 
 #[component]
-pub fn AddProjectDialog(value: String, error: String, oninput: EventHandler<String>, onsubmit: EventHandler<()>, onclose: EventHandler<()>) -> Element {
+pub fn AddProjectDialog(#[props(default = "Add project".to_string())] title: String, #[props(default = "Folder on this computer, for example /home/you/code/app".to_string())] hint: String, #[props(default = "/path/to/project".to_string())] placeholder: String, #[props(default = "Add project".to_string())] confirm: String, value: String, error: String, oninput: EventHandler<String>, onsubmit: EventHandler<()>, onclose: EventHandler<()>) -> Element {
     rsx! {
         div {
             "data-base-ui-portal": "",
@@ -22,16 +22,16 @@ pub fn AddProjectDialog(value: String, error: String, oninput: EventHandler<Stri
                 "style": "padding-top: 12vh;",
                 div {
                     "role": "dialog",
-                    "aria-label": "Add project",
+                    "aria-label": "{title}",
                     "data-slot": "dialog-popup",
                     "class": "dialog-glass relative flex min-h-0 w-full max-w-md min-w-0 flex-col gap-3 rounded-2xl border p-4 text-foreground pointer-events-auto",
-                    div { "class": "text-base font-semibold", "Add project" }
-                    div { "class": "text-sm font-normal text-muted-foreground", "Folder on this computer, for example /home/you/code/app" }
+                    div { "class": "text-base font-semibold", "{title}" }
+                    div { "class": "text-sm font-normal text-muted-foreground", "{hint}" }
                     div {
                         "class": "relative flex w-full rounded-lg border border-input bg-background text-sm dark:bg-input/32",
                         input {
                             "class": "h-8.5 w-full min-w-0 rounded-[inherit] bg-transparent px-3 leading-8.5 outline-none placeholder:text-placeholder",
-                            "placeholder": "/path/to/project",
+                            "placeholder": "{placeholder}",
                             "autocomplete": "off",
                             "spellcheck": "false",
                             "value": "{value}",
@@ -67,7 +67,7 @@ pub fn AddProjectDialog(value: String, error: String, oninput: EventHandler<Stri
                             "class": "inline-flex h-8 cursor-pointer items-center rounded-full bg-primary px-4 text-sm font-medium text-primary-foreground",
                             "disabled": value.trim().is_empty(),
                             onclick: move |_| onsubmit.call(()),
-                            "Add project"
+                            "{confirm}"
                         }
                     }
                 }

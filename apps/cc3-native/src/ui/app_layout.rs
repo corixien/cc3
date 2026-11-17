@@ -11,7 +11,7 @@ use crate::ui::composer::{ComposerMode, ComposerNormal, ComposerQuestion};
 use crate::ui::timeline::Timeline;
 
 #[component]
-pub fn AppLayout(rows: Vec<ThreadRowData>, thread: ThreadView, environment_id: String, onselect: EventHandler<String>, composer: ComposerMode, #[props(default)] onsend: Option<EventHandler<String>>, #[props(default)] page: Option<String>, #[props(default)] onaction: EventHandler<String>, #[props(default)] onstop: Option<EventHandler<()>>, #[props(default)] onanswer: Option<EventHandler<(String, String)>>) -> Element {
+pub fn AppLayout(rows: Vec<ThreadRowData>, thread: ThreadView, environment_id: String, onselect: EventHandler<String>, composer: ComposerMode, #[props(default)] onsend: Option<EventHandler<String>>, #[props(default)] page: Option<String>, #[props(default)] onaction: EventHandler<String>, #[props(default)] settled: Vec<ThreadRowData>, #[props(default)] shelf_open: bool, #[props(default)] onstop: Option<EventHandler<()>>, #[props(default)] onanswer: Option<EventHandler<(String, String)>>) -> Element {
     let page_def = page.as_deref().and_then(crate::ui::fragments::page);
     let page_main = page_def.and_then(|p| p.main);
     let page_overlay = page_def.filter(|p| !p.overlay_after_toasts).and_then(|p| p.overlay);
@@ -1370,6 +1370,7 @@ pub fn AppLayout(rows: Vec<ThreadRowData>, thread: ThreadView, environment_id: S
                                         div {
                                             "class": "relative top-[calc(var(--workspace-controls-top)-env(safe-area-inset-top))] z-10 ml-[calc(var(--workspace-controls-left)+1px-env(safe-area-inset-left))] flex shrink-0 items-center md:hidden",
                                             button {
+                                                onclick: move |_| onaction.call("ui:sidebar".to_string()),
                                                 "type": "button",
                                                 "class": "[&_svg]:-mx-0.5 inline-flex shrink-0 cursor-pointer items-center justify-center gap-2 whitespace-nowrap rounded-[var(--control-radius)] border font-medium text-base outline-none transition-[box-shadow,scale] [&:not([aria-haspopup]):not(:disabled):not([aria-disabled=true])]:will-change-[scale] [&:active:not([aria-haspopup])]:scale-[0.97] before:pointer-events-none before:absolute before:inset-0 before:rounded-[calc(var(--control-radius)-1px)] pointer-coarse:after:absolute pointer-coarse:after:size-full pointer-coarse:after:min-h-11 pointer-coarse:after:min-w-11 focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-offset-1 disabled:pointer-events-none disabled:opacity-64 aria-disabled:cursor-not-allowed aria-disabled:opacity-64 sm:text-sm [&_svg:not([class*='text-'])]:text-[var(--control-icon-color)] [&_svg:not([class*='size-'])]:size-4.5 sm:[&_svg:not([class*='size-'])]:size-4 [&_svg]:pointer-events-none [&_svg]:shrink-0 size-9 sm:size-8 [--control-icon-color:currentColor] z-20 border-transparent text-white/90 [:hover,[data-pressed]]:bg-white/10 [:hover,[data-pressed]]:text-white focus-visible:ring-white focus-visible:ring-offset-transparent size-[var(--workspace-titlebar-control-size)]! [-webkit-app-region:no-drag] relative top-auto translate-y-0",
                                                 "data-slot": "sidebar-trigger",
@@ -1480,6 +1481,7 @@ pub fn AppLayout(rows: Vec<ThreadRowData>, thread: ThreadView, environment_id: S
                                                 div {
                                                     "class": "flex shrink-0 items-center",
                                                     button {
+                                                        onclick: move |e| { let p = e.client_coordinates(); onaction.call(format!("popup:projects:{}:{}", p.x as i32, p.y as i32)); },
                                                         "type": "button",
                                                         "class": "peer/menu-button flex cursor-pointer items-center gap-[var(--sidebar-control-gap)] overflow-hidden text-left outline-hidden ring-ring transition-[width,height,padding] hover:bg-sidebar-row-hover hover:text-sidebar-foreground focus-visible:ring-2 focus-visible:ring-inset active:bg-sidebar-row-active active:text-sidebar-foreground disabled:pointer-events-none disabled:opacity-64 aria-disabled:pointer-events-none aria-disabled:opacity-64 data-[active=true]:bg-sidebar-row-selected data-[active=true]:font-medium data-[active=true]:text-sidebar-foreground data-[state=open]:hover:bg-sidebar-row-hover data-[state=open]:hover:text-sidebar-foreground group-data-[collapsible=icon]:size-8! group-data-[collapsible=icon]:p-[var(--sidebar-content-inset)]! [&>span:last-child]:truncate [&>svg:not([class*='size-'])]:size-4 [&>svg]:shrink-0 [&>svg]:text-[var(--sidebar-icon-color)] hover:[&>svg]:text-sidebar-foreground active:[&>svg]:text-sidebar-foreground data-[active=true]:[&>svg]:text-sidebar-foreground justify-center rounded-[var(--control-radius)] p-0 font-medium text-sidebar-muted-foreground/80 relative size-7 shrink-0",
                                                         "data-active": "false",
@@ -1611,7 +1613,7 @@ pub fn AppLayout(rows: Vec<ThreadRowData>, thread: ThreadView, environment_id: S
                                             "class": "h-full max-h-[inherit] overflow-auto overscroll-contain rounded-[inherit] outline-none transition-shadow focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring focus-visible:ring-offset-1 focus-visible:ring-offset-background data-has-overflow-x:overscroll-x-contain mask-t-from-[calc(100%-min(var(--fade-size),var(--scroll-area-overflow-y-start)))] mask-b-from-[calc(100%-min(var(--fade-size),var(--scroll-area-overflow-y-end)))] mask-l-from-[calc(100%-min(var(--fade-size),var(--scroll-area-overflow-x-start)))] mask-r-from-[calc(100%-min(var(--fade-size),var(--scroll-area-overflow-x-end)))] focus-visible:mask-none [--fade-size:1.5rem] has-focus-visible:mask-none [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden base-ui-disable-scrollbar",
                                             "data-slot": "scroll-area-viewport",
                                             "style": "overflow: scroll; --scroll-area-overflow-x-start: 0px; --scroll-area-overflow-x-end: 0px; --scroll-area-overflow-y-start: 0px; --scroll-area-overflow-y-end: 0px;",
-                                            SidebarList { rows, onselect, onaction }
+                                            SidebarList { rows, settled, shelf_open, onselect, onaction }
                                         }
                                     }
                                     div {
@@ -1749,6 +1751,7 @@ pub fn AppLayout(rows: Vec<ThreadRowData>, thread: ThreadView, environment_id: S
                                     }
                                 }
                                 button {
+                                    onclick: move |_| onaction.call("ui:sidebar".to_string()),
                                     "aria-label": "Resize Sidebar",
                                     "class": "-translate-x-1/2 group-data-[side=left]:-right-4 absolute inset-y-0 z-20 hidden w-4 after:absolute after:inset-y-0 after:left-1/2 after:w-[2px] hover:after:bg-sidebar-border group-data-[side=right]:left-0 sm:flex [[data-collapsible=offcanvas][data-state=collapsed]_&]:pointer-events-none [[data-panel-animations=true]_&]:transition-all [[data-panel-animations=true]_&]:[transition-duration:var(--panel-animation-duration)] [[data-panel-animations=true]_&]:ease-out touch-none cursor-col-resize group-data-[collapsible=offcanvas]:translate-x-0 hover:group-data-[collapsible=offcanvas]:bg-sidebar group-data-[collapsible=offcanvas]:after:left-full [[data-side=left][data-collapsible=offcanvas]_&]:-right-2 [[data-side=right][data-collapsible=offcanvas]_&]:-left-2",
                                     "data-sidebar": "rail",
@@ -1784,6 +1787,7 @@ pub fn AppLayout(rows: Vec<ThreadRowData>, thread: ThreadView, environment_id: S
                                             "class": "flex shrink-0 pointer-events-none absolute right-full mr-1 opacity-0",
                                             "inert": "",
                                             button {
+                                                onclick: move |_| onaction.call("ui:panel-wide".to_string()),
                                                 "type": "button",
                                                 "tabindex": "0",
                                                 "aria-pressed": "false",
@@ -1830,6 +1834,7 @@ pub fn AppLayout(rows: Vec<ThreadRowData>, thread: ThreadView, environment_id: S
                                                     "data-base-ui-tooltip-trigger": "",
                                                     "data-slot": "tooltip-trigger",
                                                     button {
+                                                        onclick: move |_| onaction.call("ui:details".to_string()),
                                                         "type": "button",
                                                         "data-pressed": "",
                                                         "tabindex": "0",
@@ -1955,6 +1960,7 @@ pub fn AppLayout(rows: Vec<ThreadRowData>, thread: ThreadView, environment_id: S
                                                 li {
                                                     "class": "flex min-w-0 items-center font-medium text-muted-foreground shrink",
                                                     button {
+                                                        onclick: move |_| onaction.call("page:new-chat".to_string()),
                                                         "type": "button",
                                                         "aria-label": "New thread in render",
                                                         "class": "inline-flex min-w-0 max-w-full cursor-pointer items-center gap-1.5 rounded-sm text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring",
@@ -2004,6 +2010,7 @@ pub fn AppLayout(rows: Vec<ThreadRowData>, thread: ThreadView, environment_id: S
                                                     "aria-current": "page",
                                                     "class": "flex items-center font-medium text-foreground min-w-10 flex-1",
                                                     button {
+                                                        onclick: move |e| { let p = e.client_coordinates(); onaction.call(format!("popup:thread:{}:{}", p.x as i32, p.y as i32)); },
                                                         "type": "button",
                                                         "aria-label": "Thread actions for {thread.title}",
                                                         "aria-haspopup": "menu",
@@ -2083,7 +2090,22 @@ pub fn AppLayout(rows: Vec<ThreadRowData>, thread: ThreadView, environment_id: S
                                                     Timeline { view: thread.clone(), environment_id, spacer: if matches!(composer, ComposerMode::Question) || thread.pending_question.is_some() { 281 } else { 140 } }
                                                 }
                                                 if user_count > 1 {
-                                                    Minimap { strips: minimap::strips(user_count) }
+                                                    Minimap {
+                                                        strips: minimap::strips(user_count),
+                                                        onnav: move |nav: String| {
+                                                            let Some(element) = scroller() else { return };
+                                                            spawn(async move {
+                                                                let (Ok(offset), Ok(size), Ok(view)) = (element.get_scroll_offset().await, element.get_scroll_size().await, element.get_client_rect().await) else { return };
+                                                                let max = (size.height - view.size.height).max(0.0);
+                                                                let target = match nav.split_once(':') {
+                                                                    Some(("frac", f)) => max * f.parse::<f64>().unwrap_or(1.0),
+                                                                    _ if nav == "prev" => offset.y - view.size.height * 0.8,
+                                                                    _ => offset.y + view.size.height * 0.8,
+                                                                };
+                                                                let _ = element.scroll(dioxus::html::geometry::PixelsVector2D::new(0.0, target.clamp(0.0, max)), ScrollBehavior::Smooth).await;
+                                                            });
+                                                        },
+                                                    }
                                                 }
                                             }
                                         }
@@ -2109,6 +2131,7 @@ pub fn AppLayout(rows: Vec<ThreadRowData>, thread: ThreadView, environment_id: S
                                                                     let request_id = q.request_id.clone();
                                                                     rsx! {
                                                                         ComposerQuestion {
+                                                                            onaction,
                                                                             key: "{request_id}",
                                                                             header: q.header.clone(),
                                                                             question: q.question.clone(),
@@ -2117,7 +2140,7 @@ pub fn AppLayout(rows: Vec<ThreadRowData>, thread: ThreadView, environment_id: S
                                                                         }
                                                                     }
                                                                 }
-                                                                ComposerMode::Normal => rsx! { ComposerNormal { onsend, onstop, running: thread.running, model_label: thread.model_label.clone(), onmodel: move |_| onaction.call("dialog:model-picker".to_string()) } },
+                                                                ComposerMode::Normal => rsx! { ComposerNormal { onaction, onsend, onstop, running: thread.running, model_label: thread.model_label.clone(), onmodel: move |_| onaction.call("dialog:model-picker".to_string()) } },
                                                             }
                                                         }
 if !thread.thread_id.is_empty() {
@@ -2140,7 +2163,8 @@ if !thread.thread_id.is_empty() {
                                             "class": "absolute z-20",
                                             "data-density": "full",
                                             "data-thread-details-panel": "inline",
-                                            "style": "right: 12px; top: 12px; width: 280px; max-height: 824px;",
+                                            "data-cc3-details": "",
+"style": "right: 12px; top: 12px; width: 280px; max-height: 824px;",
                                             div {
                                                 "class": "dropdown-glass isolate contain-paint grid max-h-full grid-rows-[minmax(0,1fr)] overflow-hidden rounded-2xl",
                                                 "data-thread-details-card": "true",
@@ -2261,6 +2285,7 @@ if !thread.thread_id.is_empty() {
                                                                             "role": "group",
                                                                             "class": "group/details-split flex w-full items-center rounded-lg hover:!bg-black/[0.035] data-pressed:!bg-black/[0.035] dark:hover:!bg-white/[0.08] dark:data-pressed:!bg-white/[0.08] has-[[data-popup-open]]:bg-black/[0.035] dark:has-[[data-popup-open]]:bg-white/[0.08]",
                                                                             button {
+                                                                                onclick: move |_| onaction.call("editor:open".to_string()),
                                                                                 "type": "button",
                                                                                 "class": "relative inline-flex cursor-pointer items-center whitespace-nowrap border outline-none transition-[box-shadow,scale] [&:not([aria-haspopup]):not(:disabled):not([aria-disabled=true])]:will-change-[scale] [&:active:not([aria-haspopup])]:scale-[0.97] focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring focus-visible:ring-offset-1 focus-visible:ring-offset-background pointer-coarse:after:absolute pointer-coarse:after:size-full pointer-coarse:after:min-h-11 pointer-coarse:after:min-w-11 [&_svg]:pointer-events-none [&_svg:not([class*='size-'])]:size-4 disabled:pointer-events-none disabled:opacity-64 aria-disabled:cursor-not-allowed aria-disabled:opacity-64 [&_svg]:shrink-0 h-8 min-w-0 rounded-lg border-transparent gap-2.5 px-2.5 text-left text-[13px] font-medium text-foreground/80 flex-1 justify-start rounded-e-none bg-transparent shadow-none hover:!bg-black/[0.035] data-pressed:!bg-black/[0.035] dark:hover:!bg-white/[0.08] dark:data-pressed:!bg-white/[0.08] data-popup-open:!bg-black/[0.035] dark:data-popup-open:!bg-white/[0.08]",
                                                                                 "aria-label": "Open in editor",
@@ -2298,6 +2323,7 @@ if !thread.thread_id.is_empty() {
                                                                                 "class": "h-4 w-px shrink-0 bg-transparent group-hover/details-split:bg-border/65 group-has-[[data-popup-open]]/details-split:bg-border/65",
                                                                             }
                                                                             button {
+                                                                                onclick: move |e| { let p = e.client_coordinates(); onaction.call(format!("popup:editors:{}:{}", p.x as i32, p.y as i32)); },
                                                                                 "type": "button",
                                                                                 "class": "relative inline-flex shrink-0 cursor-pointer items-center whitespace-nowrap border outline-none transition-[box-shadow,scale] [&:not([aria-haspopup]):not(:disabled):not([aria-disabled=true])]:will-change-[scale] [&:active:not([aria-haspopup])]:scale-[0.97] focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring focus-visible:ring-offset-1 focus-visible:ring-offset-background pointer-coarse:after:absolute pointer-coarse:after:size-full pointer-coarse:after:min-h-11 pointer-coarse:after:min-w-11 [&_svg]:pointer-events-none [&_svg:not([class*='size-'])]:size-4 disabled:pointer-events-none disabled:opacity-64 aria-disabled:cursor-not-allowed aria-disabled:opacity-64 [&_svg]:shrink-0 min-w-0 rounded-lg border-transparent gap-2.5 text-left text-[13px] font-medium text-foreground/80 h-auto min-h-8 w-8 self-stretch justify-center rounded-s-none px-0 bg-transparent shadow-none hover:!bg-black/[0.035] data-pressed:!bg-black/[0.035] dark:hover:!bg-white/[0.08] dark:data-pressed:!bg-white/[0.08] data-popup-open:!bg-black/[0.035] dark:data-popup-open:!bg-white/[0.08]",
                                                                                 "aria-label": "Choose editor",
@@ -2326,6 +2352,7 @@ if !thread.thread_id.is_empty() {
                                                                             }
                                                                         }
                                                                         button {
+                                                                            onclick: move |_| onaction.call("unavailable:Add project script".to_string()),
                                                                             "type": "button",
                                                                             "class": "relative inline-flex shrink-0 cursor-pointer items-center whitespace-nowrap border outline-none transition-[box-shadow,scale] [&:not([aria-haspopup]):not(:disabled):not([aria-disabled=true])]:will-change-[scale] [&:active:not([aria-haspopup])]:scale-[0.97] focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring focus-visible:ring-offset-1 focus-visible:ring-offset-background pointer-coarse:after:absolute pointer-coarse:after:size-full pointer-coarse:after:min-h-11 pointer-coarse:after:min-w-11 [&_svg]:pointer-events-none [&_svg:not([class*='size-'])]:size-4 disabled:pointer-events-none disabled:opacity-64 aria-disabled:cursor-not-allowed aria-disabled:opacity-64 [&_svg]:shrink-0 h-8 min-w-0 rounded-lg border-transparent gap-2.5 px-2.5 text-left text-[13px] font-medium text-foreground/80 w-full justify-start bg-transparent shadow-none hover:!bg-black/[0.035] data-pressed:!bg-black/[0.035] dark:hover:!bg-white/[0.08] dark:data-pressed:!bg-white/[0.08]",
                                                                             "aria-label": "Add project script",
@@ -2376,6 +2403,7 @@ if !thread.thread_id.is_empty() {
                                                                                 span {
                                                                                     "class": "flex min-w-0",
                                                                                     button {
+                                                                                        onclick: move |e| { let p = e.client_coordinates(); onaction.call(format!("popup:branches:{}:{}", p.x as i32, p.y as i32)); },
                                                                                         "type": "button",
                                                                                         "class": "relative inline-flex shrink-0 cursor-pointer items-center whitespace-nowrap border outline-none transition-[box-shadow,scale] [&:not([aria-haspopup]):not(:disabled):not([aria-disabled=true])]:will-change-[scale] [&:active:not([aria-haspopup])]:scale-[0.97] focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring focus-visible:ring-offset-1 focus-visible:ring-offset-background pointer-coarse:after:absolute pointer-coarse:after:size-full pointer-coarse:after:min-h-11 pointer-coarse:after:min-w-11 [&_svg]:pointer-events-none [&_svg:not([class*='size-'])]:size-4 disabled:pointer-events-none disabled:opacity-64 aria-disabled:cursor-not-allowed aria-disabled:opacity-64 [&_svg]:shrink-0 h-8 rounded-lg border-transparent text-left text-[13px] font-medium text-foreground/80 w-full justify-start bg-transparent shadow-none hover:!bg-black/[0.035] data-pressed:!bg-black/[0.035] dark:hover:!bg-white/[0.08] dark:data-pressed:!bg-white/[0.08] gap-0 px-0 [&_[data-slot=select-icon]]:-me-px [&_[data-slot=select-icon]]:relative [&_[data-slot=select-icon]]:flex [&_[data-slot=select-icon]]:h-full [&_[data-slot=select-icon]]:w-8 [&_[data-slot=select-icon]]:shrink-0 [&_[data-slot=select-icon]]:items-center [&_[data-slot=select-icon]]:justify-center [&_[data-slot=select-icon]]:before:absolute [&_[data-slot=select-icon]]:before:-left-px [&_[data-slot=select-icon]]:before:top-1/2 [&_[data-slot=select-icon]]:before:h-4 [&_[data-slot=select-icon]]:before:w-px [&_[data-slot=select-icon]]:before:-translate-y-1/2 [&_[data-slot=select-icon]]:before:bg-transparent hover:[&_[data-slot=select-icon]]:before:bg-border/65 data-popup-open:[&_[data-slot=select-icon]]:before:bg-border/65 [&_[data-slot=select-icon]>svg]:me-0 [&_[data-slot=select-icon]>svg]:size-4 [&_[data-slot=select-icon]>svg]:text-muted-foreground [&_[data-slot=select-icon]>svg]:opacity-100 min-w-0 max-w-full active:scale-100",
                                                                                         "data-disabled": "",
@@ -2466,6 +2494,7 @@ if !thread.thread_id.is_empty() {
                                                                             "aria-label": "Git actions",
                                                                             "class": "shrink-0 group/details-split flex w-full items-center rounded-lg hover:!bg-black/[0.035] data-pressed:!bg-black/[0.035] dark:hover:!bg-white/[0.08] dark:data-pressed:!bg-white/[0.08] has-[[data-popup-open]]:bg-black/[0.035] dark:has-[[data-popup-open]]:bg-white/[0.08]",
                                                                             button {
+                                                                                onclick: move |_| onaction.call("prompt:commit".to_string()),
                                                                                 "type": "button",
                                                                                 "class": "relative inline-flex cursor-pointer items-center whitespace-nowrap border outline-none transition-[box-shadow,scale] [&:not([aria-haspopup]):not(:disabled):not([aria-disabled=true])]:will-change-[scale] [&:active:not([aria-haspopup])]:scale-[0.97] focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring focus-visible:ring-offset-1 focus-visible:ring-offset-background pointer-coarse:after:absolute pointer-coarse:after:size-full pointer-coarse:after:min-h-11 pointer-coarse:after:min-w-11 [&_svg]:pointer-events-none [&_svg:not([class*='size-'])]:size-4 disabled:pointer-events-none disabled:opacity-64 aria-disabled:cursor-not-allowed aria-disabled:opacity-64 [&_svg]:shrink-0 h-8 min-w-0 rounded-lg border-transparent gap-2.5 px-2.5 text-left text-[13px] font-medium text-foreground/80 flex-1 justify-start rounded-e-none bg-transparent shadow-none hover:!bg-black/[0.035] data-pressed:!bg-black/[0.035] dark:hover:!bg-white/[0.08] dark:data-pressed:!bg-white/[0.08] data-popup-open:!bg-black/[0.035] dark:data-popup-open:!bg-white/[0.08]",
                                                                                 "aria-disabled": "true",
@@ -2511,6 +2540,7 @@ if !thread.thread_id.is_empty() {
                                                                                 "class": "h-4 w-px shrink-0 bg-transparent group-hover/details-split:bg-border/65 group-has-[[data-popup-open]]/details-split:bg-border/65",
                                                                             }
                                                                             button {
+                                                                                onclick: move |e| { let p = e.client_coordinates(); onaction.call(format!("popup:git:{}:{}", p.x as i32, p.y as i32)); },
                                                                                 "type": "button",
                                                                                 "class": "relative inline-flex shrink-0 cursor-pointer items-center whitespace-nowrap border outline-none transition-[box-shadow,scale] [&:not([aria-haspopup]):not(:disabled):not([aria-disabled=true])]:will-change-[scale] [&:active:not([aria-haspopup])]:scale-[0.97] focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring focus-visible:ring-offset-1 focus-visible:ring-offset-background pointer-coarse:after:absolute pointer-coarse:after:size-full pointer-coarse:after:min-h-11 pointer-coarse:after:min-w-11 [&_svg]:pointer-events-none [&_svg:not([class*='size-'])]:size-4 disabled:pointer-events-none disabled:opacity-64 aria-disabled:cursor-not-allowed aria-disabled:opacity-64 [&_svg]:shrink-0 min-w-0 rounded-lg border-transparent gap-2.5 text-left text-[13px] font-medium text-foreground/80 h-auto min-h-8 w-8 self-stretch justify-center rounded-s-none px-0 bg-transparent shadow-none hover:!bg-black/[0.035] data-pressed:!bg-black/[0.035] dark:hover:!bg-white/[0.08] dark:data-pressed:!bg-white/[0.08] data-popup-open:!bg-black/[0.035] dark:data-popup-open:!bg-white/[0.08]",
                                                                                 "aria-label": "Git action options",
@@ -2541,6 +2571,7 @@ if !thread.thread_id.is_empty() {
                                                                             }
                                                                         }
                                                                         button {
+                                                                            onclick: move |_| onaction.call("panel:diff".to_string()),
                                                                             "type": "button",
                                                                             "class": "relative inline-flex shrink-0 cursor-pointer items-center whitespace-nowrap border outline-none transition-[box-shadow,scale] [&:not([aria-haspopup]):not(:disabled):not([aria-disabled=true])]:will-change-[scale] [&:active:not([aria-haspopup])]:scale-[0.97] focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring focus-visible:ring-offset-1 focus-visible:ring-offset-background pointer-coarse:after:absolute pointer-coarse:after:size-full pointer-coarse:after:min-h-11 pointer-coarse:after:min-w-11 [&_svg]:pointer-events-none [&_svg:not([class*='size-'])]:size-4 disabled:pointer-events-none disabled:opacity-64 aria-disabled:cursor-not-allowed aria-disabled:opacity-64 [&_svg]:shrink-0 h-8 min-w-0 rounded-lg border-transparent gap-2.5 px-2.5 text-left text-[13px] font-medium text-foreground/80 w-full justify-start bg-transparent shadow-none hover:!bg-black/[0.035] data-pressed:!bg-black/[0.035] dark:hover:!bg-white/[0.08] dark:data-pressed:!bg-white/[0.08]",
                                                                             svg {
@@ -2582,6 +2613,7 @@ if !thread.thread_id.is_empty() {
                                                                 div {
                                                                     "class": "p-2 group-has-[>section>:last-child:not(:empty)]/details-items:hidden",
                                                                     button {
+                                                                        onclick: move |_| onaction.call("unavailable:Choose what to show".to_string()),
                                                                         "type": "button",
                                                                         "class": "relative inline-flex shrink-0 cursor-pointer items-center whitespace-nowrap border outline-none transition-[box-shadow,scale] [&:not([aria-haspopup]):not(:disabled):not([aria-disabled=true])]:will-change-[scale] [&:active:not([aria-haspopup])]:scale-[0.97] focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring focus-visible:ring-offset-1 focus-visible:ring-offset-background pointer-coarse:after:absolute pointer-coarse:after:size-full pointer-coarse:after:min-h-11 pointer-coarse:after:min-w-11 [&_svg]:pointer-events-none [&_svg:not([class*='size-'])]:size-4 disabled:pointer-events-none disabled:opacity-64 aria-disabled:cursor-not-allowed aria-disabled:opacity-64 [&_svg]:shrink-0 h-8 min-w-0 rounded-lg border-transparent gap-2.5 px-2.5 text-left text-[13px] font-medium text-foreground/80 w-full justify-start bg-transparent shadow-none hover:!bg-black/[0.035] data-pressed:!bg-black/[0.035] dark:hover:!bg-white/[0.08] dark:data-pressed:!bg-white/[0.08]",
                                                                         svg {
@@ -2646,6 +2678,7 @@ if !thread.thread_id.is_empty() {
                         "class": "pointer-events-none fixed left-[var(--workspace-controls-left)] top-[var(--workspace-controls-top)] z-50 ml-px flex h-[var(--workspace-topbar-height)] items-center",
                         "data-sidebar-control": "",
                         button {
+                            onclick: move |_| onaction.call("ui:sidebar".to_string()),
                             "type": "button",
                             "class": "[&_svg]:-mx-0.5 inline-flex shrink-0 cursor-pointer items-center justify-center gap-2 whitespace-nowrap rounded-[var(--control-radius)] border font-medium text-base outline-none transition-[box-shadow,scale] [&:not([aria-haspopup]):not(:disabled):not([aria-disabled=true])]:will-change-[scale] [&:active:not([aria-haspopup])]:scale-[0.97] before:pointer-events-none before:absolute before:inset-0 before:rounded-[calc(var(--control-radius)-1px)] pointer-coarse:after:absolute pointer-coarse:after:size-full pointer-coarse:after:min-h-11 pointer-coarse:after:min-w-11 focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-offset-1 disabled:pointer-events-none disabled:opacity-64 aria-disabled:cursor-not-allowed aria-disabled:opacity-64 sm:text-sm [&_svg:not([class*='text-'])]:text-[var(--control-icon-color)] [&_svg:not([class*='size-'])]:size-4.5 sm:[&_svg:not([class*='size-'])]:size-4 [&_svg]:pointer-events-none [&_svg]:shrink-0 size-9 sm:size-8 [--control-icon-color:currentColor] z-20 border-transparent text-white/90 [:hover,[data-pressed]]:bg-white/10 [:hover,[data-pressed]]:text-white focus-visible:ring-white focus-visible:ring-offset-transparent size-[var(--workspace-titlebar-control-size)]! [-webkit-app-region:no-drag] pointer-events-auto relative top-auto translate-y-0",
                             "data-slot": "tooltip-trigger",
