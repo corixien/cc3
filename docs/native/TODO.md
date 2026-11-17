@@ -31,7 +31,7 @@ Referenz: Chromium-Goldens in `apps/web/test/golden/__screenshots__`, Messung `c
 
 ## E. Composer (`ui/composer.rs`)
 
-- [ ] Modell-Picker, Effort, Modus (Plan/Build), Runtime-Mode
+- [x] Modell-Picker (Liste, Suche, Auswahl wirkt auf neue Nachrichten); Effort, Modus (Plan/Build), Runtime-Mode offen
 - [ ] @-Mentions, Slash-Commands, Anhaenge/Bilder einfuegen, Queue-Nachrichten, Stop/Interrupt
 - [ ] Mehrzeilen-Hoehe, IME, Undo
 

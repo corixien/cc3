@@ -2181,7 +2181,7 @@ pub fn AppLayout(rows: Vec<ThreadRowData>, thread: ThreadView, environment_id: S
                                                                         }
                                                                     }
                                                                 }
-                                                                ComposerMode::Normal => rsx! { ComposerNormal { onsend, onstop, running: thread.running } },
+                                                                ComposerMode::Normal => rsx! { ComposerNormal { onsend, onstop, running: thread.running, model_label: thread.model_label.clone(), onmodel: move |_| onaction.call("dialog:model-picker".to_string()) } },
                                                             }
                                                         }
                                                         div {

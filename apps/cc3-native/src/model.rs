@@ -240,6 +240,8 @@ pub struct ThreadState {
 
 #[derive(Debug, Clone, Default, PartialEq)]
 pub struct ThreadView {
+    /// Display name of the model messages are sent with (empty: default label).
+    pub model_label: String,
     pub pending_question: Option<PendingQuestion>,
     /// A run is active: the composer offers Stop.
     pub running: bool,
@@ -392,7 +394,7 @@ impl ThreadState {
                 _ => {}
             }
         }
-        ThreadView { pending_question: self.pending_question(), running: self.has_active_run(), workspace_name: String::new(), thread_id: self.thread_id.clone(), title: self.title.clone(), rows }
+        ThreadView { model_label: String::new(), pending_question: self.pending_question(), running: self.has_active_run(), workspace_name: String::new(), thread_id: self.thread_id.clone(), title: self.title.clone(), rows }
     }
 }
 

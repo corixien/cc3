@@ -416,7 +416,8 @@ for (i, opt) in options.iter().enumerate() {
 }
 
 #[component]
-pub fn ComposerNormal(#[props(default)] onsend: Option<EventHandler<String>>, #[props(default)] onstop: Option<EventHandler<()>>, #[props(default)] running: bool) -> Element {
+pub fn ComposerNormal(#[props(default)] onsend: Option<EventHandler<String>>, #[props(default)] onstop: Option<EventHandler<()>>, #[props(default)] running: bool, #[props(default)] model_label: String, #[props(default)] onmodel: Option<EventHandler<()>>) -> Element {
+    let label = if model_label.is_empty() { "GPT-5.4".to_string() } else { model_label };
     let mut text = use_signal(String::new);
     let live = onsend.is_some();
     let empty = text().trim().is_empty();
@@ -530,7 +531,8 @@ pub fn ComposerNormal(#[props(default)] onsend: Option<EventHandler<String>>, #[
                                                     button {
                                                         "type": "button",
                                                         "class": "relative inline-flex cursor-pointer items-center rounded-(--control-radius) border border-transparent text-base outline-none hover:bg-accent data-pressed:bg-accent focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring focus-visible:ring-offset-1 focus-visible:ring-offset-background disabled:pointer-events-none disabled:opacity-64 data-disabled:pointer-events-none data-disabled:opacity-64 pointer-coarse:after:absolute pointer-coarse:after:size-full pointer-coarse:after:min-h-11 pointer-coarse:after:min-w-11 [&:active:not([aria-haspopup])]:scale-[0.97] [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg]:-mx-0.5 [&_svg[data-composer-control-icon]]:mx-0 [&_:is([data-composer-control-label],[data-chat-provider-model-picker-label])]:[text-box:trim-both_cap_alphabetic] supports-[text-box:trim-both_cap_alphabetic]:[&_:is([data-composer-control-label],[data-chat-provider-model-picker-label])]:py-1.5 h-7 gap-1.5 px-2 font-medium text-foreground/80 [&_svg:not([class*='text-'])]:text-muted-foreground hover:text-foreground sm:text-sm [&_svg:not([class*='size-'])]:size-4.5 sm:[&_svg:not([class*='size-'])]:size-4 aria-pressed:bg-accent aria-pressed:text-accent-foreground aria-pressed:hover:bg-accent/80 shrink justify-between whitespace-nowrap group/model-trigger data-popup-open:bg-accent data-popup-open:text-foreground min-w-13",
-                                                        "aria-label": "GPT-5.4",
+                                                        "aria-label": "{label}",
+                                                        onclick: move |e| { e.prevent_default(); if let Some(open) = onmodel { open.call(()); } },
                                                         "data-chat-provider-model-picker": "true",
                                                         "data-composer-shortcut": "composer.effort composer.mode",
                                                         "tabindex": "0",
@@ -562,7 +564,7 @@ pub fn ComposerNormal(#[props(default)] onsend: Option<EventHandler<String>>, #[
                                                             span {
                                                                 "class": "min-w-0 flex-1 overflow-hidden truncate max-w-56",
                                                                 "data-chat-provider-model-picker-label": "true",
-                                                                "GPT-5.4"
+                                                                "{label}"
                                                             }
                                                         }
                                                     }

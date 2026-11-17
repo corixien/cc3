@@ -59,6 +59,8 @@ pub fn AppRoot(store: StoreHandle, #[props(default)] frame: bool) -> Element {
     let mut palette_open = use_signal(|| std::env::var("CC3_PALETTE").is_ok());
     let mut palette_query = use_signal(String::new);
     let mut palette_active = use_signal(|| 0usize);
+    let mut model_open = use_signal(|| false);
+    let mut model_query = use_signal(String::new);
     let mut add_project_open = use_signal(|| false);
     let mut add_project_path = use_signal(String::new);
     let mut add_project_error = use_signal(String::new);
@@ -73,7 +75,9 @@ pub fn AppRoot(store: StoreHandle, #[props(default)] frame: bool) -> Element {
                     if version != seen {
                         seen = version;
                         rows.set(rows_from_store(store, selected()));
-                        thread.set(if draft() { crate::model::ThreadView::default() } else { store.thread_view().unwrap_or_default() });
+                        let mut view = if draft() { crate::model::ThreadView::default() } else { store.thread_view().unwrap_or_default() };
+                        view.model_label = store.model_label();
+                        thread.set(view);
                     }
                     tokio::time::sleep(std::time::Duration::from_millis(150)).await;
                 }
@@ -113,6 +117,9 @@ pub fn AppRoot(store: StoreHandle, #[props(default)] frame: bool) -> Element {
                             if crate::ui::fragments::page(&name).is_some() {
                                 page.set(Some(name));
                             }
+                        } else if action == "dialog:model-picker" {
+                            model_query.set(String::new());
+                            model_open.set(true);
                         } else if action == "dialog:add-project" {
                             add_project_path.set(String::new());
                             add_project_error.set(String::new());
@@ -136,6 +143,20 @@ pub fn AppRoot(store: StoreHandle, #[props(default)] frame: bool) -> Element {
                         rows.set(rows_from_store(store, Some(id.clone())));
                         store.open_thread(&id);
                     },
+                }
+                if model_open() {
+                    crate::ui::model_picker::ModelPicker {
+                        options: store.model_options(),
+                        current: store.model_label(),
+                        query: model_query(),
+                        oninput: move |q: String| model_query.set(q),
+                        onpick: move |(instance, slug): (String, String)| {
+                            store.select_model(&instance, &slug);
+                            thread.write().model_label = store.model_label();
+                            model_open.set(false);
+                        },
+                        onclose: move |_| model_open.set(false),
+                    }
                 }
                 if add_project_open() {
                     crate::ui::add_project::AddProjectDialog {

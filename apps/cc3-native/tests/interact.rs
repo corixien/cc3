@@ -254,3 +254,22 @@ fn add_project_dialog_opens_from_the_sidebar() {
     h.key(Key::Named(keyboard_types::NamedKey::Escape), Code::Escape, Modifiers::empty());
     assert!(!h.html_contains("dialog-popup"), "Escape closes it");
 }
+
+#[test]
+fn model_picker_changes_the_label() {
+    let rt = runtime();
+    let _guard = rt.enter();
+    let store = fixture_store();
+    *store.config.lock().unwrap() = serde_json::json!({"providers": [{"instanceId": "claudeAgent", "displayName": "Claude", "enabled": true, "models": [{"slug": "claude-sonnet-5-5", "name": "Claude Sonnet 5.5"}, {"slug": "claude-opus-5-5", "name": "Claude Opus 5.5"}]}]});
+    let mut h = Harness::new(store);
+    let (x, y) = h.center_of("aria-label", "gpt-5.4").expect("model button");
+    h.click(x, y);
+    assert!(h.html_contains("Model picker"), "picker opens");
+    h.screenshot("interact-model-picker");
+    h.type_text("opus");
+    assert!(h.text_contains("Claude Opus 5.5") && !h.text_contains("Claude Sonnet 5.5"), "search filters");
+    let (x, y) = h.center_of("role", "option").expect("option");
+    h.click(x, y);
+    assert!(!h.html_contains("Model picker"), "picking closes the picker");
+    assert!(h.center_of("aria-label", "Claude Opus 5.5").is_some(), "composer shows the new model");
+}

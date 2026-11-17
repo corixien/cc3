@@ -10,6 +10,10 @@ use crate::net::RpcClient;
 pub struct Store {
     pub shell: Mutex<Shell>,
     pub environment_id: Mutex<String>,
+    /// Latest `server.subscribeConfig` snapshot (providers, models, settings).
+    pub config: Mutex<serde_json::Value>,
+    /// Model chosen in the picker; used for new messages and threads instead of the thread's own.
+    selected_model: Mutex<Option<serde_json::Value>>,
     /// Bumped on every change so the UI only rebuilds when needed.
     pub version: AtomicU64,
     client: Mutex<Option<Arc<RpcClient>>>,
@@ -32,7 +36,7 @@ impl Store {
     pub fn send_message(self: &Arc<Self>, text: &str) {
         let text = text.trim();
         let Some(client) = self.client.lock().unwrap().clone() else { return };
-        let Some((thread_id, model, active)) = self
+        let Some((thread_id, thread_model, active)) = self
             .thread
             .lock()
             .unwrap()
@@ -41,6 +45,7 @@ impl Store {
         else {
             return;
         };
+        let model = self.selected_model.lock().unwrap().clone().unwrap_or(thread_model);
         if text.is_empty() {
             return;
         }
@@ -75,7 +80,7 @@ impl Store {
             let shell = self.shell.lock().unwrap();
             let open_project = self.thread.lock().unwrap().as_ref().and_then(|t| shell.threads.iter().find(|s| s.id == t.thread_id).map(|s| s.project_id.clone()));
             let project = project_id.or(open_project).or_else(|| shell.projects.first().map(|p| p.id.clone()))?;
-            let model = self.thread.lock().unwrap().as_ref().map(|t| t.model_selection().clone()).filter(|m| !m.is_null()).unwrap_or_else(|| serde_json::json!({"instanceId": "codex", "model": "gpt-5.4"}));
+            let model = self.current_model().unwrap_or_else(|| serde_json::json!({"instanceId": "codex", "model": "gpt-5.4"}));
             (project, model)
         };
         let seed = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).map(|d| d.as_nanos()).unwrap_or(0);
@@ -170,6 +175,40 @@ impl Store {
         });
     }
 
+    /// Models of enabled providers: (instance id, provider name, slug, model name).
+    pub fn model_options(&self) -> Vec<(String, String, String, String)> {
+        let config = self.config.lock().unwrap();
+        let mut out = Vec::new();
+        for p in config["providers"].as_array().into_iter().flatten() {
+            if p["enabled"].as_bool() != Some(true) {
+                continue;
+            }
+            let instance = p["instanceId"].as_str().unwrap_or_default();
+            let provider = p["displayName"].as_str().unwrap_or(instance);
+            for m in p["models"].as_array().into_iter().flatten() {
+                let slug = m["slug"].as_str().unwrap_or_default();
+                out.push((instance.to_string(), provider.to_string(), slug.to_string(), m["name"].as_str().unwrap_or(slug).to_string()));
+            }
+        }
+        out
+    }
+
+    pub fn select_model(&self, instance_id: &str, slug: &str) {
+        *self.selected_model.lock().unwrap() = Some(serde_json::json!({"instanceId": instance_id, "model": slug}));
+        self.bump();
+    }
+
+    /// The model used for the next message: the picked one, else the open thread's.
+    pub fn current_model(&self) -> Option<serde_json::Value> {
+        self.selected_model.lock().unwrap().clone().or_else(|| self.thread.lock().unwrap().as_ref().map(|t| t.model_selection().clone()).filter(|m| !m.is_null()))
+    }
+
+    pub fn model_label(&self) -> String {
+        let Some(current) = self.current_model() else { return String::new() };
+        let (instance, slug) = (current["instanceId"].as_str().unwrap_or_default(), current["model"].as_str().unwrap_or_default());
+        self.model_options().into_iter().find(|(i, _, s, _)| i == instance && s == slug).map(|(_, _, _, name)| name).unwrap_or_else(|| slug.to_string())
+    }
+
     /// Stops the open thread's run (`thread.stop`).
     pub fn stop_thread(self: &Arc<Self>) {
         let Some(client) = self.client.lock().unwrap().clone() else { return };
@@ -249,6 +288,9 @@ pub fn spawn_streams(client: Arc<RpcClient>, store: Arc<Store>) {
         while let Ok(event) = config.recv() {
             match event {
                 StreamEvent::Chunk(values) => {
+                    if let Some(config) = values.first().map(|v| &v["config"]).filter(|c| c.is_object()) {
+                        *s.config.lock().unwrap() = config.clone();
+                    }
                     if let Some(id) = values.first().and_then(|v| v["config"]["environment"]["environmentId"].as_str()) {
                         *s.environment_id.lock().unwrap() = id.to_string();
                         s.bump();

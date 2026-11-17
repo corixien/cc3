@@ -45,4 +45,12 @@ fn main() {
     std::thread::sleep(Duration::from_secs(6));
     let view = store.thread_view();
     println!("start_thread: {id:?} -> {:?}", view.map(|v| (v.thread_id, v.title, v.rows.len())));
+    let config = store.config.lock().unwrap().clone();
+    if let Some(providers) = config["providers"].as_array() {
+        for p in providers {
+            println!("provider {} keys={:?} model0={}", p["instanceId"], p.as_object().map(|o| o.keys().cloned().collect::<Vec<_>>()), p["models"][0]);
+        }
+    } else {
+        println!("config keys: {:?}", config.as_object().map(|o| o.keys().cloned().collect::<Vec<_>>()));
+    }
 }
