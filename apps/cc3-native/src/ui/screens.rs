@@ -31,6 +31,7 @@ pub fn screens() -> Vec<Screen> {
         Screen { name: "thread-question".into(), component: crate::ui::generated::thread_question::ThreadQuestion, page: None },
         Screen { name: "thread-history".into(), component: crate::ui::generated::thread_history::ThreadHistory, page: None },
         Screen { name: "thread-work".into(), component: crate::ui::generated::thread_work::ThreadWork, page: None },
+        Screen { name: "thread-work-entries".into(), component: crate::ui::generated::thread_work::ThreadWork, page: None },
         Screen { name: "thread-work-expanded".into(), component: crate::ui::generated::thread_work::ThreadWork, page: None },
     ];
     for p in crate::ui::fragments::PAGES {
@@ -43,7 +44,8 @@ pub fn screens() -> Vec<Screen> {
 pub fn render_html(screen: &Screen, dark: bool) -> String {
     // The golden clock: 2026-03-18T09:00:30Z.
     crate::ui::clock::freeze(1_773_824_430_000);
-    crate::ui::timeline::EXPAND_ALL.store(screen.name.ends_with("-expanded"), std::sync::atomic::Ordering::Relaxed);
+    crate::ui::timeline::EXPAND_GROUPS.store(screen.name.ends_with("-entries"), std::sync::atomic::Ordering::Relaxed);
+    crate::ui::timeline::EXPAND_ALL.store(screen.name.ends_with("-expanded") || screen.name.ends_with("-entries"), std::sync::atomic::Ordering::Relaxed);
     let mut vdom = match screen.page {
         Some(page) => VirtualDom::new_with_props(PageScreen, PageScreenProps { page: page.to_string() }),
         None => VirtualDom::new_with_props(screen.component, ()),

@@ -327,7 +327,8 @@ pub fn WorkSummaryRow(run_id: String, label: String, time: String, uid: String, 
 
 /// Collapsed group of a run's work entries ("Ran 1 command, changed 1 file, ...").
 #[component]
-pub fn WorkToggleRow(first_item_id: String, label: String, time: String, uid: String) -> Element {
+pub fn WorkToggleRow(first_item_id: String, label: String, time: String, uid: String, open: bool, ontoggle: EventHandler<()>) -> Element {
+    let ms = if open { " ms-auto" } else { "" };
     rsx! {
         div {
             "class": "messages-timeline-row-frame",
@@ -339,10 +340,11 @@ pub fn WorkToggleRow(first_item_id: String, label: String, time: String, uid: St
                     "data-timeline-row-id": "work-toggle:{first_item_id}",
                     "data-timeline-row-kind": "work-toggle",
                     div {
-                        "class": "pb-2",
+                        "class": if open { "pb-0" } else { "pb-2" },
                         button {
                             "aria-label": "{label}",
-                            "aria-expanded": "false",
+                            "aria-expanded": "{open}",
+                            onclick: move |_| ontoggle.call(()),
                             "type": "button",
                             "class": "group/timeline-row relative w-full min-w-0 rounded-md px-0.5 text-left transition-colors py-0.5 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring/70",
                             div {
@@ -372,11 +374,133 @@ pub fn WorkToggleRow(first_item_id: String, label: String, time: String, uid: St
                                     }
                                 }
                                 span {
-                                    "class": "pointer-events-none absolute me-1 shrink-0 whitespace-nowrap rounded-md text-muted-foreground text-xs tabular-nums opacity-0 group-hover/timeline-row:pointer-events-auto group-hover/timeline-row:static group-hover/timeline-row:opacity-100 group-focus-within/timeline-row:pointer-events-auto group-focus-within/timeline-row:static group-focus-within/timeline-row:opacity-100",
+                                    "class": "pointer-events-none absolute me-1 shrink-0 whitespace-nowrap rounded-md text-muted-foreground text-xs tabular-nums opacity-0 group-hover/timeline-row:pointer-events-auto group-hover/timeline-row:static group-hover/timeline-row:opacity-100 group-focus-within/timeline-row:pointer-events-auto group-focus-within/timeline-row:static group-focus-within/timeline-row:opacity-100{ms}",
                                     "id": "base-ui-{uid}-wt",
                                     "data-base-ui-tooltip-trigger": "",
                                     "data-slot": "tooltip-trigger",
                                     "{time}"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+fn entry_icon(kind: &str) -> Element {
+    let class = |n: &str| format!("lucide lucide-{n} block size-4 shrink-0 stroke-2 opacity-70 light:brightness-60");
+    match kind {
+        "reasoning" => rsx! { svg { "width": "24", "height": "24", "viewBox": "0 0 24 24", "fill": "none", "stroke": "currentColor", "stroke-width": "2", "stroke-linecap": "round", "stroke-linejoin": "round", "class": class("brain"), "aria-hidden": "true",
+            path { "d": "M12 18V5" } path { "d": "M15 13a4.17 4.17 0 0 1-3-4 4.17 4.17 0 0 1-3 4" } path { "d": "M17.598 6.5A3 3 0 1 0 12 5a3 3 0 1 0-5.598 1.5" } path { "d": "M17.997 5.125a4 4 0 0 1 2.526 5.77" } path { "d": "M18 18a4 4 0 0 0 2-7.464" } path { "d": "M19.967 17.483A4 4 0 1 1 12 18a4 4 0 1 1-7.967-.517" } path { "d": "M6 18a4 4 0 0 1-2-7.464" } path { "d": "M6.003 5.125a4 4 0 0 0-2.526 5.77" } } },
+        "command_execution" => rsx! { svg { "width": "24", "height": "24", "viewBox": "0 0 24 24", "fill": "none", "stroke": "currentColor", "stroke-width": "2", "stroke-linecap": "round", "stroke-linejoin": "round", "class": class("terminal"), "aria-hidden": "true",
+            path { "d": "M12 19h8" } path { "d": "m4 17 6-6-6-6" } } },
+        "file_change" => rsx! { svg { "width": "24", "height": "24", "viewBox": "0 0 24 24", "fill": "none", "stroke": "currentColor", "stroke-width": "2", "stroke-linecap": "round", "stroke-linejoin": "round", "class": class("square-pen"), "aria-hidden": "true",
+            path { "d": "M12 3H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" } path { "d": "M18.375 2.625a1 1 0 0 1 3 3l-9.013 9.014a2 2 0 0 1-.853.505l-2.873.84a.5.5 0 0 1-.62-.62l.84-2.873a2 2 0 0 1 .506-.852z" } } },
+        _ => rsx! { svg { "width": "24", "height": "24", "viewBox": "0 0 24 24", "fill": "none", "stroke": "currentColor", "stroke-width": "2", "stroke-linecap": "round", "stroke-linejoin": "round", "class": class("globe"), "aria-hidden": "true",
+            circle { "cx": "12", "cy": "12", "r": "10" } path { "d": "M12 2a14.5 14.5 0 0 0 0 20 14.5 14.5 0 0 0 0-20" } path { "d": "M2 12h20" } } },
+    }
+}
+
+/// The expanded group: a scrollable list of the run's tool calls and reasoning lines.
+#[component]
+pub fn WorkDetailsRow(first_item_id: String, entries: Vec<crate::model::WorkEntry>, workspace: String, times: Vec<String>, uid: String) -> Element {
+    let height = entries.len() * 24;
+    rsx! {
+        div {
+            "class": "messages-timeline-row-frame",
+            div {
+                "class": "chat-content-lane overflow-x-clip",
+                "data-timeline-root": "true",
+                div {
+                    "class": "",
+                    "data-timeline-row-id": "work-group:{first_item_id}:details",
+                    "data-timeline-row-kind": "work",
+                    div {
+                        "class": "pb-1",
+                        div {
+                            "class": "flex min-w-0 flex-col",
+                            div {
+                                "class": "scrollbar-gutter-stable scroll-py-6 overflow-x-hidden rounded-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring/70",
+                                "tabindex": "0",
+                                "role": "region",
+                                "aria-label": "Tool calls",
+                                "data-tool-group-scroll": "true",
+                                "style": "overflow: auto; max-height: calc(0px + min(18rem, 50dvh)); overflow-anchor: none;",
+                                div {
+                                    "class": "legend-list-content-container",
+                                    "style": "display: block; min-height: 100%; box-sizing: border-box; overflow-anchor: none;",
+                                    div {
+                                        "style": "height: {height}px; opacity: 1; position: relative;",
+                                        for (i, e) in entries.iter().enumerate() {
+                                            div {
+                                                key: "{e.id}",
+                                                "style": "contain: layout style paint; left: 0px; position: absolute; right: 0px; top: {i * 24}px;",
+                                                {
+                                                    let label = if e.kind == "file_change" && !workspace.is_empty() { format!("{workspace}/{}", e.label) } else { e.label.clone() };
+                                                    let time = times.get(i).cloned().unwrap_or_default();
+                                                    rsx! {
+                                                        div {
+                                                            "data-work-entry-id": "{e.id}",
+                                                            "data-v2-item-type": "{e.kind}",
+                                                            "data-v2-item-visibility": "local",
+                                                            "role": "button",
+                                                            "tabindex": "0",
+                                                            "aria-label": "{label}",
+                                                            "aria-expanded": "false",
+                                                            "class": "group/timeline-row relative w-full min-w-0 rounded-md px-0.5 text-left transition-colors py-0 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring/70",
+                                                            div {
+                                                                "class": "flex min-h-6 min-w-0 gap-1.5 text-sm leading-relaxed select-none [&_*]:select-none items-center",
+                                                                div {
+                                                                    "class": "flex min-w-0 flex-1 items-baseline gap-1.5",
+                                                                    span {
+                                                                        "class": "relative w-6 shrink-0 leading-0",
+                                                                        span {
+                                                                            "class": "inline-block size-6 overflow-hidden align-[calc(0.5cap_-_0.75rem)]",
+                                                                            span {
+                                                                                "class": "flex size-full items-center justify-center",
+                                                                                span { "class": "flex size-4 items-center justify-center text-icon-muted", {entry_icon(&e.kind)} }
+                                                                            }
+                                                                        }
+                                                                    }
+                                                                    div {
+                                                                        "class": "min-w-0 flex-1 text-secondary-label truncate [&_*]:whitespace-nowrap",
+                                                                        div {
+                                                                            "class": "min-w-0 flex-1 overflow-hidden",
+                                                                            p {
+                                                                                "class": "flex min-w-0 w-full items-baseline gap-1.5 text-sm leading-relaxed",
+                                                                                span {
+                                                                                    "class": "min-w-0 flex-1 truncate text-secondary-label",
+                                                                                    if e.kind == "reasoning" {
+                                                                                        span { "class": "chat-markdown w-full min-w-0 [overflow-wrap:anywhere] [word-break:break-word]", "{label}" }
+                                                                                    } else {
+                                                                                        "{label}"
+                                                                                    }
+                                                                                }
+                                                                            }
+                                                                        }
+                                                                    }
+                                                                }
+                                                                span {
+                                                                    "class": "flex size-4 shrink-0 items-center justify-center",
+                                                                    "aria-hidden": "true",
+                                                                    svg { "width": "24", "height": "24", "viewBox": "0 0 24 24", "fill": "none", "stroke": "currentColor", "stroke-width": "2", "stroke-linecap": "round", "stroke-linejoin": "round", "class": "lucide lucide-chevron-right size-3 shrink-0 text-icon-muted opacity-70 transition-transform duration-200", "aria-hidden": "true", path { "d": "m9 18 6-6-6-6" } }
+                                                                }
+                                                                span {
+                                                                    "class": "pointer-events-none absolute me-1 shrink-0 whitespace-nowrap rounded-md text-muted-foreground text-xs tabular-nums opacity-0 group-hover/timeline-row:pointer-events-auto group-hover/timeline-row:static group-hover/timeline-row:opacity-100 group-focus-within/timeline-row:pointer-events-auto group-focus-within/timeline-row:static group-focus-within/timeline-row:opacity-100",
+                                                                    "id": "base-ui-{uid}-e{i}",
+                                                                    "data-base-ui-tooltip-trigger": "",
+                                                                    "data-slot": "tooltip-trigger",
+                                                                    "{time}"
+                                                                }
+                                                            }
+                                                        }
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    }
                                 }
                             }
                         }

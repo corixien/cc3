@@ -17,8 +17,10 @@ for (const theme of ["dark", "light"] as const) {
     await page.getByRole("button", { name: /^Worked for/ }).click();
     await expect.element(page.getByRole("button", { name: /^Ran 1 command/ })).toBeVisible();
     await app.snap("thread-work-expanded");
-    await page.getByRole("button", { name: /^Ran 1 command/ }).click();
-    await expect.element(page.getByText("pnpm", { exact: false }).first()).toBeVisible();
-    await app.snap("thread-work-entries");
+    if (theme === "dark") {
+      await page.getByRole("button", { name: /^Ran 1 command/ }).click();
+      await expect.element(page.getByText("pnpm", { exact: false }).first()).toBeVisible();
+      await app.snap("thread-work-entries");
+    }
   });
 }

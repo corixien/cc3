@@ -9,7 +9,7 @@ pub mod app_layout;
 /// Application stylesheet. `:root` becomes `.cc3-root` so the theme classes (`dark`) can sit on a wrapper
 /// element, which is all a native app can set (there is no `<html>` to toggle).
 /// Blitz has no `scrollbar-gutter`; `stable both-edges` reserves 6px per side with an overlay scrollbar.
-pub const EXTRA_CSS: &str = ".scrollbar-gutter-both > .legend-list-content-container{margin-left:6px;margin-right:6px}";
+pub const EXTRA_CSS: &str = ".scrollbar-gutter-both > .legend-list-content-container{margin-left:6px;margin-right:6px}.scrollbar-gutter-stable > .legend-list-content-container{margin-right:6px}";
 
 /// The production stylesheet with container queries rewritten (registers their thresholds with the document).
 fn processed() -> &'static str {

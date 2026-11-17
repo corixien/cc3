@@ -183,12 +183,22 @@ mod tests {
     }
 }
 
+/// One tool call / reasoning line inside the expanded work group.
+#[derive(Debug, Clone, PartialEq)]
+pub struct WorkEntry {
+    pub id: String,
+    /// Item type: reasoning, command_execution, file_change, web_search, ...
+    pub kind: String,
+    pub label: String,
+    pub at: String,
+}
+
 /// One row of the chat timeline, as shown to the user.
 #[derive(Debug, Clone, PartialEq)]
 pub enum TimelineRow {
     User { id: String, text: String, at: String },
     /// Collapsed work of a run ("Worked for 4s").
-    Work { run_id: String, duration_ms: i64, at: String, first_item_id: String, summary: String },
+    Work { run_id: String, duration_ms: i64, at: String, first_item_id: String, summary: String, entries: Vec<WorkEntry> },
     Assistant { id: String, text: String, at: String },
 }
 
@@ -204,6 +214,8 @@ pub struct ThreadState {
 
 #[derive(Debug, Clone, Default, PartialEq)]
 pub struct ThreadView {
+    /// Workspace folder name; file paths in tool-call rows are shown below it.
+    pub workspace_name: String,
     pub thread_id: String,
     pub title: String,
     pub rows: Vec<TimelineRow>,
@@ -259,7 +271,7 @@ impl ThreadState {
     }
 
     /// Id of the run's first work item and the collapsed group label ("Ran 1 command, changed 1 file, ...").
-    fn work_summary(&self, run_id: &str) -> (String, String) {
+    fn work_summary(&self, run_id: &str) -> (String, String, Vec<WorkEntry>) {
         let work: Vec<&serde_json::Value> = self.items.iter().filter(|i| i["runId"] == run_id && !matches!(i["type"].as_str(), Some("user_message" | "assistant_message"))).collect();
         let count = |f: &dyn Fn(&str) -> bool| work.iter().filter(|i| i["type"].as_str().is_some_and(f)).count();
         let commands = count(&|t| t == "command_execution");
@@ -276,7 +288,26 @@ impl ThreadState {
             2 => format!("{} and {}", parts[0], parts[1]),
             _ => { let last = parts.pop().unwrap(); format!("{}, and {last}", parts.join(", ")) }
         };
-        (work.first().and_then(|i| i["id"].as_str()).unwrap_or_default().into(), label)
+        let entries = work
+            .iter()
+            .map(|i| {
+                let kind = i["type"].as_str().unwrap_or_default();
+                let label = match kind {
+                    "reasoning" => i["text"].as_str(),
+                    "command_execution" => i["input"].as_str(),
+                    "file_change" => i["fileName"].as_str(),
+                    "web_search" => i["patterns"][0].as_str(),
+                    _ => i["title"].as_str(),
+                };
+                WorkEntry {
+                    id: i["id"].as_str().unwrap_or_default().into(),
+                    kind: kind.into(),
+                    label: label.unwrap_or(kind).into(),
+                    at: i["completedAt"].as_str().or(i["startedAt"].as_str()).unwrap_or_default().into(),
+                }
+            })
+            .collect();
+        (work.first().and_then(|i| i["id"].as_str()).unwrap_or_default().into(), label, entries)
     }
 
     pub fn view(&self) -> ThreadView {
@@ -294,8 +325,8 @@ impl ThreadState {
                     if did_work && !folded.contains(&run_id) {
                         if let Some(run) = run(&run_id) {
                             if let (Some(start), Some(end)) = (run["startedAt"].as_str().and_then(parse_iso_ms), run["completedAt"].as_str().and_then(parse_iso_ms)) {
-                                let (first_item_id, summary) = self.work_summary(&run_id);
-                                rows.push(TimelineRow::Work { run_id: run_id.clone(), duration_ms: end - start, at: run["completedAt"].as_str().unwrap_or_default().into(), first_item_id, summary });
+                                let (first_item_id, summary, entries) = self.work_summary(&run_id);
+                                rows.push(TimelineRow::Work { run_id: run_id.clone(), duration_ms: end - start, at: run["completedAt"].as_str().unwrap_or_default().into(), first_item_id, summary, entries });
                             }
                         }
                         folded.push(run_id);
@@ -305,7 +336,7 @@ impl ThreadState {
                 _ => {}
             }
         }
-        ThreadView { thread_id: self.thread_id.clone(), title: self.title.clone(), rows }
+        ThreadView { workspace_name: String::new(), thread_id: self.thread_id.clone(), title: self.title.clone(), rows }
     }
 }
 

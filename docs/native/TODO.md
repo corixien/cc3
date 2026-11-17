@@ -11,7 +11,7 @@ Referenz: Chromium-Goldens in `apps/web/test/golden/__screenshots__`, Messung `c
 
 ## B. Timeline-Zeilen (`ui/timeline_rows.rs`, `model.rs`)
 
-- [ ] Work-Summary "Worked for", Tool-Calls (command_execution, file_change, file_search, web_search), Reasoning
+- [x] Work-Summary "Worked for", Gruppe und Eintragsliste (Reasoning, command, file_change, web_search) aufklappbar; Einzeleintrag-Detail (Output, Diff) offen
 - [ ] Diff-Zeilen in Timeline, proposed_plan, todo_list, user_input_request, approval_request, checkpoint
 - [ ] Code-Bloecke mit Syntax-Highlighting, Tabellen, Links, Bilder, Copy-Button
 - [ ] Streaming-Updates, Auto-Scroll, Scroll-to-bottom-Button, Minimap-Scroll
