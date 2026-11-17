@@ -63,6 +63,47 @@ impl Store {
         });
     }
 
+    /// Creates a thread in `project_id` (or the open thread's project, else the first project), opens it and
+    /// sends `text` as its first message. Returns the new thread id; the work runs on a background thread.
+    pub fn start_thread(self: &Arc<Self>, text: &str, project_id: Option<String>) -> Option<String> {
+        let text = text.trim().to_string();
+        let client = self.client.lock().unwrap().clone()?;
+        if text.is_empty() {
+            return None;
+        }
+        let (project_id, model) = {
+            let shell = self.shell.lock().unwrap();
+            let open_project = self.thread.lock().unwrap().as_ref().and_then(|t| shell.threads.iter().find(|s| s.id == t.thread_id).map(|s| s.project_id.clone()));
+            let project = project_id.or(open_project).or_else(|| shell.projects.first().map(|p| p.id.clone()))?;
+            let model = self.thread.lock().unwrap().as_ref().map(|t| t.model_selection().clone()).filter(|m| !m.is_null()).unwrap_or_else(|| serde_json::json!({"instanceId": "codex", "model": "gpt-5.4"}));
+            (project, model)
+        };
+        let seed = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).map(|d| d.as_nanos()).unwrap_or(0);
+        let thread_id = format!("cc3-thread-{seed:x}");
+        let title: String = text.lines().next().unwrap_or("New thread").chars().take(60).collect();
+        let create = serde_json::json!({
+            "type": "thread.create", "createdBy": "user", "creationSource": "web", "commandId": format!("cc3-cmd-c-{seed:x}"),
+            "threadId": thread_id, "projectId": project_id, "title": title, "modelSelection": model,
+            "runtimeMode": "full-access", "interactionMode": "default", "branch": null, "worktreePath": null
+        });
+        let store = self.clone();
+        let id = thread_id.clone();
+        std::thread::spawn(move || {
+            if client.call("orchestration.dispatchCommand", create, std::time::Duration::from_secs(30)).is_ok() {
+                store.open_thread(&id);
+                // The snapshot arrives asynchronously; send_message needs the opened thread state.
+                for _ in 0..50 {
+                    if store.thread.lock().unwrap().as_ref().is_some_and(|t| t.thread_id == id) {
+                        break;
+                    }
+                    std::thread::sleep(std::time::Duration::from_millis(100));
+                }
+                store.send_message(&text);
+            }
+        });
+        Some(thread_id)
+    }
+
     /// Writes one server-owned setting (`server.updateSettings`) on a background thread.
     pub fn update_server_setting(self: &Arc<Self>, key: &str, value: serde_json::Value) {
         let Some(client) = self.client.lock().unwrap().clone() else { return };

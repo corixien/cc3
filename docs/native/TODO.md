@@ -42,7 +42,7 @@ Referenz: Chromium-Goldens in `apps/web/test/golden/__screenshots__`, Messung `c
 
 ## G. Weitere Seiten
 
-- [ ] Welcome/Onboarding, Pull requests (Daten), Usage (Daten), Cloud, Devices, New chat (Projektwahl, Branch/Worktree-Toolbar)
+- [ ] Welcome/Onboarding, Pull requests (Daten), Usage (Daten), Cloud, Devices, New chat: Entwurf + erste Nachricht erstellt Thread (fertig); Projektwahl, Branch/Worktree-Toolbar offen
 - [ ] Sidebar: Projekte gruppieren, Suche, Sortierung, Collapsed-Zustand, Resize
 
 ## H. Betrieb

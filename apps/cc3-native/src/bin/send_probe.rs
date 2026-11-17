@@ -41,4 +41,8 @@ fn main() {
     std::thread::sleep(Duration::from_secs(5));
     let view = store.thread_view();
     println!("view: {:?}", view.map(|v| (v.title, v.rows.len(), format!("{:?}", v.rows).chars().take(300).collect::<String>())));
+    let id = store.start_thread("Second thread from draft", None);
+    std::thread::sleep(Duration::from_secs(6));
+    let view = store.thread_view();
+    println!("start_thread: {id:?} -> {:?}", view.map(|v| (v.thread_id, v.title, v.rows.len())));
 }

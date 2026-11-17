@@ -121,6 +121,7 @@ fn App() -> Element {
     let mut selected = use_signal(|| None::<String>);
     let mut page = use_signal(|| std::env::var("CC3_PAGE").ok());
     let mut thread = use_signal(cc3_native::model::ThreadView::default);
+    let mut draft = use_signal(|| false);
     let mut palette_open = use_signal(|| std::env::var("CC3_PALETTE").is_ok());
     let mut palette_query = use_signal(String::new);
     let mut palette_active = use_signal(|| 0usize);
@@ -151,7 +152,7 @@ fn App() -> Element {
                         seen = version;
                         status.set(String::new());
                         rows.set(rows_from_store(&STORE, selected()));
-                        thread.set(STORE.thread_view().unwrap_or_default());
+                        thread.set(if draft() { cc3_native::model::ThreadView::default() } else { STORE.thread_view().unwrap_or_default() });
                     }
                     tokio::time::sleep(std::time::Duration::from_millis(150)).await;
                 }
@@ -206,10 +207,24 @@ fn App() -> Element {
                     thread: thread(),
                     environment_id: STORE.environment_id.lock().unwrap().clone(),
                     composer: cc3_native::ui::composer::ComposerMode::Normal,
-                    onsend: move |text: String| STORE.send_message(&text),
+                    onsend: move |text: String| {
+                        if draft() {
+                            if let Some(id) = STORE.start_thread(&text, None) {
+                                draft.set(false);
+                                selected.set(Some(id));
+                            }
+                        } else {
+                            STORE.send_message(&text);
+                        }
+                    },
                     page: page(),
                     onaction: move |action: String| {
-                        if let Some(name) = action.strip_prefix("page:") {
+                        if action == "page:new-chat" {
+                            page.set(None);
+                            draft.set(true);
+                            selected.set(None);
+                            thread.set(cc3_native::model::ThreadView::default());
+                        } else if let Some(name) = action.strip_prefix("page:") {
                             page.set(Some(name.to_string()));
                         } else if let Some(section) = action.strip_prefix("section:") {
                             let name = format!("settings-{}", section.trim_start_matches("/settings/"));
@@ -225,6 +240,7 @@ fn App() -> Element {
                         }
                     },
                     onselect: move |id: String| {
+                        draft.set(false);
                         page.set(None);
                         selected.set(Some(id.clone()));
                         rows.set(rows_from_store(&STORE, Some(id.clone())));
@@ -244,10 +260,16 @@ fn App() -> Element {
                             move |key: String| {
                                 palette_open.set(false);
                                 if let Some(id) = key.strip_prefix("thread:") {
+                                    draft.set(false);
                                     page.set(None);
                                     selected.set(Some(id.to_string()));
                                     rows.set(rows_from_store(&STORE, Some(id.to_string())));
                                     STORE.open_thread(id);
+                                } else if key == "page:new-chat" {
+                                    page.set(None);
+                                    draft.set(true);
+                                    selected.set(None);
+                                    thread.set(cc3_native::model::ThreadView::default());
                                 } else if let Some(name) = key.strip_prefix("page:") {
                                     page.set(Some(name.to_string()));
                                 }
