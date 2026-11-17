@@ -14,7 +14,8 @@ use crate::ui::timeline::Timeline;
 pub fn AppLayout(rows: Vec<ThreadRowData>, thread: ThreadView, environment_id: String, onselect: EventHandler<String>, composer: ComposerMode, #[props(default)] onsend: Option<EventHandler<String>>, #[props(default)] page: Option<String>, #[props(default)] onaction: EventHandler<String>) -> Element {
     let page_def = page.as_deref().and_then(crate::ui::fragments::page);
     let page_main = page_def.and_then(|p| p.main);
-    let page_overlay = page_def.and_then(|p| p.overlay);
+    let page_overlay = page_def.filter(|p| !p.overlay_after_toasts).and_then(|p| p.overlay);
+    let overlay_after = page_def.filter(|p| p.overlay_after_toasts).and_then(|p| p.overlay);
     // Opens at the newest message and follows new ones, as the web timeline does.
     let mut scroller = use_signal(|| None::<std::rc::Rc<MountedData>>);
     let follow = (thread.thread_id.clone(), thread.rows.len());
@@ -2766,6 +2767,9 @@ pub fn AppLayout(rows: Vec<ThreadRowData>, thread: ThreadView, environment_id: S
                 "class": "fixed z-100 mx-auto flex w-[calc(100%-var(--toast-inset)*2)] max-w-90 [--toast-header-offset:var(--workspace-topbar-height)] [--toast-inset:--spacing(4)] sm:[--toast-inset:--spacing(8)] data-[position*=top]:top-[calc(var(--toast-inset)+var(--toast-header-offset))] data-[position*=bottom]:bottom-(--toast-inset) data-[position*=left]:left-(--toast-inset) data-[position*=right]:right-(--toast-inset) data-[position*=center]:-translate-x-1/2 data-[position*=center]:left-1/2",
                 "style": "--toast-frontmost-height: 0px;",
             }
+        }
+        if let Some(overlay_html) = overlay_after {
+            Fragment { html: overlay_html, onaction, overlay: true }
         }
     }
 }
