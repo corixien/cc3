@@ -108,6 +108,38 @@ impl Harness {
         false
     }
 
+    /// Center of the first element whose attribute `name` equals `value`.
+    fn center_of(&self, name: &str, value: &str) -> Option<(f32, f32)> {
+        use blitz_dom::Document;
+        let doc = self.doc.inner();
+        let mut stack = vec![doc.root_node().id];
+        while let Some(id) = stack.pop() {
+            let node = doc.get_node(id)?;
+            if node.element_data().is_some_and(|e| e.attrs().iter().any(|a| &*a.name.local == name && &*a.value == value)) {
+                let r = doc.get_client_bounding_rect(id)?;
+                return Some(((r.x + r.width / 2.0) as f32, (r.y + r.height / 2.0) as f32));
+            }
+            stack.extend(node.children.iter().copied());
+        }
+        None
+    }
+
+    fn attr_of(&self, name: &str, value: &str, attr: &str) -> Option<String> {
+        use blitz_dom::Document;
+        let doc = self.doc.inner();
+        let mut stack = vec![doc.root_node().id];
+        while let Some(id) = stack.pop() {
+            let node = doc.get_node(id)?;
+            if let Some(e) = node.element_data() {
+                if e.attrs().iter().any(|a| &*a.name.local == name && &*a.value == value) {
+                    return e.attrs().iter().find(|a| &*a.name.local == attr).map(|a| a.value.to_string());
+                }
+            }
+            stack.extend(node.children.iter().copied());
+        }
+        None
+    }
+
     fn text_contains(&self, needle: &str) -> bool {
         use blitz_dom::Document;
         let doc = self.doc.inner();
@@ -188,4 +220,23 @@ fn palette_filters_while_typing_and_enter_opens_a_page() {
     h.key(Key::Named(keyboard_types::NamedKey::Enter), Code::Enter, Modifiers::empty());
     assert!(!h.html_contains("command-dialog-popup"), "Enter runs the action and closes the palette");
     assert!(h.html_contains("route-usage") || h.text_contains("Usage"), "the usage page is shown");
+}
+
+#[test]
+fn settings_switch_toggles_and_persists() {
+    let rt = runtime();
+    let _guard = rt.enter();
+    let home = std::env::temp_dir().join(format!("cc3-interact-{}", std::process::id()));
+    std::fs::create_dir_all(&home).unwrap();
+    // SAFETY: tests in this binary that read CC3_HOME run on this thread only after it is set.
+    unsafe { std::env::set_var("CC3_HOME", &home) };
+    let mut h = Harness::new(fixture_store());
+    h.click(24.0, 876.0);
+    let before = h.attr_of("aria-label", "Confirm thread archiving", "aria-checked").expect("switch present");
+    let (x, y) = h.center_of("aria-label", "Confirm thread archiving").expect("switch position");
+    h.click(x, y);
+    let after = h.attr_of("aria-label", "Confirm thread archiving", "aria-checked").unwrap();
+    assert_ne!(before, after, "clicking the switch flips it");
+    let saved = std::fs::read_to_string(home.join("native-ui-settings.json")).unwrap();
+    assert!(saved.contains("Confirm thread archiving"), "state is persisted: {saved}");
 }
