@@ -8,6 +8,7 @@ use dioxus_native_dom::NodeHandle;
 pub fn action_at(doc: &blitz_dom::BaseDocument, x: f32, y: f32) -> Option<String> {
     let hit = doc.hit(x, y)?;
     let mut id = Some(hit.node_id);
+    let mut first = true;
     while let Some(current) = id {
         let node = doc.get_node(current)?;
         if let Some(el) = node.element_data() {
@@ -18,13 +19,17 @@ pub fn action_at(doc: &blitz_dom::BaseDocument, x: f32, y: f32) -> Option<String
             if let Some(action) = attr("data-cc3-action") {
                 return Some(action);
             }
-            if attr("class").is_some_and(|c| c.split_whitespace().any(|c| c == "dialog-backdrop" || c == "command-dialog-backdrop")) {
+            // The click landed outside the dialog popup: on the backdrop or the full-screen popup frame.
+            let outside = |c: &str| c.split_whitespace().any(|c| c == "dialog-backdrop" || c == "command-dialog-backdrop");
+            let frame = |c: &str| first && c.split_whitespace().any(|c| c == "fixed") && c.split_whitespace().any(|c| c == "inset-0");
+            if attr("class").is_some_and(|c| outside(&c) || frame(&c)) {
                 return Some("close".into());
             }
             if attr("aria-label").is_some_and(|l| l == "Close" || l == "Close settings") {
                 return Some("close".into());
             }
         }
+        first = false;
         id = node.parent;
     }
     None
@@ -50,5 +55,23 @@ pub fn Fragment(html: &'static str, onaction: EventHandler<String>, #[props(defa
                 }
             },
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::ui::screens::{render_html, screens};
+
+    #[test]
+    fn clicks_resolve_to_actions() {
+        let screen = screens().into_iter().find(|s| s.name == "settings-general").unwrap();
+        let html = render_html(&screen, true);
+        let doc = crate::render::load(&html, 1400, 900, blitz_traits::shell::ColorScheme::Dark);
+        // "Appearance" in the settings navigation, then the close button, then the backdrop corner.
+        assert_eq!(action_at(&doc, 150.0, 141.0).as_deref(), Some("section:/settings/appearance"));
+        assert_eq!(action_at(&doc, 1317.0, 65.0).as_deref(), Some("close"));
+        assert_eq!(action_at(&doc, 20.0, 450.0).as_deref(), Some("close"));
+        assert_eq!(action_at(&doc, 700.0, 300.0), None);
     }
 }

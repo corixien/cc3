@@ -1635,6 +1635,7 @@ pub fn AppLayout(rows: Vec<ThreadRowData>, thread: ThreadView, environment_id: S
                                                         "data-size": "icon",
                                                         "data-slot": "tooltip-trigger",
                                                         "aria-label": "New thread",
+                                                        onclick: move |_| onaction.call("page:new-chat".to_string()),
                                                         "id": "base-ui-_r_7_",
                                                         "data-base-ui-tooltip-trigger": "",
                                                         svg {
@@ -1734,6 +1735,7 @@ pub fn AppLayout(rows: Vec<ThreadRowData>, thread: ThreadView, environment_id: S
                                                     "data-size": "icon",
                                                     "data-slot": "tooltip-trigger",
                                                     "aria-label": "Pull requests",
+                                                    onclick: move |_| onaction.call("page:route-pull-requests".to_string()),
                                                     "id": "base-ui-_r_c_",
                                                     "data-base-ui-tooltip-trigger": "",
                                                     svg {
@@ -1781,6 +1783,7 @@ pub fn AppLayout(rows: Vec<ThreadRowData>, thread: ThreadView, environment_id: S
                                                     "data-size": "icon",
                                                     "data-slot": "tooltip-trigger",
                                                     "aria-label": "Usage",
+                                                    onclick: move |_| onaction.call("page:route-usage".to_string()),
                                                     "id": "base-ui-_r_e_",
                                                     "data-base-ui-tooltip-trigger": "",
                                                     svg {

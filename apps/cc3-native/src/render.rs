@@ -13,7 +13,7 @@ pub struct Rendered {
 }
 
 /// Font context with the fonts CC3 ships (Lexend Deca, Liberation Mono) plus system fallbacks.
-fn font_context() -> parley::FontContext {
+pub fn font_context() -> parley::FontContext {
     use parley::fontique::Blob;
     let mut ctx = parley::FontContext::new();
     let dir = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("assets/fonts");
@@ -30,6 +30,12 @@ fn font_context() -> parley::FontContext {
 }
 
 pub fn render(html: &str, width: u32, height: u32, scheme: ColorScheme) -> Rendered {
+    let mut doc = load(html, width, height, scheme);
+    paint(&mut doc, width, height)
+}
+
+/// Parses and lays out a page.
+pub fn load(html: &str, width: u32, height: u32, scheme: ColorScheme) -> HtmlDocument {
     let mut doc = HtmlDocument::from_html(
         html,
         DocumentConfig {
@@ -44,9 +50,13 @@ pub fn render(html: &str, width: u32, height: u32, scheme: ColorScheme) -> Rende
         doc.scroll_to(scroller, 0.0, f64::MAX, blitz_dom::ScrollBehavior::Instant);
         doc.resolve(0.0);
     }
-    let boxes = collect_boxes(&doc);
+    doc
+}
+
+fn paint(doc: &mut HtmlDocument, width: u32, height: u32) -> Rendered {
+    let boxes = collect_boxes(doc);
     let rgba = render_to_buffer::<VelloCpuImageRenderer, _>(
-        |scene| paint_scene(scene, &mut doc, 1.0, width, height, 0, 0),
+        |scene| paint_scene(scene, doc, 1.0, width, height, 0, 0),
         width,
         height,
     );

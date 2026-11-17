@@ -35,7 +35,7 @@ fn main() {
             .with_surface_size(LogicalSize::new(alert::WIDTH, alert::HEIGHT))
             .with_position(LogicalPosition::new(680.0, 72.0));
         alert::keep_above();
-        dioxus::native::launch_cfg(AlertApp, vec![], vec![Box::new(Config::new().with_window_attributes(attributes))]);
+        dioxus::native::launch_cfg(AlertApp, vec![], vec![Box::new(Config::new().with_window_attributes(attributes).with_font_ctx(cc3_native::render::font_context()))]);
         return;
     }
 
@@ -54,7 +54,7 @@ fn main() {
         .with_transparent(true)
         .with_surface_size(LogicalSize::new(1400.0, 900.0))
         .with_min_surface_size(LogicalSize::new(640.0, 480.0));
-    dioxus::native::launch_cfg(App, vec![], vec![Box::new(Config::new().with_window_attributes(attributes))]);
+    dioxus::native::launch_cfg(App, vec![], vec![Box::new(Config::new().with_window_attributes(attributes).with_font_ctx(cc3_native::render::font_context()))]);
 }
 
 static ALERT: std::sync::OnceLock<(u64, String, String)> = std::sync::OnceLock::new();
@@ -119,6 +119,7 @@ fn App() -> Element {
     let mut rows = use_signal(Vec::<ThreadRowData>::new);
     let mut status = use_signal(|| "Connecting...".to_string());
     let mut selected = use_signal(|| None::<String>);
+    let mut page = use_signal(|| std::env::var("CC3_PAGE").ok());
     let mut thread = use_signal(cc3_native::model::ThreadView::default);
 
     use_hook(|| {
@@ -191,7 +192,21 @@ fn App() -> Element {
                     environment_id: STORE.environment_id.lock().unwrap().clone(),
                     composer: cc3_native::ui::composer::ComposerMode::Normal,
                     onsend: move |text: String| STORE.send_message(&text),
+                    page: page(),
+                    onaction: move |action: String| {
+                        if let Some(name) = action.strip_prefix("page:") {
+                            page.set(Some(name.to_string()));
+                        } else if let Some(section) = action.strip_prefix("section:") {
+                            let name = format!("settings-{}", section.trim_start_matches("/settings/"));
+                            if cc3_native::ui::fragments::page(&name).is_some() {
+                                page.set(Some(name));
+                            }
+                        } else if action == "close" {
+                            page.set(None);
+                        }
+                    },
                     onselect: move |id: String| {
+                        page.set(None);
                         selected.set(Some(id.clone()));
                         rows.set(rows_from_store(&STORE, Some(id.clone())));
                         STORE.open_thread(&id);
