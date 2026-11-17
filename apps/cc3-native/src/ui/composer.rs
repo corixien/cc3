@@ -442,7 +442,7 @@ pub fn ComposerNormal(#[props(default)] onsend: Option<EventHandler<String>>, #[
                             "data-thread-context-drop": "true",
                             div {
                                 "data-slot": "composer-banner-attachment",
-                                "class": "mx-auto mb-2 w-[calc(100%-2*var(--chat-composer-drawer-inset))] flex items-end gap-1 not-has-data-[composer-banner-surface=attached]:hidden",
+                                "class": "mx-auto w-[calc(100%-2*var(--chat-composer-drawer-inset))] flex items-end gap-1 not-has-data-[composer-banner-surface=attached]:hidden",
                                 div {
                                     "class": "flex min-w-0 flex-1 flex-col empty:hidden [&>[data-slot=composer-banner-attachment]]:w-full [&>[data-slot=composer-banner-attachment]:last-child]:mb-0",
                                 }
