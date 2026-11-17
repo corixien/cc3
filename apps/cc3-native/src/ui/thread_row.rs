@@ -23,6 +23,11 @@ pub fn ThreadRow(
             div {
                 "role": "button",
                     onclick: move |_| onselect.call(()),
+                    oncontextmenu: move |e| {
+                        e.prevent_default();
+                        let p = e.client_coordinates();
+                        onaction.call(format!("menu:{}:{}", p.x as i32, p.y as i32));
+                    },
                         "aria-current": active.then_some("page"),
                 "tabindex": "0",
                 "data-sidebar-row": "{thread_key}",

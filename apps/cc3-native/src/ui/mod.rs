@@ -52,6 +52,7 @@ pub mod fragments;
 pub mod add_project;
 pub mod model_picker;
 pub mod diff_panel;
+pub mod context_menu;
 pub mod page;
 pub mod toast;
 pub mod terminal_panel;

@@ -60,6 +60,7 @@ pub fn AppRoot(store: StoreHandle, #[props(default)] frame: bool) -> Element {
     let mut palette_query = use_signal(String::new);
     let mut palette_active = use_signal(|| 0usize);
     let mut diff_open = use_signal(|| false);
+    let mut menu = use_signal(|| None::<(String, i32, i32)>);
     let mut toasts = use_signal(Vec::<crate::ui::toast::ToastView>::new);
     let mut terminal_open = use_signal(|| false);
     let mut sidebar_query = use_signal(String::new);
@@ -157,6 +158,12 @@ pub fn AppRoot(store: StoreHandle, #[props(default)] frame: bool) -> Element {
                             add_project_path.set(String::new());
                             add_project_error.set(String::new());
                             add_project_open.set(true);
+                        } else if let Some(rest) = action.strip_prefix("row:menu:") {
+                            // row:menu:<x>:<y>:<thread id>
+                            let mut parts = rest.splitn(3, ':');
+                            if let (Some(x), Some(y), Some(id)) = (parts.next().and_then(|v| v.parse().ok()), parts.next().and_then(|v| v.parse().ok()), parts.next()) {
+                                menu.set(Some((id.to_string(), x, y)));
+                            }
                         } else if let Some(rest) = action.strip_prefix("row:") {
                             if let Some((what, id)) = rest.split_once(':') {
                                 store.thread_action(id, what);
@@ -176,6 +183,20 @@ pub fn AppRoot(store: StoreHandle, #[props(default)] frame: bool) -> Element {
                         rows.set(rows_from_store(store, Some(id.clone())));
                         store.open_thread(&id);
                     },
+                }
+                if let Some((id, x, y)) = menu() {
+                    crate::ui::context_menu::ThreadMenu {
+                        x,
+                        y,
+                        onpick: {
+                            let id = id.clone();
+                            move |what: String| {
+                                store.thread_action(&id, &what);
+                                menu.set(None);
+                            }
+                        },
+                        onclose: move |_| menu.set(None),
+                    }
                 }
                 if !toasts().is_empty() {
                     crate::ui::toast::ToastStack {

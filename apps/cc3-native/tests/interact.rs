@@ -81,6 +81,16 @@ impl Harness {
         self.settle();
     }
 
+    fn right_click(&mut self, x: f32, y: f32) {
+        use blitz_dom::Document;
+        let mut down = self.pointer(x, y, MouseEventButton::Secondary);
+        down.buttons = MouseEventButtons::Secondary;
+        self.doc.handle_ui_event(UiEvent::PointerMove(self.pointer(x, y, MouseEventButton::Main)));
+        self.doc.handle_ui_event(UiEvent::PointerDown(down.clone()));
+        self.doc.handle_ui_event(UiEvent::PointerUp(down));
+        self.settle();
+    }
+
     fn key(&mut self, key: Key, code: Code, modifiers: Modifiers) {
         use blitz_dom::Document;
         let text = match &key {
@@ -368,4 +378,20 @@ fn toasts_show_and_dismiss() {
     let (x, y) = h.center_of("aria-label", "Dismiss notification").expect("close button");
     h.click(x, y);
     assert!(!h.text_contains("Message not sent"), "dismissed");
+}
+
+#[test]
+fn right_click_on_a_thread_opens_its_menu() {
+    let rt = runtime();
+    let _guard = rt.enter();
+    let mut h = Harness::new(fixture_store());
+    rt.block_on(tokio::time::sleep(std::time::Duration::from_millis(250)));
+    h.settle();
+    let (x, y) = h.center_of("aria-label", "Thread thread-golden, render").expect("row");
+    h.right_click(x, y);
+    assert!(h.text_contains("Archive thread"), "context menu is shown");
+    h.screenshot("interact-menu");
+    let (x, y) = h.center_of("role", "menuitem").expect("item");
+    h.click(x, y);
+    assert!(!h.text_contains("Archive thread"), "picking closes the menu");
 }
