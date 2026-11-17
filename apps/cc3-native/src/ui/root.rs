@@ -59,6 +59,7 @@ pub fn AppRoot(store: StoreHandle, #[props(default)] frame: bool) -> Element {
     let mut palette_open = use_signal(|| std::env::var("CC3_PALETTE").is_ok());
     let mut palette_query = use_signal(String::new);
     let mut palette_active = use_signal(|| 0usize);
+    let mut dark = use_signal(|| crate::ui::settings::SWITCHES.read().get("__theme_dark").copied().unwrap_or(true));
     let mut diff_open = use_signal(|| false);
     let mut menu = use_signal(|| None::<(String, i32, i32)>);
     let mut toasts = use_signal(Vec::<crate::ui::toast::ToastView>::new);
@@ -282,6 +283,10 @@ pub fn AppRoot(store: StoreHandle, #[props(default)] frame: bool) -> Element {
                                     selected.set(Some(id.to_string()));
                                     rows.set(rows_from_store(store, Some(id.to_string())));
                                     store.open_thread(id);
+                                } else if key == "action:toggle-theme" {
+                                    let next = !dark();
+                                    dark.set(next);
+                                    crate::ui::settings::set_switch("__theme_dark", next, |_, _| {});
                                 } else if key == "dialog:add-project" {
                                     add_project_path.set(String::new());
                                     add_project_error.set(String::new());
@@ -324,7 +329,7 @@ pub fn AppRoot(store: StoreHandle, #[props(default)] frame: bool) -> Element {
     rsx! {
         style { {crate::ui::app_css()} }
         div {
-            class: "cc3-root dark",
+            class: if dark() { "cc3-root dark" } else { "cc3-root" },
             tabindex: "0",
             onmounted: move |e| {
                 // Hotkeys need a focused element to be routed to.
@@ -357,7 +362,7 @@ pub fn AppRoot(store: StoreHandle, #[props(default)] frame: bool) -> Element {
             style: "width:100vw;height:100vh;--workspace-topbar-height:40px;--native-titlebar-height:40px;--workspace-controls-top:0px;--workspace-controls-left:0.75rem;--workspace-controls-right:calc(138px + 0.75rem);--workspace-native-controls-inset:calc(138px + 0.75rem);",
             if frame {
                 WindowFrame {
-                    dark: true,
+                    dark: dark(),
                     background: "var(--background)".to_string(),
                     title_content: rsx! { div {} },
                     {content.clone()}

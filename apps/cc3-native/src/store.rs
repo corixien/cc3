@@ -222,7 +222,7 @@ impl Store {
     pub fn model_label(&self) -> String {
         let Some(current) = self.current_model() else { return String::new() };
         let (instance, slug) = (current["instanceId"].as_str().unwrap_or_default(), current["model"].as_str().unwrap_or_default());
-        self.model_options().into_iter().find(|(i, _, s, _)| i == instance && s == slug).map(|(_, _, _, name)| name).unwrap_or_else(|| slug.to_string())
+        self.model_options().into_iter().find(|(i, _, s, _)| i == instance && s == slug).map(|(_, _, _, name)| name).unwrap_or_else(|| if slug.starts_with("gpt") { slug.to_uppercase() } else { slug.to_string() })
     }
 
     /// Shows a toast (`success` or `error`); the UI drops it after a few seconds.

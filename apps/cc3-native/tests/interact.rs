@@ -272,7 +272,7 @@ fn model_picker_changes_the_label() {
     let store = fixture_store();
     *store.config.lock().unwrap() = serde_json::json!({"providers": [{"instanceId": "claudeAgent", "displayName": "Claude", "enabled": true, "models": [{"slug": "claude-sonnet-5-5", "name": "Claude Sonnet 5.5"}, {"slug": "claude-opus-5-5", "name": "Claude Opus 5.5"}]}]});
     let mut h = Harness::new(store);
-    let (x, y) = h.center_of("aria-label", "gpt-5.4").expect("model button");
+    let (x, y) = h.center_of("aria-label", "GPT-5.4").expect("model button");
     h.click(x, y);
     assert!(h.html_contains("Model picker"), "picker opens");
     h.screenshot("interact-model-picker");
@@ -407,4 +407,20 @@ fn shortcuts_open_pages() {
     assert!(h.text_contains("In-app notifications"), "Ctrl+, opens settings");
     h.key(Key::Named(keyboard_types::NamedKey::Escape), Code::Escape, Modifiers::empty());
     assert!(!h.text_contains("In-app notifications"), "Escape closes it");
+}
+
+#[test]
+fn palette_toggles_the_theme() {
+    let rt = runtime();
+    let _guard = rt.enter();
+    let home = std::env::temp_dir().join(format!("cc3-interact-theme-{}", std::process::id()));
+    std::fs::create_dir_all(&home).unwrap();
+    unsafe { std::env::set_var("CC3_HOME", &home) };
+    let mut h = Harness::new(fixture_store());
+    assert!(h.html_contains("cc3-root dark"));
+    h.key(Key::Character("k".into()), Code::KeyK, Modifiers::CONTROL);
+    h.type_text("change theme");
+    h.key(Key::Named(keyboard_types::NamedKey::Enter), Code::Enter, Modifiers::empty());
+    assert!(!h.html_contains("cc3-root dark"), "theme switched to light");
+    h.screenshot("interact-light");
 }

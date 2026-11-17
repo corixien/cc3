@@ -47,6 +47,7 @@ fn action_key(i: usize) -> &'static str {
     match i {
         0 | 1 => "page:new-chat",
         7 => "dialog:add-project",
+        8 | 9 => "action:toggle-theme",
         11 => "page:route-pull-requests",
         13 => "page:route-usage",
         16 => "page:settings-general",
