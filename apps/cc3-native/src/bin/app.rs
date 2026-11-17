@@ -201,6 +201,10 @@ fn App() -> Element {
                             if cc3_native::ui::fragments::page(&name).is_some() {
                                 page.set(Some(name));
                             }
+                        } else if let Some(rest) = action.strip_prefix("switch:") {
+                            if let Some((value, label)) = rest.split_once(':') {
+                                cc3_native::ui::settings::set_switch(label, value == "true", |key, on| STORE.update_server_setting(key, serde_json::json!(on)));
+                            }
                         } else if action == "close" {
                             page.set(None);
                         }

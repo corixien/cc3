@@ -19,6 +19,10 @@ pub fn action_at(doc: &blitz_dom::BaseDocument, x: f32, y: f32) -> Option<String
             if let Some(action) = attr("data-cc3-action") {
                 return Some(action);
             }
+            if attr("role").as_deref() == Some("switch") {
+                let on = attr("aria-checked").as_deref() == Some("true");
+                return Some(format!("switch:{}:{}", !on, attr("aria-label").unwrap_or_default()));
+            }
             // The click landed outside the dialog popup: on the backdrop or the full-screen popup frame.
             let outside = |c: &str| c.split_whitespace().any(|c| c == "dialog-backdrop" || c == "command-dialog-backdrop");
             let frame = |c: &str| first && c.split_whitespace().any(|c| c == "fixed") && c.split_whitespace().any(|c| c == "inset-0");
@@ -38,12 +42,13 @@ pub fn action_at(doc: &blitz_dom::BaseDocument, x: f32, y: f32) -> Option<String
 #[component]
 pub fn Fragment(html: &'static str, onaction: EventHandler<String>, #[props(default)] overlay: bool) -> Element {
     let mut handle = use_signal(|| None::<std::rc::Rc<MountedData>>);
+    let patched = crate::ui::settings::patch_switches(html, &crate::ui::settings::SWITCHES.read()).into_owned();
     rsx! {
         div {
             class: if overlay { "" } else { "contents" },
             style: "",
             "data-cc3-fragment": "",
-            dangerous_inner_html: html,
+            dangerous_inner_html: patched,
             onmounted: move |e| handle.set(Some(e.data())),
             onclick: move |e| {
                 let Some(mounted) = handle() else { return };

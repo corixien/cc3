@@ -63,6 +63,15 @@ impl Store {
         });
     }
 
+    /// Writes one server-owned setting (`server.updateSettings`) on a background thread.
+    pub fn update_server_setting(self: &Arc<Self>, key: &str, value: serde_json::Value) {
+        let Some(client) = self.client.lock().unwrap().clone() else { return };
+        let payload = serde_json::json!({ "patch": { key: value } });
+        std::thread::spawn(move || {
+            let _ = client.call("server.updateSettings", payload, std::time::Duration::from_secs(30));
+        });
+    }
+
     pub fn thread_view(&self) -> Option<ThreadView> {
         self.thread.lock().unwrap().as_ref().map(ThreadState::view)
     }

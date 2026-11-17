@@ -40,3 +40,4 @@ pub mod composer;
 pub mod cq;
 pub mod fragments;
 pub mod page;
+pub mod settings;
