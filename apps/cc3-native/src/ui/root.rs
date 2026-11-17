@@ -59,6 +59,7 @@ pub fn AppRoot(store: StoreHandle, #[props(default)] frame: bool) -> Element {
     let mut palette_open = use_signal(|| std::env::var("CC3_PALETTE").is_ok());
     let mut palette_query = use_signal(String::new);
     let mut palette_active = use_signal(|| 0usize);
+    let mut diff_open = use_signal(|| false);
     let mut sidebar_query = use_signal(String::new);
     let mut model_open = use_signal(|| false);
     let mut model_query = use_signal(String::new);
@@ -121,6 +122,11 @@ pub fn AppRoot(store: StoreHandle, #[props(default)] frame: bool) -> Element {
                             if crate::ui::fragments::page(&name).is_some() {
                                 page.set(Some(name));
                             }
+                        } else if action == "panel:diff" {
+                            if !diff_open() {
+                                store.refresh_diff();
+                            }
+                            diff_open.set(!diff_open());
                         } else if let Some(q) = action.strip_prefix("search:") {
                             sidebar_query.set(q.to_string());
                         } else if action == "dialog:model-picker" {
@@ -149,6 +155,18 @@ pub fn AppRoot(store: StoreHandle, #[props(default)] frame: bool) -> Element {
                         rows.set(rows_from_store(store, Some(id.clone())));
                         store.open_thread(&id);
                     },
+                }
+                if diff_open() {
+                    {
+                        let (files, loading, error) = match &*store.diff.lock().unwrap() {
+                            None => (Vec::new(), true, String::new()),
+                            Some(Ok(preview)) => (crate::ui::diff_panel::files_from_preview(preview), false, String::new()),
+                            Some(Err(e)) => (Vec::new(), false, e.clone()),
+                        };
+                        rsx! {
+                            crate::ui::diff_panel::DiffPanel { files, loading, error, onrefresh: move |_| store.refresh_diff() }
+                        }
+                    }
                 }
                 if model_open() {
                     crate::ui::model_picker::ModelPicker {

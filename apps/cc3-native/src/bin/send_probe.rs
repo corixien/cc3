@@ -53,4 +53,6 @@ fn main() {
     } else {
         println!("config keys: {:?}", config.as_object().map(|o| o.keys().cloned().collect::<Vec<_>>()));
     }
+    let r = client.call("review.getDiffPreview", json!({"cwd": root.to_string_lossy()}), Duration::from_secs(20));
+    println!("diff: {}", format!("{r:?}").chars().take(1500).collect::<String>());
 }

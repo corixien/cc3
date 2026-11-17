@@ -309,3 +309,17 @@ fn work_entries_expand_to_their_output() {
     assert!(h.text_contains("Tests  14 passed"), "output is shown");
     h.screenshot("interact-work");
 }
+
+#[test]
+fn diff_panel_shows_changed_files() {
+    let rt = runtime();
+    let _guard = rt.enter();
+    let store = fixture_store();
+    *store.diff.lock().unwrap() = Some(Ok(serde_json::json!({"sources": [{"diff": "diff --git a/src/a.rs b/src/a.rs\nindex 1..2 100644\n--- a/src/a.rs\n+++ b/src/a.rs\n@@ -1,2 +1,2 @@\n-let x = 1;\n+let x = 2;\n keep\n", "files": [{"path": "src/a.rs", "additions": 1, "deletions": 1}]}]})));
+    let mut h = Harness::new(store);
+    let (x, y) = h.center_of("aria-label", "Toggle right panel").expect("toggle");
+    h.click(x, y);
+    assert!(h.html_contains("diff-panel"), "panel opens");
+    assert!(h.text_contains("src/a.rs") && h.text_contains("let x = 2;"), "diff lines are listed");
+    h.screenshot("interact-diff");
+}

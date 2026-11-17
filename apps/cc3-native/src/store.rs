@@ -14,6 +14,8 @@ pub struct Store {
     pub config: Mutex<serde_json::Value>,
     /// Model chosen in the picker; used for new messages and threads instead of the thread's own.
     selected_model: Mutex<Option<serde_json::Value>>,
+    /// Latest `review.getDiffPreview` result for the open thread's workspace, or an error text.
+    pub diff: Mutex<Option<Result<serde_json::Value, String>>>,
     /// Bumped on every change so the UI only rebuilds when needed.
     pub version: AtomicU64,
     client: Mutex<Option<Arc<RpcClient>>>,
@@ -211,6 +213,31 @@ impl Store {
         let Some(current) = self.current_model() else { return String::new() };
         let (instance, slug) = (current["instanceId"].as_str().unwrap_or_default(), current["model"].as_str().unwrap_or_default());
         self.model_options().into_iter().find(|(i, _, s, _)| i == instance && s == slug).map(|(_, _, _, name)| name).unwrap_or_else(|| slug.to_string())
+    }
+
+    /// Workspace folder of the open thread's project.
+    pub fn current_workspace(&self) -> Option<String> {
+        let thread_id = self.thread.lock().unwrap().as_ref().map(|t| t.thread_id.clone())?;
+        let shell = self.shell.lock().unwrap();
+        let project_id = shell.threads.iter().find(|t| t.id == thread_id).map(|t| t.project_id.clone())?;
+        shell.project(&project_id).map(|p| p.workspace_root.clone())
+    }
+
+    /// Loads the working-tree diff of the open thread's workspace in the background.
+    pub fn refresh_diff(self: &Arc<Self>) {
+        let Some(client) = self.client.lock().unwrap().clone() else { return };
+        let Some(cwd) = self.current_workspace() else {
+            *self.diff.lock().unwrap() = Some(Err("Open a thread to see its changes".into()));
+            self.bump();
+            return;
+        };
+        *self.diff.lock().unwrap() = None;
+        let store = self.clone();
+        std::thread::spawn(move || {
+            let result = client.call("review.getDiffPreview", serde_json::json!({"cwd": cwd}), std::time::Duration::from_secs(30)).map_err(|e| format!("{e:?}"));
+            *store.diff.lock().unwrap() = Some(result);
+            store.bump();
+        });
     }
 
     /// Stops the open thread's run (`thread.stop`).

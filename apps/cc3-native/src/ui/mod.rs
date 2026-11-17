@@ -51,6 +51,7 @@ pub mod cq;
 pub mod fragments;
 pub mod add_project;
 pub mod model_picker;
+pub mod diff_panel;
 pub mod page;
 pub mod root;
 pub mod palette;
