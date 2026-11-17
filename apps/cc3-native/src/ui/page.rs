@@ -42,7 +42,14 @@ pub fn action_at(doc: &blitz_dom::BaseDocument, x: f32, y: f32) -> Option<String
 #[component]
 pub fn Fragment(html: &'static str, onaction: EventHandler<String>, #[props(default)] overlay: bool) -> Element {
     let mut handle = use_signal(|| None::<std::rc::Rc<MountedData>>);
-    let patched = crate::ui::settings::patch_switches(html, &crate::ui::settings::SWITCHES.read()).into_owned();
+    let mut patched = crate::ui::settings::patch_switches(html, &crate::ui::settings::SWITCHES.read()).into_owned();
+    // The welcome page's Start button adds the first project.
+    if patched.contains("Welcome to T3 Code") {
+        let start = patched.match_indices("Start").map(|(i, _)| i).find(|&i| patched[..i].trim_end().ends_with('>') && patched[i..].trim_start_matches("Start").trim_start().starts_with("</button"));
+        if let Some(button) = start.and_then(|i| patched[..i].rfind("<button")) {
+            patched.insert_str(button + "<button".len(), " data-cc3-action=\"dialog:add-project\"");
+        }
+    }
     rsx! {
         div {
             class: if overlay { "" } else { "contents" },

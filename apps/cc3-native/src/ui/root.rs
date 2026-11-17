@@ -93,6 +93,9 @@ pub fn AppRoot(store: StoreHandle, #[props(default)] frame: bool) -> Element {
         }
     });
 
+    // First run: no project yet, show the welcome page until one exists. (Locks are taken here, not inside
+    // the props below, which hold the environment id guard.)
+    let no_projects = store.shell.lock().unwrap().projects.is_empty() && !store.environment_id.lock().unwrap().is_empty();
     let content = rsx! {
                 AppLayout {
                     rows: {
@@ -112,7 +115,7 @@ pub fn AppRoot(store: StoreHandle, #[props(default)] frame: bool) -> Element {
                             store.send_message(&text);
                         }
                     },
-                    page: page(),
+                    page: page().or_else(|| no_projects.then(|| "route-welcome".to_string())),
                     onstop: move |_| store.stop_thread(),
                     onanswer: move |(request_id, value): (String, String)| store.answer_question(&request_id, &value),
                     onaction: move |action: String| {

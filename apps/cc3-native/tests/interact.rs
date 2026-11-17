@@ -339,3 +339,17 @@ fn terminal_drawer_renders_the_screen() {
     assert!(h.text_contains("echo hi"), "screen text is drawn");
     h.screenshot("interact-terminal");
 }
+
+#[test]
+fn welcome_page_start_opens_add_project() {
+    let rt = runtime();
+    let _guard = rt.enter();
+    let store = Arc::new(Store::default());
+    *store.environment_id.lock().unwrap() = "environment-render".into();
+    let mut h = Harness::new(store);
+    assert!(h.text_contains("Welcome to T3 Code"), "welcome shows without projects");
+    h.screenshot("interact-welcome");
+    let (x, y) = h.center_of("data-cc3-action", "dialog:add-project").expect("Start button");
+    h.click(x, y);
+    assert!(h.html_contains("dialog-popup"), "Start opens the add-project dialog");
+}
