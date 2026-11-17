@@ -406,7 +406,11 @@ fn entry_icon(kind: &str) -> Element {
 /// The expanded group: a scrollable list of the run's tool calls and reasoning lines.
 #[component]
 pub fn WorkDetailsRow(first_item_id: String, entries: Vec<crate::model::WorkEntry>, workspace: String, times: Vec<String>, uid: String) -> Element {
-    let height = entries.len() * 24;
+    let mut open = use_signal(Vec::<String>::new);
+    // Collapsed entries are 24px; an expanded one adds its detail block.
+    let detail_height = |e: &crate::model::WorkEntry| if open.read().contains(&e.id) && !e.detail.is_empty() { 16 + 16 * e.detail.lines().count().min(12) } else { 0 };
+    let height: usize = entries.iter().map(|e| 24 + detail_height(e)).sum();
+    let tops: Vec<usize> = entries.iter().scan(0usize, |acc, e| { let t = *acc; *acc += 24 + detail_height(e); Some(t) }).collect();
     rsx! {
         div {
             "class": "messages-timeline-row-frame",
@@ -436,7 +440,7 @@ pub fn WorkDetailsRow(first_item_id: String, entries: Vec<crate::model::WorkEntr
                                         for (i, e) in entries.iter().enumerate() {
                                             div {
                                                 key: "{e.id}",
-                                                "style": "contain: layout style paint; left: 0px; position: absolute; right: 0px; top: {i * 24}px;",
+                                                "style": "contain: layout style paint; left: 0px; position: absolute; right: 0px; top: {tops[i]}px;",
                                                 {
                                                     let label = if e.kind == "file_change" && !workspace.is_empty() { format!("{workspace}/{}", e.label) } else { e.label.clone() };
                                                     let time = times.get(i).cloned().unwrap_or_default();
@@ -448,7 +452,8 @@ pub fn WorkDetailsRow(first_item_id: String, entries: Vec<crate::model::WorkEntr
                                                             "role": "button",
                                                             "tabindex": "0",
                                                             "aria-label": "{label}",
-                                                            "aria-expanded": "false",
+                                                            "aria-expanded": "{open.read().contains(&e.id)}",
+                                                            onclick: { let id = e.id.clone(); move |_| { let mut list = open.write(); match list.iter().position(|x| *x == id) { Some(p) => { list.remove(p); } None => list.push(id.clone()) } } },
                                                             "class": "group/timeline-row relative w-full min-w-0 rounded-md px-0.5 text-left transition-colors py-0 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring/70",
                                                             div {
                                                                 "class": "flex min-h-6 min-w-0 gap-1.5 text-sm leading-relaxed select-none [&_*]:select-none items-center",
@@ -494,6 +499,13 @@ pub fn WorkDetailsRow(first_item_id: String, entries: Vec<crate::model::WorkEntr
                                                                     "data-slot": "tooltip-trigger",
                                                                     "{time}"
                                                                 }
+                                                            }
+                                                        }
+                                                        if open.read().contains(&e.id) && !e.detail.is_empty() {
+                                                            pre {
+                                                                "class": "ms-7 me-2 mt-1 overflow-x-auto whitespace-pre rounded-md bg-muted/40 px-2 py-1 font-mono text-xs text-secondary-label",
+                                                                "style": "margin: 4px 8px 0 28px;",
+                                                                "{e.detail}"
                                                             }
                                                         }
                                                     }

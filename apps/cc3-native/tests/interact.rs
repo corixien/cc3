@@ -288,3 +288,24 @@ fn sidebar_search_filters_threads() {
     h.type_text("zzz");
     assert!(h.attr_of("aria-label", "Thread thread-golden, render", "role").is_none(), "no row matches the query");
 }
+
+#[test]
+fn work_entries_expand_to_their_output() {
+    let rt = runtime();
+    let _guard = rt.enter();
+    let store = fixture_store();
+    let projection: serde_json::Value = serde_json::from_str(include_str!("../fixtures/thread-golden-work.projection.json")).unwrap();
+    *store.thread.lock().unwrap() = Some(ThreadState::from_projection(&projection));
+    let mut h = Harness::new(store);
+    rt.block_on(tokio::time::sleep(std::time::Duration::from_millis(250)));
+    h.settle();
+    let (x, y) = h.center_of("data-scroll-anchor-ignore", "true").expect("fold header");
+    h.click(x, y);
+    let (x, y) = h.center_of("data-timeline-row-kind", "work-toggle").expect("group row");
+    h.click(x, y + 1.0);
+    assert!(h.html_contains("data-work-entry-id") || h.html_contains("pnpm test --filter sidebar"), "entries listed");
+    let (x, y) = h.center_of("data-v2-item-type", "command_execution").expect("command entry");
+    h.click(x, y);
+    assert!(h.text_contains("Tests  14 passed"), "output is shown");
+    h.screenshot("interact-work");
+}

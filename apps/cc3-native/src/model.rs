@@ -216,6 +216,8 @@ pub struct WorkEntry {
     pub kind: String,
     pub label: String,
     pub at: String,
+    /// Shown when the entry is expanded: command output, diff, search results.
+    pub detail: String,
 }
 
 /// One row of the chat timeline, as shown to the user.
@@ -362,6 +364,12 @@ impl ThreadState {
                     kind: kind.into(),
                     label: label.unwrap_or(kind).into(),
                     at: i["completedAt"].as_str().or(i["startedAt"].as_str()).unwrap_or_default().into(),
+                    detail: match kind {
+                        "command_execution" => i["output"].as_str().unwrap_or_default().to_string(),
+                        "file_change" => i["diffStr"].as_str().unwrap_or_default().to_string(),
+                        "web_search" => i["results"].as_array().map(|r| r.iter().filter_map(|x| x["title"].as_str().or(x["url"].as_str())).collect::<Vec<_>>().join("\n")).unwrap_or_default(),
+                        _ => String::new(),
+                    },
                 }
             })
             .collect();
