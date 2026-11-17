@@ -18,7 +18,7 @@ Referenz: Chromium-Goldens in `apps/web/test/golden/__screenshots__`, Messung `c
 
 ## C. Overlays (`ui/overlays.rs`)
 
-- [ ] Command-Palette (Ctrl+K), Suche, Aktionen, Tastatur-Navigation
+- [x] Command-Palette (Ctrl+K, Suche, Pfeiltasten, Enter, Esc); Aktionen ausser Page-Wechsel sind Platzhalter
 - [ ] Kontextmenues (Sidebar-Zeile: Rename, Archive, Delete, Pin), Hover-Zeile
 - [ ] Tooltips, Toasts (Queue, Timeout, Animation), Dialoge (Bestaetigung)
 - [ ] Globale Tastenkuerzel laut Keybindings

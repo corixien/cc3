@@ -121,6 +121,9 @@ fn App() -> Element {
     let mut selected = use_signal(|| None::<String>);
     let mut page = use_signal(|| std::env::var("CC3_PAGE").ok());
     let mut thread = use_signal(cc3_native::model::ThreadView::default);
+    let mut palette_open = use_signal(|| std::env::var("CC3_PALETTE").is_ok());
+    let mut palette_query = use_signal(String::new);
+    let mut palette_active = use_signal(|| 0usize);
 
     use_hook(|| {
         std::thread::spawn(|| {
@@ -181,6 +184,18 @@ fn App() -> Element {
         style { {cc3_native::ui::app_css()} }
         div {
             class: "cc3-root dark",
+            tabindex: "0",
+            onkeydown: move |e| {
+                let m = e.modifiers();
+                let key = e.key().to_string();
+                if (m.ctrl() || m.meta()) && key.eq_ignore_ascii_case("k") {
+                    palette_query.set(String::new());
+                    palette_active.set(0);
+                    palette_open.set(!palette_open());
+                } else if key == "Escape" && palette_open() {
+                    palette_open.set(false);
+                }
+            },
             style: "width:100vw;height:100vh;--workspace-topbar-height:40px;--native-titlebar-height:40px;--workspace-controls-top:0px;--workspace-controls-left:0.75rem;--workspace-controls-right:calc(138px + 0.75rem);--workspace-native-controls-inset:calc(138px + 0.75rem);",
             WindowFrame {
                 dark: true,
@@ -215,6 +230,51 @@ fn App() -> Element {
                         rows.set(rows_from_store(&STORE, Some(id.clone())));
                         STORE.open_thread(&id);
                     },
+                }
+                if palette_open() {
+                    {
+                        let threads: Vec<cc3_native::ui::palette::PaletteThread> = rows()
+                            .iter()
+                            .map(|r| cc3_native::ui::palette::PaletteThread { id: r.thread_id.clone(), title: r.title.clone(), project: r.project.clone(), monogram: r.monogram.clone(), branch: r.branch.clone(), age: r.age.clone() })
+                            .collect();
+                        let items = cc3_native::ui::palette::rows_for(&palette_query(), &threads, palette_active());
+                        let selectable: Vec<String> = items.iter().filter(|r| r.selectable).map(|r| r.key.clone()).collect();
+                        let run = {
+                            let selectable = selectable.clone();
+                            move |key: String| {
+                                palette_open.set(false);
+                                if let Some(id) = key.strip_prefix("thread:") {
+                                    page.set(None);
+                                    selected.set(Some(id.to_string()));
+                                    rows.set(rows_from_store(&STORE, Some(id.to_string())));
+                                    STORE.open_thread(id);
+                                } else if let Some(name) = key.strip_prefix("page:") {
+                                    page.set(Some(name.to_string()));
+                                }
+                                let _ = &selectable;
+                            }
+                        };
+                        rsx! {
+                            cc3_native::ui::palette::CommandPalette {
+                                query: palette_query(),
+                                rows: items,
+                                oninput: move |q: String| { palette_query.set(q); palette_active.set(0); },
+                                onkey: {
+                                    let selectable = selectable.clone();
+                                    let mut run = run.clone();
+                                    move |key: String| match key.as_str() {
+                                        "ArrowDown" => palette_active.set((palette_active() + 1).min(selectable.len().saturating_sub(1))),
+                                        "ArrowUp" => palette_active.set(palette_active().saturating_sub(1)),
+                                        "Enter" => if let Some(k) = selectable.get(palette_active()) { run(k.clone()) },
+                                        "Escape" => palette_open.set(false),
+                                        _ => {}
+                                    }
+                                },
+                                onpick: { let mut run = run.clone(); move |k: String| run(k) },
+                                onclose: move |_| palette_open.set(false),
+                            }
+                        }
+                    }
                 }
             }
         }
