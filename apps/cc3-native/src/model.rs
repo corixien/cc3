@@ -349,7 +349,7 @@ impl ThreadState {
 
     /// Id of the run's first work item and the collapsed group label ("Ran 1 command, changed 1 file, ...").
     fn work_summary(&self, run_id: &str) -> (String, String, Vec<WorkEntry>) {
-        let work: Vec<&serde_json::Value> = self.items.iter().filter(|i| i["runId"] == run_id && !matches!(i["type"].as_str(), Some("user_message" | "assistant_message"))).collect();
+        let work: Vec<&serde_json::Value> = self.items.iter().filter(|i| i["runId"] == run_id && !matches!(i["type"].as_str(), Some("user_message" | "assistant_message" | "checkpoint" | "user_input_request" | "approval_request"))).collect();
         let count = |f: &dyn Fn(&str) -> bool| work.iter().filter(|i| i["type"].as_str().is_some_and(f)).count();
         let commands = count(&|t| t == "command_execution");
         let files = count(&|t| t == "file_change");
@@ -374,6 +374,9 @@ impl ThreadState {
                     "command_execution" => i["input"].as_str(),
                     "file_change" => i["fileName"].as_str(),
                     "web_search" => i["patterns"][0].as_str(),
+                    "file_search" => i["pattern"].as_str(),
+                    "todo_list" => Some("Updated todo list"),
+                    "proposed_plan" => Some("Proposed plan"),
                     _ => i["title"].as_str(),
                 };
                 WorkEntry {
@@ -384,6 +387,9 @@ impl ThreadState {
                     detail: match kind {
                         "command_execution" => i["output"].as_str().unwrap_or_default().to_string(),
                         "file_change" => i["diffStr"].as_str().unwrap_or_default().to_string(),
+                        "todo_list" => i["steps"].as_array().map(|r| r.iter().map(|x| format!("[{}] {}", if x["status"].as_str() == Some("completed") { "x" } else { " " }, x["step"].as_str().or(x["text"].as_str()).unwrap_or_default())).collect::<Vec<_>>().join("\n")).unwrap_or_default(),
+                        "proposed_plan" => i["markdown"].as_str().unwrap_or_default().to_string(),
+                        "file_search" => i["results"].as_array().map(|r| r.iter().filter_map(|x| x["path"].as_str()).collect::<Vec<_>>().join("\n")).unwrap_or_default(),
                         "web_search" => i["results"].as_array().map(|r| r.iter().filter_map(|x| x["title"].as_str().or(x["url"].as_str())).collect::<Vec<_>>().join("\n")).unwrap_or_default(),
                         _ => String::new(),
                     },
