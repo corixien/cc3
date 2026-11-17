@@ -393,5 +393,7 @@ fn right_click_on_a_thread_opens_its_menu() {
     h.screenshot("interact-menu");
     let (x, y) = h.center_of("role", "menuitem").expect("item");
     h.click(x, y);
-    assert!(!h.text_contains("Archive thread"), "picking closes the menu");
+    assert!(h.text_contains("Click again to delete"), "deleting asks to confirm");
+    h.click(x, y);
+    assert!(!h.text_contains("Archive thread"), "confirming closes the menu");
 }
