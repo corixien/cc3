@@ -76,6 +76,7 @@ pub fn AppRoot(store: StoreHandle, #[props(default)] frame: bool) -> Element {
         move || {
             async move {
                 let mut seen = u64::MAX;
+                let mut last_alert: Option<String> = None;
                 loop {
                     if store.prune_toasts(None, std::time::Duration::from_secs(6)) {
                         toasts.set(store.toasts_view());
@@ -89,6 +90,16 @@ pub fn AppRoot(store: StoreHandle, #[props(default)] frame: bool) -> Element {
                         rows.set(rows_from_store(store, selected()));
                         let mut view = if draft() { crate::model::ThreadView::default() } else { store.thread_view().unwrap_or_default() };
                         view.model_label = store.model_label();
+                        // Needs-input card (only in the real app: it starts a process of the executable).
+                        if frame {
+                            let key = view.pending_question.as_ref().map(|q| q.request_id.clone());
+                            if key.is_some() && key != last_alert {
+                                if let Some(q) = &view.pending_question {
+                                    crate::shell::alert::spawn(1, "Input needed", &q.question);
+                                }
+                            }
+                            last_alert = key;
+                        }
                         if let Some((project, branch)) = store.current_project_info() {
                             view.monogram = project.chars().filter(|c| c.is_alphanumeric()).take(2).collect::<String>().to_uppercase();
                             view.project_name = project;
