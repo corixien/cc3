@@ -71,6 +71,21 @@ pub fn AppRoot(store: StoreHandle, #[props(default)] frame: bool) -> Element {
     let mut add_project_path = use_signal(String::new);
     let mut add_project_error = use_signal(String::new);
 
+    // CC3_AUTOTOGGLE=1: flips provider switches on the providers page (exercises re-rendering in the real window).
+    use_future(move || async move {
+        if std::env::var("CC3_AUTOTOGGLE").is_err() {
+            return;
+        }
+        let mut on = false;
+        loop {
+            tokio::time::sleep(std::time::Duration::from_millis(400)).await;
+            on = !on;
+            for label in ["Enable Codex", "Enable Claude", "Show GPT-5.4 in the model picker", "Show GPT-5.5 in the model picker"] {
+                crate::ui::settings::set_switch(label, on, |_, _| {});
+            }
+        }
+    });
+
     // The store is fed from other threads; rows and the open thread follow its version.
     use_future({
         move || {

@@ -17,6 +17,16 @@ fn window_icon() -> Option<winit::icon::Icon> {
 }
 
 fn main() {
+    // Panics end up in a file as well, so a crash in the window leaves something to read.
+    let default_hook = std::panic::take_hook();
+    std::panic::set_hook(Box::new(move |info| {
+        let path = cc3_native::net::server::home().join("crash.log");
+        let _ = std::fs::OpenOptions::new().create(true).append(true).open(path).and_then(|mut f| {
+            use std::io::Write;
+            writeln!(f, "{info}\n{}\n", std::backtrace::Backtrace::force_capture())
+        });
+        default_hook(info);
+    }));
     // Chromium at 1x on Linux: whole-pixel glyph advances.
     parley_engine::ROUND_ADVANCES.store(true, std::sync::atomic::Ordering::Relaxed);
     let args: Vec<String> = std::env::args().skip(1).collect();

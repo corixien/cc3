@@ -87,6 +87,13 @@ impl Harness {
         self.settle();
     }
 
+    fn wheel(&mut self, x: f32, y: f32, dy: f64) {
+        use blitz_dom::Document;
+        let p = self.pointer(x, y, MouseEventButton::Main);
+        self.doc.handle_ui_event(UiEvent::Wheel(blitz_traits::events::BlitzWheelEvent { delta: blitz_traits::events::BlitzWheelDelta::Pixels(0.0, dy), coords: p.coords, buttons: MouseEventButtons::empty(), mods: Modifiers::empty(), element: Default::default() }));
+        self.settle();
+    }
+
     fn right_click(&mut self, x: f32, y: f32) {
         use blitz_dom::Document;
         let mut down = self.pointer(x, y, MouseEventButton::Secondary);
@@ -138,6 +145,26 @@ impl Harness {
             stack.extend(node.children.iter().copied());
         }
         None
+    }
+
+    /// Centers of all elements whose tag is one of `tags` (visible ones only).
+    fn centers_of_tags(&self, tags: &[&str]) -> Vec<(f32, f32)> {
+        use blitz_dom::Document;
+        let doc = self.doc.inner();
+        let mut out = Vec::new();
+        let mut stack = vec![doc.root_node().id];
+        while let Some(id) = stack.pop() {
+            let Some(node) = doc.get_node(id) else { continue };
+            if node.element_data().is_some_and(|e| tags.contains(&&*e.name.local)) {
+                if let Some(r) = doc.get_client_bounding_rect(id) {
+                    if r.width > 2.0 && r.height > 2.0 && r.x >= 0.0 && r.y >= 0.0 && r.x < 1400.0 && r.y < 900.0 {
+                        out.push(((r.x + r.width / 2.0) as f32, (r.y + r.height / 2.0) as f32));
+                    }
+                }
+            }
+            stack.extend(node.children.iter().copied());
+        }
+        out
     }
 
     fn attr_of(&self, name: &str, value: &str, attr: &str) -> Option<String> {
@@ -448,4 +475,52 @@ fn typing_goes_to_the_composer_without_a_click() {
     // Hotkeys still work from inside the composer.
     h.key(Key::Character("k".into()), Code::KeyK, Modifiers::CONTROL);
     assert!(h.html_contains("command-dialog-popup"));
+}
+
+#[test]
+fn provider_settings_survive_clicks() {
+    let rt = runtime();
+    let _guard = rt.enter();
+    let home = std::env::temp_dir().join(format!("cc3-interact-prov-{}", std::process::id()));
+    std::fs::create_dir_all(&home).unwrap();
+    unsafe { std::env::set_var("CC3_HOME", &home) };
+    let mut h = Harness::new(fixture_store());
+    h.key(Key::Character("k".into()), Code::KeyK, Modifiers::CONTROL);
+    h.type_text("open settings");
+    h.key(Key::Named(keyboard_types::NamedKey::Enter), Code::Enter, Modifiers::empty());
+    // Navigate to providers via the settings navigation.
+    let (x, y) = h.center_of("data-settings-section", "/settings/providers").expect("providers nav");
+    h.click(x, y);
+    for label in ["Enable Codex", "Enable Claude", "Show GPT-5.4 in the model picker", "Show GPT-5.5 in the model picker"] {
+        let (x, y) = h.center_of("aria-label", label).expect(label);
+        h.click(x, y);
+        h.hover(x + 5.0, y + 5.0);
+    }
+    h.screenshot("interact-providers");
+}
+
+#[test]
+fn every_control_on_every_settings_page_survives_clicks_and_typing() {
+    let rt = runtime();
+    let _guard = rt.enter();
+    let home = std::env::temp_dir().join(format!("cc3-interact-fuzz-{}", std::process::id()));
+    std::fs::create_dir_all(&home).unwrap();
+    unsafe { std::env::set_var("CC3_HOME", &home) };
+    for page in ["general", "providers", "appearance", "chat", "keybindings", "projects", "threads", "browser", "diffs", "voice", "connections", "access"] {
+        let mut h = Harness::new(fixture_store());
+        h.key(Key::Character(",".into()), Code::Comma, Modifiers::CONTROL);
+        if let Some((x, y)) = h.center_of("data-settings-section", &format!("/settings/{page}")) {
+            h.click(x, y);
+        }
+        for dy in [300.0, 600.0, -900.0, 1200.0, -2000.0] {
+            h.wheel(700.0, 450.0, dy);
+        }
+        for (x, y) in h.centers_of_tags(&["input", "button", "textarea"]).into_iter().take(60) {
+            h.click(x, y);
+            h.type_text("ab");
+            h.key(Key::Named(keyboard_types::NamedKey::Backspace), Code::Backspace, Modifiers::empty());
+            h.key(Key::Named(keyboard_types::NamedKey::Enter), Code::Enter, Modifiers::empty());
+            h.hover(x + 3.0, y + 3.0);
+        }
+    }
 }

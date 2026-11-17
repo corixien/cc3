@@ -32,7 +32,7 @@ pub fn app_css() -> &'static str {
             .find(marker)
             .map(|i| css[i + marker.len()..].split('}').next().unwrap_or_default().split(';').filter(|d| d.trim_start().starts_with("--stage-")).map(|d| format!("{};", d.trim())).collect())
             .unwrap_or_default();
-        format!("{}\n:root{{{stage_vars}}}\n.dialog-glass{{background:color-mix(in srgb,var(--background) 96%,transparent)!important}}[data-slot=composer-host]{{background-color:var(--card)!important}}.dropdown-glass{{background:color-mix(in srgb,var(--popover) 96%,transparent)!important}}", css.replace(":root", ".cc3-root"))
+        format!("{}\n:root{{{stage_vars}}}\n.dialog-glass{{background:color-mix(in srgb,var(--background) 96%,transparent)!important}}[data-slot=composer-host]{{background-color:var(--card)!important}}.cc3-root,.cc3-root *{{font-family:\"Lexend Deca\",sans-serif!important}}.sidebar-stage-backdrop{{display:none!important}}html,body,.cc3-root{{background:transparent!important}}.dropdown-glass{{background:color-mix(in srgb,var(--popover) 96%,transparent)!important}}", css.replace(":root", ".cc3-root"))
     });
     &CSS
 }
