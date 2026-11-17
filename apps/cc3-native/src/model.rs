@@ -130,6 +130,14 @@ mod tests {
     use super::*;
 
     #[test]
+    fn pending_question_from_projection() {
+        let p: serde_json::Value = serde_json::from_str(include_str!("../fixtures/thread-golden-question.projection.json")).unwrap();
+        let q = ThreadView::from_projection(&p).pending_question.expect("pending question");
+        assert_eq!(q.question, "Which approach should I take?");
+        assert_eq!(q.options[0].2, "continue");
+    }
+
+    #[test]
     fn iso_and_age() {
         assert_eq!(parse_iso_unix("1970-01-02T00:00:00.000Z"), Some(86_400));
         assert_eq!(relative_age("2026-03-17T19:12:28.000Z", parse_iso_unix("2026-03-18T08:12:28.000Z").unwrap()), "13h");
@@ -183,6 +191,16 @@ mod tests {
     }
 }
 
+/// A question the agent is waiting on (`user_input_request` with a pending runtime request).
+#[derive(Debug, Clone, PartialEq)]
+pub struct PendingQuestion {
+    pub request_id: String,
+    pub header: String,
+    pub question: String,
+    /// (label, description, value)
+    pub options: Vec<(String, String, String)>,
+}
+
 /// One tool call / reasoning line inside the expanded work group.
 #[derive(Debug, Clone, PartialEq)]
 pub struct WorkEntry {
@@ -209,11 +227,13 @@ pub struct ThreadState {
     pub title: String,
     runs: Vec<serde_json::Value>,
     items: Vec<serde_json::Value>,
+    requests: Vec<serde_json::Value>,
     model_selection: serde_json::Value,
 }
 
 #[derive(Debug, Clone, Default, PartialEq)]
 pub struct ThreadView {
+    pub pending_question: Option<PendingQuestion>,
     /// A run is active: the composer offers Stop.
     pub running: bool,
     /// Workspace folder name; file paths in tool-call rows are shown below it.
@@ -244,6 +264,7 @@ impl ThreadState {
             title: projection["thread"]["title"].as_str().unwrap_or_default().into(),
             model_selection: projection["thread"]["modelSelection"].clone(),
             runs: projection["runs"].as_array().cloned().unwrap_or_default(),
+            requests: projection["runtimeRequests"].as_array().cloned().unwrap_or_default(),
             items: visible.iter().map(|v| v["item"].clone()).collect(),
         }
     }
@@ -264,12 +285,38 @@ impl ThreadState {
                 self.items.sort_by_key(|v| v["ordinal"].as_i64().unwrap_or(0));
                 true
             }
+            Some("runtime-request.updated") => {
+                Self::upsert(&mut self.requests, payload);
+                true
+            }
             Some("run.created" | "run.updated") => {
                 Self::upsert(&mut self.runs, payload);
                 true
             }
             _ => false,
         }
+    }
+
+    /// Id of the first question of a request (the key of its answer).
+    pub fn question_id(&self, request_id: &str) -> String {
+        self.items.iter().find(|i| i["requestId"] == request_id).and_then(|i| i["questions"][0]["id"].as_str()).unwrap_or("choice").into()
+    }
+
+    fn pending_question(&self) -> Option<PendingQuestion> {
+        self.items.iter().rev().find_map(|i| {
+            if i["type"].as_str() != Some("user_input_request") {
+                return None;
+            }
+            let request_id = i["requestId"].as_str()?;
+            let pending = self.requests.iter().any(|r| r["id"] == request_id && r["status"].as_str() == Some("pending"));
+            let q = i["questions"].get(0)?;
+            pending.then(|| PendingQuestion {
+                request_id: request_id.into(),
+                header: q["header"].as_str().unwrap_or_default().into(),
+                question: q["question"].as_str().unwrap_or_default().into(),
+                options: q["options"].as_array().map(|o| o.iter().map(|o| (o["label"].as_str().unwrap_or_default().into(), o["description"].as_str().unwrap_or_default().into(), o["value"].as_str().or(o["label"].as_str()).unwrap_or_default().into())).collect()).unwrap_or_default(),
+            })
+        })
     }
 
     /// Id of the run's first work item and the collapsed group label ("Ran 1 command, changed 1 file, ...").
@@ -338,7 +385,7 @@ impl ThreadState {
                 _ => {}
             }
         }
-        ThreadView { running: self.has_active_run(), workspace_name: String::new(), thread_id: self.thread_id.clone(), title: self.title.clone(), rows }
+        ThreadView { pending_question: self.pending_question(), running: self.has_active_run(), workspace_name: String::new(), thread_id: self.thread_id.clone(), title: self.title.clone(), rows }
     }
 }
 

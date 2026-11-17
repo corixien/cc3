@@ -11,7 +11,7 @@ use crate::ui::composer::{ComposerMode, ComposerNormal, ComposerQuestion};
 use crate::ui::timeline::Timeline;
 
 #[component]
-pub fn AppLayout(rows: Vec<ThreadRowData>, thread: ThreadView, environment_id: String, onselect: EventHandler<String>, composer: ComposerMode, #[props(default)] onsend: Option<EventHandler<String>>, #[props(default)] page: Option<String>, #[props(default)] onaction: EventHandler<String>, #[props(default)] onstop: Option<EventHandler<()>>) -> Element {
+pub fn AppLayout(rows: Vec<ThreadRowData>, thread: ThreadView, environment_id: String, onselect: EventHandler<String>, composer: ComposerMode, #[props(default)] onsend: Option<EventHandler<String>>, #[props(default)] page: Option<String>, #[props(default)] onaction: EventHandler<String>, #[props(default)] onstop: Option<EventHandler<()>>, #[props(default)] onanswer: Option<EventHandler<(String, String)>>) -> Element {
     let page_def = page.as_deref().and_then(crate::ui::fragments::page);
     let page_main = page_def.and_then(|p| p.main);
     let page_overlay = page_def.filter(|p| !p.overlay_after_toasts).and_then(|p| p.overlay);
@@ -2143,7 +2143,7 @@ pub fn AppLayout(rows: Vec<ThreadRowData>, thread: ThreadView, environment_id: S
                                                     "data-workspace-focus-default": "true",
                                                     "style": "overflow: auto; overflow-anchor: none;",
                                                     onmounted: move |e| scroller.set(Some(e.data())),
-                                                    Timeline { view: thread.clone(), environment_id, spacer: if matches!(composer, ComposerMode::Question) { 281 } else { 140 } }
+                                                    Timeline { view: thread.clone(), environment_id, spacer: if matches!(composer, ComposerMode::Question) || thread.pending_question.is_some() { 281 } else { 140 } }
                                                 }
                                                 if user_count > 1 {
                                                     Minimap { strips: minimap::strips(user_count) }
@@ -2167,6 +2167,19 @@ pub fn AppLayout(rows: Vec<ThreadRowData>, thread: ThreadView, environment_id: S
                                                             "class": "relative",
                                                             match composer {
                                                                 ComposerMode::Question => rsx! { ComposerQuestion {} },
+                                                                ComposerMode::Normal if thread.pending_question.is_some() => {
+                                                                    let q = thread.pending_question.clone().unwrap();
+                                                                    let request_id = q.request_id.clone();
+                                                                    rsx! {
+                                                                        ComposerQuestion {
+                                                                            key: "{request_id}",
+                                                                            header: q.header.clone(),
+                                                                            question: q.question.clone(),
+                                                                            options: q.options.iter().map(|(label, description, value)| crate::ui::composer::QuestionOption { label: label.clone(), description: description.clone(), value: value.clone() }).collect::<Vec<_>>(),
+                                                                            onanswer: move |value: String| if let Some(answer) = onanswer { answer.call((request_id.clone(), value)) },
+                                                                        }
+                                                                    }
+                                                                }
                                                                 ComposerMode::Normal => rsx! { ComposerNormal { onsend, onstop, running: thread.running } },
                                                             }
                                                         }

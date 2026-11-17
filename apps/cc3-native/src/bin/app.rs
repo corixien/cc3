@@ -219,6 +219,7 @@ fn App() -> Element {
                     },
                     page: page(),
                     onstop: move |_| STORE.stop_thread(),
+                    onanswer: move |(request_id, value): (String, String)| STORE.answer_question(&request_id, &value),
                     onaction: move |action: String| {
                         if action == "page:new-chat" {
                             page.set(None);

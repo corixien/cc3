@@ -8,8 +8,20 @@ pub enum ComposerMode {
     Normal,
 }
 
+/// One selectable answer of a pending question.
+#[derive(Clone, PartialEq)]
+pub struct QuestionOption {
+    pub label: String,
+    pub description: String,
+    pub value: String,
+}
+
 #[component]
-pub fn ComposerQuestion() -> Element {
+pub fn ComposerQuestion(#[props(default)] header: String, #[props(default)] question: String, #[props(default)] options: Vec<QuestionOption>, #[props(default)] onanswer: Option<EventHandler<String>>) -> Element {
+    let header = if header.is_empty() { "Choice".to_string() } else { header };
+    let question = if question.is_empty() { "Which approach should I take?".to_string() } else { question };
+    let options = if options.is_empty() { vec![QuestionOption { label: "Continue".into(), description: "Resume work".into(), value: "continue".into() }] } else { options };
+    let mut selected = use_signal(|| None::<usize>);
     rsx! {
             div {
                 "data-slot": "composer-shell",
@@ -61,7 +73,7 @@ pub fn ComposerQuestion() -> Element {
                                                         span {
                                                             "class": "min-w-0 truncate text-muted-foreground",
                                                             "dir": "ltr",
-                                                            "Choice"
+                                                            "{header}"
                                                         }
                                                     }
                                                     span {
@@ -139,15 +151,17 @@ pub fn ComposerQuestion() -> Element {
                                                                     "class": "min-w-0 ps-6 pe-4 pb-1 wrap-anywhere sm:ps-5.5",
                                                                     div {
                                                                         "class": "chat-markdown w-full min-w-0 [overflow-wrap:anywhere] [word-break:break-word] text-sm leading-relaxed pt-0.5 text-foreground/85 text-left",
-                                                                        p { "dir": "ltr", "Which approach should I take?" }
+                                                                        p { "dir": "ltr", "{question}" }
                                                                     }
                                                                     div {
                                                                         "class": "-ms-2 mt-1.5 sm:-ms-1.5",
+for (i, opt) in options.iter().enumerate() {
                                                                         div {
                                                                             button {
                                                                                 "type": "button",
-                                                                                "aria-pressed": "false",
-                                                                                "class": "text-left group flex w-full items-start gap-2.5 rounded-md bg-transparent py-1.5 ps-2 sm:ps-1.5 outline-none transition-colors duration-150 focus-visible:ring-1 focus-visible:ring-inset focus-visible:ring-primary/25 text-foreground/70 hover:bg-muted/30 cursor-pointer",
+                                                                                "aria-pressed": "{selected() == Some(i)}",
+                                                                                onclick: move |e| { e.prevent_default(); selected.set(Some(i)); },
+                                                                                "class": format!("{} {} cursor-pointer", "text-left group flex w-full items-start gap-2.5 rounded-md bg-transparent py-1.5 ps-2 sm:ps-1.5 outline-none transition-colors duration-150 focus-visible:ring-1 focus-visible:ring-inset focus-visible:ring-primary/25", if selected() == Some(i) { "text-foreground bg-muted/30" } else { "text-foreground/70 hover:bg-muted/30" }),
                                                                                 span {
                                                                                     "class": "pointer-events-none flex h-5 shrink-0 items-center",
                                                                                     span {
@@ -160,12 +174,12 @@ pub fn ComposerQuestion() -> Element {
                                                                                     span {
                                                                                         "class": "text-sm font-medium",
                                                                                         "dir": "ltr",
-                                                                                        "Continue"
+                                                                                        "{opt.label}"
                                                                                     }
                                                                                     span {
                                                                                         "class": "text-secondary-label text-2xs",
                                                                                         "dir": "ltr",
-                                                                                        "Resume work"
+                                                                                        "{opt.description}"
                                                                                     }
                                                                                 }
                                                                                 span {
@@ -173,11 +187,12 @@ pub fn ComposerQuestion() -> Element {
                                                                                     kbd {
                                                                                         "class": "pointer-events-none inline-flex h-5 min-w-5 select-none items-center justify-center gap-1 rounded px-1 font-medium font-sans text-muted-foreground text-xs [&_svg:not([class*='size-'])]:size-3 bg-foreground/[0.07]",
                                                                                         "data-slot": "kbd",
-                                                                                        "1"
+                                                                                        "{i + 1}"
                                                                                     }
                                                                                 }
                                                                             }
                                                                         }
+}
                                                                     }
                                                                 }
                                                             }
@@ -369,7 +384,16 @@ pub fn ComposerQuestion() -> Element {
                                                     button {
                                                         "type": "submit",
                                                         "class": "inline-flex shrink-0 cursor-pointer items-center justify-center gap-1.5 whitespace-nowrap rounded-full bg-message-action font-medium text-base text-message-action-foreground shadow-xs shadow-message-action/24 outline-none hover:bg-message-action-hover focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring focus-visible:ring-offset-1 focus-visible:ring-offset-background disabled:pointer-events-none disabled:opacity-64 disabled:shadow-none sm:text-sm h-8 sm:h-7 px-3",
-                                                        "disabled": "",
+                                                        disabled: selected().is_none(),
+                                                        onclick: {
+                                                            let options = options.clone();
+                                                            move |e| {
+                                                                e.prevent_default();
+                                                                if let (Some(i), Some(answer)) = (selected(), onanswer) {
+                                                                    answer.call(options[i].value.clone());
+                                                                }
+                                                            }
+                                                        },
                                                         "Submit"
                                                     }
                                                 }
