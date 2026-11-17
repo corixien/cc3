@@ -424,3 +424,18 @@ fn palette_toggles_the_theme() {
     assert!(!h.html_contains("cc3-root dark"), "theme switched to light");
     h.screenshot("interact-light");
 }
+
+#[test]
+fn typing_goes_to_the_composer_without_a_click() {
+    let rt = runtime();
+    let _guard = rt.enter();
+    let mut h = Harness::new(fixture_store());
+    assert!(h.attr_of("aria-label", "Submit message", "disabled").is_some(), "send is disabled while empty");
+    rt.block_on(tokio::time::sleep(std::time::Duration::from_millis(120)));
+    h.settle();
+    h.type_text("hi");
+    assert!(h.attr_of("aria-label", "Submit message", "disabled").is_none(), "send enables after typing");
+    // Hotkeys still work from inside the composer.
+    h.key(Key::Character("k".into()), Code::KeyK, Modifiers::CONTROL);
+    assert!(h.html_contains("command-dialog-popup"));
+}

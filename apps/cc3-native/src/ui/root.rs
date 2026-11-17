@@ -343,7 +343,7 @@ pub fn AppRoot(store: StoreHandle, #[props(default)] frame: bool) -> Element {
             class: if dark() { "cc3-root dark" } else { "cc3-root" },
             tabindex: "0",
             onmounted: move |e| {
-                // Hotkeys need a focused element to be routed to.
+                // Hotkeys need a focused element to be routed to (children that autofocus do so later).
                 spawn(async move {
                     let _ = e.set_focus(true).await;
                 });

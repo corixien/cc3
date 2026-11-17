@@ -474,6 +474,14 @@ pub fn ComposerNormal(#[props(default)] onsend: Option<EventHandler<String>>, #[
                                                                 "class": "composer-tiptap -m-1 block max-h-52 min-h-[calc(2lh+--spacing(2))] w-full resize-none overflow-y-auto p-1 whitespace-pre-wrap wrap-break-word border-0 bg-transparent leading-relaxed text-foreground focus:outline-none",
                                                                 rows: rows,
                                                                 value: "{text}",
+                                                                onmounted: move |e| {
+                                                                    if live {
+                                                                        spawn(async move {
+                                                                            tokio::time::sleep(std::time::Duration::from_millis(40)).await;
+                                                                            let _ = e.set_focus(true).await;
+                                                                        });
+                                                                    }
+                                                                },
                                                                 oninput: move |e| text.set(e.value()),
                                                                 onkeydown: move |e| {
                                                                     if e.key().to_string() == "Enter" && !e.modifiers().shift() {

@@ -58,6 +58,13 @@ pub fn parse(text: &str) -> Vec<Node> {
                         },
                         children,
                     ),
+                    (Tag::Table(_), _) => block("table", children),
+                    (Tag::TableHead, _) => element("tr", children),
+                    (Tag::TableRow, _) => element("tr", children),
+                    (Tag::TableCell, _) => {
+                        let in_head = matches!(stack.last(), Some((Tag::TableHead, _)));
+                        element(if in_head { "th" } else { "td" }, children)
+                    }
                     (Tag::CodeBlock(_), _) => Node::Element { name: "pre", attrs: vec![], children: vec![element("code", children)] },
                     (_, _) => element("span", children),
                 };
@@ -92,6 +99,14 @@ pub fn parse(text: &str) -> Vec<Node> {
                 let out = unsafe { &mut *target(&mut stack, &mut root) };
                 out.push(Node::Text("\n".into()));
             }
+            Event::Rule => {
+                let out = unsafe { &mut *target(&mut stack, &mut root) };
+                out.push(element("hr", vec![]));
+            }
+            Event::TaskListMarker(done) => {
+                let out = unsafe { &mut *target(&mut stack, &mut root) };
+                out.push(Node::Text(if done { "☑ " } else { "☐ " }.into()));
+            }
             Event::HardBreak => {
                 let out = unsafe { &mut *target(&mut stack, &mut root) };
                 out.push(element("br", vec![]));
@@ -120,6 +135,11 @@ fn view(node: &Node) -> Element {
                 "blockquote" => rsx! { blockquote { {kids} } },
                 "pre" => rsx! { pre { {kids} } },
                 "br" => rsx! { br {} },
+                "hr" => rsx! { hr {} },
+                "table" => rsx! { div { class: "overflow-x-auto", table { {kids} } } },
+                "tr" => rsx! { tr { {kids} } },
+                "th" => rsx! { th { {kids} } },
+                "td" => rsx! { td { {kids} } },
                 "a" => {
                     let href = attr(attrs, "href");
                     rsx! { a { href, {kids} } }
@@ -162,6 +182,12 @@ mod tests {
                 Node::Element { name, children, .. } => format!("<{name}>{}</{name}>", flat(children)),
             })
             .collect()
+    }
+
+    #[test]
+    fn tables_and_rules() {
+        let nodes = parse("| a | b |\n|---|---|\n| 1 | 2 |\n\n---\n");
+        assert_eq!(flat(&nodes), "<table><tr><th>a</th><th>b</th></tr><tr><td>1</td><td>2</td></tr></table><hr></hr>");
     }
 
     #[test]
