@@ -43,14 +43,14 @@ Ziel: dieselbe Oberflaeche und Funktion wie `apps/web`, aber als Rust-Programm (
 8. Rest (Onboarding, Cloud, Geraete, Pull Requests) und Umschalter `--ui=web|native`, Paketierung.
 9. Immer parallel: Golden-Zustaende fuer jede neue Komponente, Animationen aus `docs/perf/ANIMATION-CATALOG.md`, Messung RAM und CPU.
 
-## Stand der Vergleiche (17. Nov 2026, nach der Chat-Spalte)
+## Stand der Vergleiche (17. Nov 2026, nach Composer und Minimap)
 
-| Zustand                       | Pixel abw.          | Geometrie         | DOM-Reihenfolge                                                        |
-| ----------------------------- | ------------------- | ----------------- | ---------------------------------------------------------------------- |
-| thread-question dunkel / hell | 5,41 / 3,23 Prozent | 60 bis 79 Prozent | gleich bis auf ein Element (Markdown-Span, Composer-Huelle)            |
-| thread-history dunkel / hell  | 11,7 / 10,1 Prozent | 27,7 Prozent      | abweichend ab dem Scroll-Steuerelement am Timeline-Ende (`chevron-up`) |
+| Zustand                       | Pixel abw.          | Geometrie    | DOM-Reihenfolge       |
+| ----------------------------- | ------------------- | ------------ | --------------------- |
+| thread-question dunkel / hell | 5,41 / 3,23 Prozent | 84,3 Prozent | gleich (351 Elemente) |
+| thread-history dunkel / hell  | 5,94 / 4,31 Prozent | 42,5 Prozent | gleich (551 Elemente) |
 
-Bekannte Luecken fuer thread-history: Scroll-Steuerelement der Timeline (Sprung nach oben/unten), Composer-Variante `Normal` (nur statisch aus dem Golden-DOM), `scrollbar-gutter` (Blitz kennt es nicht, Timeline-Spalte ist 12 px breiter als in Chromium). Die Snapshots werden bei jedem Export neu geschrieben; wenn der Zustand eines Tests von einem vorherigen abhaengt, weichen Golden-PNG und Snapshot voneinander ab (Reihenfolge der Tests beachten).
+Erledigt: Composer `Normal` mit echtem `<textarea>` (Enter sendet, Shift+Enter Zeilenumbruch) und Senden ueber `message.dispatch` (`Store::send_message`, geprueft mit `send_probe` gegen den echten Server), Minimap, Timeline-Abstandshalter (Spacer nach Composer-Variante), Scroll ans Ende beim Oeffnen, Gutter-Ersatz per CSS (`EXTRA_CSS`), Titel aus dem Thread. Offen fuer thread-history: Residuen von 0,5 bis 1 px bei Text, Sidebar-Suchfeld 5 px hoeher, Sidebar-Rail 8 px versetzt, Detail-Panel (`aside`) 53 px zu hoch, Banner-Span im Composer 28 px schmaler. Offen im Composer: Cursor-Rendering, Rich-Text/Mentions/Slash-Befehle, Modellwahl, Anhaenge, Undo/IME-Test, Live-Test mit Klick auf einen echten Thread (Test-Home hat keinen).
 
 ## Messung (17. Nov 2026, leeres Home, Leerlauf)
 
