@@ -13,6 +13,7 @@ pub fn ThreadRow(
     age: String,
     branch: String,
     active: bool,
+    onselect: EventHandler<()>,
 ) -> Element {
     rsx! {
         li {
@@ -20,6 +21,7 @@ pub fn ThreadRow(
             "class": "list-none py-0.5 [content-visibility:auto] [contain-intrinsic-size:auto_78px]",
             div {
                 "role": "button",
+                    onclick: move |_| onselect.call(()),
                         "aria-current": active.then_some("page"),
                 "tabindex": "0",
                 "data-sidebar-row": "{thread_key}",

@@ -206,6 +206,16 @@ const goldenProject = {
           await NodeFSP.mkdir(dir, { recursive: true });
           await NodeFSP.writeFile(NodePath.join(dir, `${name}.html`), html);
         },
+        writeFixture: async (_context, name: string, json: string) => {
+          const dir = NodePath.join(import.meta.dirname, "../../apps/cc3-native/fixtures");
+          await NodeFSP.mkdir(dir, { recursive: true });
+          await NodeFSP.writeFile(NodePath.join(dir, `${name}.json`), json);
+        },
+        writeBodyXml: async (_context, name: string, xml: string) => {
+          const dir = NodePath.join(import.meta.dirname, "../../apps/cc3-native/snapshots");
+          await NodeFSP.mkdir(dir, { recursive: true });
+          await NodeFSP.writeFile(NodePath.join(dir, `${name}.body.xml`), xml);
+        },
         writeGeometry: async (_context, name: string, json: string) => {
           const dir = NodePath.join(import.meta.dirname, "../../apps/cc3-native/snapshots");
           await NodeFSP.mkdir(dir, { recursive: true });

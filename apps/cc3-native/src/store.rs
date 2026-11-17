@@ -2,7 +2,7 @@
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::{Arc, Mutex};
 
-use crate::model::Shell;
+use crate::model::{Shell, ThreadState, ThreadView};
 use crate::net::rpc::StreamEvent;
 use crate::net::RpcClient;
 
@@ -12,6 +12,10 @@ pub struct Store {
     pub environment_id: Mutex<String>,
     /// Bumped on every change so the UI only rebuilds when needed.
     pub version: AtomicU64,
+    client: Mutex<Option<Arc<RpcClient>>>,
+    /// The open thread: its id, the stream request id and the state built from the stream.
+    open: Mutex<Option<(String, u64)>>,
+    pub thread: Mutex<Option<ThreadState>>,
 }
 
 impl Store {
@@ -23,8 +27,57 @@ impl Store {
     }
 }
 
+impl Store {
+    pub fn thread_view(&self) -> Option<ThreadView> {
+        self.thread.lock().unwrap().as_ref().map(ThreadState::view)
+    }
+
+    /// Opens a thread: ends the previous thread stream and subscribes to the new one.
+    pub fn open_thread(self: &Arc<Self>, thread_id: &str) {
+        let Some(client) = self.client.lock().unwrap().clone() else { return };
+        if let Some((current, request_id)) = self.open.lock().unwrap().take() {
+            if current == thread_id {
+                *self.open.lock().unwrap() = Some((current, request_id));
+                return;
+            }
+            client.interrupt(request_id);
+        }
+        *self.thread.lock().unwrap() = None;
+        let (request_id, stream) = client.request_with_id(
+            "orchestration.subscribeThread",
+            serde_json::json!({"threadId": thread_id, "afterSequence": 0, "requestCompletionMarker": true}),
+        );
+        *self.open.lock().unwrap() = Some((thread_id.to_string(), request_id));
+        let store = self.clone();
+        let id = thread_id.to_string();
+        std::thread::spawn(move || {
+            while let Ok(event) = stream.recv() {
+                let StreamEvent::Chunk(values) = event else { break };
+                for item in &values {
+                    let mut guard = store.thread.lock().unwrap();
+                    match item["kind"].as_str() {
+                        Some("snapshot") => *guard = Some(ThreadState::from_projection(&item["projection"])),
+                        Some("event") => {
+                            if let Some(state) = guard.as_mut() {
+                                state.apply_event(&item["event"]);
+                            }
+                        }
+                        _ => continue,
+                    }
+                    drop(guard);
+                    if store.open.lock().unwrap().as_ref().map(|(current, _)| current != &id).unwrap_or(true) {
+                        return;
+                    }
+                    store.bump();
+                }
+            }
+        });
+    }
+}
+
 /// Subscribes to server config and the shell stream; the threads end when the connection closes.
 pub fn spawn_streams(client: Arc<RpcClient>, store: Arc<Store>) {
+    *store.client.lock().unwrap() = Some(client.clone());
     let config = client.request(
         "subscribeServerConfig",
         serde_json::json!({"environmentThemes": true, "usageLimitSources": true, "usageLimitsCommand": true, "workspaceSnapshotsOnDemand": true}),

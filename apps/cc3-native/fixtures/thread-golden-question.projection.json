@@ -1,0 +1,260 @@
+{
+  "thread": {
+    "id": "thread-golden-question",
+    "projectId": "project-render",
+    "title": "Thread thread-golden-question",
+    "providerInstanceId": "codex",
+    "modelSelection": {
+      "instanceId": "codex",
+      "model": "gpt-5.4"
+    },
+    "runtimeMode": "full-access",
+    "interactionMode": "default",
+    "branch": "main",
+    "worktreePath": null,
+    "activeProviderThreadId": null,
+    "lineage": {
+      "rootThreadId": "thread-golden-question",
+      "parentThreadId": null,
+      "relationshipToParent": null
+    },
+    "forkedFrom": null,
+    "createdBy": "user",
+    "creationSource": "web",
+    "createdAt": "2026-03-17T19:12:28.000Z",
+    "updatedAt": "2026-03-17T19:12:28.000Z",
+    "archivedAt": null,
+    "settledOverride": null,
+    "settledAt": null,
+    "lastVisitedAt": "2026-03-17T19:12:28.000Z",
+    "deletedAt": null
+  },
+  "runs": [
+    {
+      "id": "thread-golden-question-run-0",
+      "threadId": "thread-golden-question",
+      "ordinal": 1,
+      "providerInstanceId": "codex",
+      "modelSelection": {
+        "instanceId": "codex",
+        "model": "gpt-5.4"
+      },
+      "providerThreadId": null,
+      "userMessageId": "thread-golden-question-user-0",
+      "rootNodeId": null,
+      "activeAttemptId": null,
+      "status": "completed",
+      "requestedAt": "2026-03-17T19:12:28.000Z",
+      "startedAt": "2026-03-17T19:12:28.000Z",
+      "completedAt": "2026-03-17T19:12:28.000Z",
+      "checkpointId": null,
+      "contextHandoffId": null
+    }
+  ],
+  "attempts": [],
+  "nodes": [],
+  "subagents": [],
+  "providerSessions": [],
+  "providerThreads": [],
+  "providerTurns": [],
+  "runtimeRequests": [
+    {
+      "id": "thread-golden-question-request",
+      "nodeId": "thread-golden-question-node",
+      "providerTurnId": null,
+      "nativeRequestRef": null,
+      "kind": "user_input",
+      "status": "pending",
+      "responseCapability": {
+        "type": "message"
+      },
+      "createdAt": "2026-03-17T19:12:28.000Z",
+      "resolvedAt": null
+    }
+  ],
+  "messages": [],
+  "plans": [],
+  "turnItems": [
+    {
+      "id": "thread-golden-question-user-0",
+      "threadId": "thread-golden-question",
+      "runId": "thread-golden-question-run-0",
+      "nodeId": null,
+      "providerThreadId": null,
+      "providerTurnId": null,
+      "nativeItemRef": null,
+      "parentItemId": null,
+      "ordinal": 0,
+      "status": "completed",
+      "title": null,
+      "startedAt": "2026-03-17T19:12:28.000Z",
+      "completedAt": "2026-03-17T19:12:28.000Z",
+      "updatedAt": "2026-03-17T19:12:28.000Z",
+      "type": "user_message",
+      "messageId": "thread-golden-question-user-0",
+      "text": "thread-golden-question: question 0",
+      "attachments": [],
+      "inputIntent": "turn_start",
+      "createdBy": "user",
+      "creationSource": "web"
+    },
+    {
+      "id": "thread-golden-question-assistant-0",
+      "threadId": "thread-golden-question",
+      "runId": "thread-golden-question-run-0",
+      "nodeId": null,
+      "providerThreadId": null,
+      "providerTurnId": null,
+      "nativeItemRef": null,
+      "parentItemId": null,
+      "ordinal": 1,
+      "status": "completed",
+      "title": null,
+      "startedAt": "2026-03-17T19:12:28.000Z",
+      "completedAt": "2026-03-17T19:12:28.000Z",
+      "updatedAt": "2026-03-17T19:12:28.000Z",
+      "type": "assistant_message",
+      "messageId": "thread-golden-question-assistant-0",
+      "text": "Answer 0 for thread-golden-question.\n\n- checked `Sidebar.tsx`\n- ran the tests\n\nThe width is now `clamp(next, MIN_WIDTH, MAX_WIDTH)`, so the layout no longer jumps.",
+      "streaming": false
+    },
+    {
+      "id": "thread-golden-question-question",
+      "threadId": "thread-golden-question",
+      "runId": "thread-golden-question-run-0",
+      "nodeId": null,
+      "providerThreadId": null,
+      "providerTurnId": null,
+      "nativeItemRef": null,
+      "parentItemId": null,
+      "ordinal": 2,
+      "status": "completed",
+      "title": null,
+      "startedAt": "2026-03-17T19:12:28.000Z",
+      "completedAt": "2026-03-17T19:12:28.000Z",
+      "updatedAt": "2026-03-17T19:12:28.000Z",
+      "type": "user_input_request",
+      "requestId": "thread-golden-question-request",
+      "responseMode": "message",
+      "questions": [
+        {
+          "id": "choice",
+          "header": "Choice",
+          "question": "Which approach should I take?",
+          "required": true,
+          "allowCustomAnswer": false,
+          "options": [
+            {
+              "label": "Continue",
+              "value": "continue",
+              "description": "Resume work"
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "checkpointScopes": [],
+  "checkpoints": [],
+  "contextHandoffs": [],
+  "contextTransfers": [],
+  "visibleTurnItems": [
+    {
+      "position": 0,
+      "visibility": "local",
+      "sourceThreadId": "thread-golden-question",
+      "sourceItemId": "thread-golden-question-user-0",
+      "item": {
+        "id": "thread-golden-question-user-0",
+        "threadId": "thread-golden-question",
+        "runId": "thread-golden-question-run-0",
+        "nodeId": null,
+        "providerThreadId": null,
+        "providerTurnId": null,
+        "nativeItemRef": null,
+        "parentItemId": null,
+        "ordinal": 0,
+        "status": "completed",
+        "title": null,
+        "startedAt": "2026-03-17T19:12:28.000Z",
+        "completedAt": "2026-03-17T19:12:28.000Z",
+        "updatedAt": "2026-03-17T19:12:28.000Z",
+        "type": "user_message",
+        "messageId": "thread-golden-question-user-0",
+        "text": "thread-golden-question: question 0",
+        "attachments": [],
+        "inputIntent": "turn_start",
+        "createdBy": "user",
+        "creationSource": "web"
+      }
+    },
+    {
+      "position": 1,
+      "visibility": "local",
+      "sourceThreadId": "thread-golden-question",
+      "sourceItemId": "thread-golden-question-assistant-0",
+      "item": {
+        "id": "thread-golden-question-assistant-0",
+        "threadId": "thread-golden-question",
+        "runId": "thread-golden-question-run-0",
+        "nodeId": null,
+        "providerThreadId": null,
+        "providerTurnId": null,
+        "nativeItemRef": null,
+        "parentItemId": null,
+        "ordinal": 1,
+        "status": "completed",
+        "title": null,
+        "startedAt": "2026-03-17T19:12:28.000Z",
+        "completedAt": "2026-03-17T19:12:28.000Z",
+        "updatedAt": "2026-03-17T19:12:28.000Z",
+        "type": "assistant_message",
+        "messageId": "thread-golden-question-assistant-0",
+        "text": "Answer 0 for thread-golden-question.\n\n- checked `Sidebar.tsx`\n- ran the tests\n\nThe width is now `clamp(next, MIN_WIDTH, MAX_WIDTH)`, so the layout no longer jumps.",
+        "streaming": false
+      }
+    },
+    {
+      "position": 2,
+      "visibility": "local",
+      "sourceThreadId": "thread-golden-question",
+      "sourceItemId": "thread-golden-question-question",
+      "item": {
+        "id": "thread-golden-question-question",
+        "threadId": "thread-golden-question",
+        "runId": "thread-golden-question-run-0",
+        "nodeId": null,
+        "providerThreadId": null,
+        "providerTurnId": null,
+        "nativeItemRef": null,
+        "parentItemId": null,
+        "ordinal": 2,
+        "status": "completed",
+        "title": null,
+        "startedAt": "2026-03-17T19:12:28.000Z",
+        "completedAt": "2026-03-17T19:12:28.000Z",
+        "updatedAt": "2026-03-17T19:12:28.000Z",
+        "type": "user_input_request",
+        "requestId": "thread-golden-question-request",
+        "responseMode": "message",
+        "questions": [
+          {
+            "id": "choice",
+            "header": "Choice",
+            "question": "Which approach should I take?",
+            "required": true,
+            "allowCustomAnswer": false,
+            "options": [
+              {
+                "label": "Continue",
+                "value": "continue",
+                "description": "Resume work"
+              }
+            ]
+          }
+        ]
+      }
+    }
+  ],
+  "updatedAt": "2026-03-17T19:12:28.000Z"
+}

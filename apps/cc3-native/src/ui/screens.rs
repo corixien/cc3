@@ -12,6 +12,8 @@ pub const SCREENS: &[Screen] = &[Screen { name: "thread-question", component: cr
 
 /// The page the golden export contains: global CSS plus the body of the screen.
 pub fn render_html(screen: &Screen, dark: bool) -> String {
+    // The golden clock: 2026-03-18T09:00:30Z.
+    crate::ui::clock::freeze(1_773_824_430_000);
     let mut vdom = VirtualDom::new_with_props(screen.component, ());
     vdom.rebuild_in_place();
     let body = dioxus_ssr::render(&vdom);

@@ -85,7 +85,7 @@ fn connect() -> Result<(), String> {
 }
 
 /// Sidebar rows from the shell model.
-fn rows_from_store(store: &cc3_native::store::Store) -> Vec<ThreadRowData> {
+fn rows_from_store(store: &cc3_native::store::Store, open: Option<String>) -> Vec<ThreadRowData> {
     let shell = store.shell.lock().unwrap();
     let environment_id = store.environment_id.lock().unwrap().clone();
     let now = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).map(|d| d.as_secs() as i64).unwrap_or(0);
@@ -97,6 +97,7 @@ fn rows_from_store(store: &cc3_native::store::Store) -> Vec<ThreadRowData> {
             let project = shell.project(&t.project_id).map(|p| p.title.clone()).unwrap_or_default();
             let monogram: String = project.chars().filter(|c| c.is_alphanumeric()).take(2).collect::<String>().to_uppercase();
             ThreadRowData {
+                thread_id: t.id.clone(),
                 thread_key: format!("{environment_id}:{}", t.id),
                 aria_label: format!("{}, {project}", t.title),
                 ui_id: format!("_r_{i}_"),
@@ -105,7 +106,7 @@ fn rows_from_store(store: &cc3_native::store::Store) -> Vec<ThreadRowData> {
                 monogram,
                 age: cc3_native::model::relative_age(&t.updated_at, now),
                 branch: t.branch.clone().unwrap_or_default(),
-                active: false,
+                active: open.as_deref() == Some(t.id.as_str()),
             }
         })
         .collect()
@@ -117,6 +118,8 @@ fn App() -> Element {
     let mut last_event = use_signal(String::new);
     let mut rows = use_signal(Vec::<ThreadRowData>::new);
     let mut status = use_signal(|| "Connecting...".to_string());
+    let mut selected = use_signal(|| None::<String>);
+    let mut thread = use_signal(cc3_native::model::ThreadView::default);
 
     use_hook(|| {
         std::thread::spawn(|| {
@@ -143,7 +146,8 @@ fn App() -> Element {
                     if version != seen {
                         seen = version;
                         status.set(String::new());
-                        rows.set(rows_from_store(&STORE));
+                        rows.set(rows_from_store(&STORE, selected()));
+                        thread.set(STORE.thread_view().unwrap_or_default());
                     }
                     tokio::time::sleep(std::time::Duration::from_millis(150)).await;
                 }
@@ -181,7 +185,16 @@ fn App() -> Element {
                 dark: true,
                 background: "var(--background)".to_string(),
                 title_content: rsx! { div {} },
-                AppLayout { rows: rows() }
+                AppLayout {
+                    rows: rows(),
+                    thread: thread(),
+                    environment_id: STORE.environment_id.lock().unwrap().clone(),
+                    onselect: move |id: String| {
+                        selected.set(Some(id.clone()));
+                        rows.set(rows_from_store(&STORE, Some(id.clone())));
+                        STORE.open_thread(&id);
+                    },
+                }
             }
         }
     }

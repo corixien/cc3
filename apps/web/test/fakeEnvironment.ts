@@ -302,7 +302,7 @@ export function threadWithQuestion(name: string, question: string): FakeThread {
   };
 }
 
-function shellOf(thread: FakeThread): OrchestrationV2ThreadShell {
+export function shellOf(thread: FakeThread): OrchestrationV2ThreadShell {
   const latest = thread.runs.at(-1);
   const modelSelection = thread.modelSelection ?? MODEL;
   return {
@@ -345,7 +345,7 @@ function shellOf(thread: FakeThread): OrchestrationV2ThreadShell {
   };
 }
 
-function projectionOf(thread: FakeThread): OrchestrationV2ThreadProjection {
+export function projectionOf(thread: FakeThread): OrchestrationV2ThreadProjection {
   const shell = shellOf(thread);
   const visibleTurnItems: OrchestrationV2ProjectedTurnItem[] = thread.items.map(
     (item, position) => ({

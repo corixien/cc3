@@ -146,6 +146,8 @@ pub fn geometry_score(path: &Path, boxes: &[(String, f32, f32, f32, f32)]) -> (u
                 let (cx, cy) = (a[1].as_f64().unwrap() as f32, a[2].as_f64().unwrap() as f32);
                 if a[0].as_str() == Some(&mine.0) && (cx - mine.1).abs() <= 0.5 && (cy - mine.2).abs() <= 0.5 && (cw - mine.3).abs() <= 0.5 && (ch - mine.4).abs() <= 0.5 {
                     ok += 1;
+                } else if std::env::var("DEBUG_GEOM").is_ok_and(|v| path.to_string_lossy().contains(&v)) {
+                    eprintln!("#{n} {} [{}] chromium=({cx:.1},{cy:.1},{cw:.1},{ch:.1}) native=({:.1},{:.1},{:.1},{:.1})", a[0].as_str().unwrap_or("?"), a.get(6).and_then(|v| v.as_str()).unwrap_or(""), mine.1, mine.2, mine.3, mine.4);
                 }
             }
         }

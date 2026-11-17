@@ -23,6 +23,7 @@ declare module "vite-plus/test/browser" {
     domExportEnabled: () => Promise<boolean>;
     writeDomSnapshot: (name: string, html: string) => Promise<void>;
     writeGeometry: (name: string, json: string) => Promise<void>;
+    writeBodyXml: (name: string, xml: string) => Promise<void>;
   }
 }
 
@@ -119,6 +120,10 @@ export async function mountGolden(
       if (await commands.domExportEnabled()) {
         await commands.writeDomSnapshot(`${name}-${theme}`, standaloneHtml());
         await commands.writeGeometry(`${name}-${theme}`, geometry());
+        await commands.writeBodyXml(
+          `${name}-${theme}`,
+          new XMLSerializer().serializeToString(document.body),
+        );
       }
       await capture(name, tolerance);
     },

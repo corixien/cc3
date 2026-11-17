@@ -148,6 +148,30 @@ mod tests {
     }
 
     #[test]
+    fn thread_view_from_golden_projection() {
+        let json: serde_json::Value = serde_json::from_str(include_str!("../fixtures/thread-golden-question.projection.json")).unwrap();
+        let view = ThreadView::from_projection(&json);
+        assert_eq!(view.rows.len(), 3);
+        assert!(matches!(view.rows[0], TimelineRow::User { .. }));
+        assert!(matches!(view.rows[1], TimelineRow::Work { duration_ms: 0, .. }));
+        assert!(matches!(view.rows[2], TimelineRow::Assistant { .. }));
+    }
+
+    #[test]
+    fn thread_events_update_the_timeline() {
+        let json: serde_json::Value = serde_json::from_str(include_str!("../fixtures/thread-golden-question.projection.json")).unwrap();
+        let mut state = ThreadState::from_projection(&json);
+        let mut item = json["visibleTurnItems"][1]["item"].clone();
+        item["id"] = "new-assistant".into();
+        item["messageId"] = "new-assistant".into();
+        item["ordinal"] = 9.into();
+        item["text"] = "streamed".into();
+        assert!(state.apply_event(&serde_json::json!({"type": "turn-item.updated", "payload": item})));
+        let view = state.view();
+        assert!(matches!(view.rows.last(), Some(TimelineRow::Assistant { text, .. }) if text == "streamed"));
+    }
+
+    #[test]
     fn shell_parses_and_filters() {
         let v = serde_json::json!({"projects":[{"id":"p","title":"render"}],"threads":[
             {"id":"a","projectId":"p","title":"A","updatedAt":"2026-01-02T00:00:00Z"},
@@ -157,4 +181,107 @@ mod tests {
         let titles: Vec<_> = shell.visible_threads().iter().map(|t| t.title.clone()).collect();
         assert_eq!(titles, ["B", "A"]);
     }
+}
+
+/// One row of the chat timeline, as shown to the user.
+#[derive(Debug, Clone, PartialEq)]
+pub enum TimelineRow {
+    User { id: String, text: String, at: String },
+    /// Collapsed work of a run ("Worked for 4s").
+    Work { run_id: String, duration_ms: i64, at: String },
+    Assistant { id: String, text: String, at: String },
+}
+
+/// Live state of one open thread: the projection's runs and visible items, kept up to date by events.
+#[derive(Debug, Clone, Default, PartialEq)]
+pub struct ThreadState {
+    pub thread_id: String,
+    pub title: String,
+    runs: Vec<serde_json::Value>,
+    items: Vec<serde_json::Value>,
+}
+
+#[derive(Debug, Clone, Default, PartialEq)]
+pub struct ThreadView {
+    pub thread_id: String,
+    pub title: String,
+    pub rows: Vec<TimelineRow>,
+}
+
+impl ThreadState {
+    /// From an `OrchestrationV2ThreadProjection` (the `snapshot` item of `orchestration.subscribeThread`).
+    pub fn from_projection(projection: &serde_json::Value) -> Self {
+        let mut visible: Vec<&serde_json::Value> = projection["visibleTurnItems"].as_array().map(|a| a.iter().collect()).unwrap_or_default();
+        visible.sort_by_key(|v| v["position"].as_i64().unwrap_or(0));
+        Self {
+            thread_id: projection["thread"]["id"].as_str().unwrap_or_default().into(),
+            title: projection["thread"]["title"].as_str().unwrap_or_default().into(),
+            runs: projection["runs"].as_array().cloned().unwrap_or_default(),
+            items: visible.iter().map(|v| v["item"].clone()).collect(),
+        }
+    }
+
+    fn upsert(list: &mut Vec<serde_json::Value>, value: &serde_json::Value) {
+        match list.iter_mut().find(|v| v["id"] == value["id"]) {
+            Some(existing) => *existing = value.clone(),
+            None => list.push(value.clone()),
+        }
+    }
+
+    /// Applies one `event` item of the thread stream. Returns whether the timeline may have changed.
+    pub fn apply_event(&mut self, event: &serde_json::Value) -> bool {
+        let payload = &event["payload"];
+        match event["type"].as_str() {
+            Some("turn-item.updated") => {
+                Self::upsert(&mut self.items, payload);
+                self.items.sort_by_key(|v| v["ordinal"].as_i64().unwrap_or(0));
+                true
+            }
+            Some("run.created" | "run.updated") => {
+                Self::upsert(&mut self.runs, payload);
+                true
+            }
+            _ => false,
+        }
+    }
+
+    pub fn view(&self) -> ThreadView {
+        let run = |id: &str| self.runs.iter().find(|r| r["id"] == id);
+        let mut rows = Vec::new();
+        let mut folded: Vec<String> = Vec::new();
+        for item in &self.items {
+            let at = item["completedAt"].as_str().or(item["startedAt"].as_str()).unwrap_or_default().to_string();
+            match item["type"].as_str() {
+                Some("user_message") => rows.push(TimelineRow::User { id: item["messageId"].as_str().unwrap_or_default().into(), text: item["text"].as_str().unwrap_or_default().into(), at }),
+                Some("assistant_message") => {
+                    let run_id = item["runId"].as_str().unwrap_or_default().to_string();
+                    if !folded.contains(&run_id) {
+                        if let Some(run) = run(&run_id) {
+                            if let (Some(start), Some(end)) = (run["startedAt"].as_str().and_then(parse_iso_ms), run["completedAt"].as_str().and_then(parse_iso_ms)) {
+                                rows.push(TimelineRow::Work { run_id: run_id.clone(), duration_ms: end - start, at: run["completedAt"].as_str().unwrap_or_default().into() });
+                            }
+                        }
+                        folded.push(run_id);
+                    }
+                    rows.push(TimelineRow::Assistant { id: item["messageId"].as_str().unwrap_or_default().into(), text: item["text"].as_str().unwrap_or_default().into(), at });
+                }
+                _ => {}
+            }
+        }
+        ThreadView { thread_id: self.thread_id.clone(), title: self.title.clone(), rows }
+    }
+}
+
+impl ThreadView {
+    /// Builds the timeline from a projection (used by fixtures and tests).
+    pub fn from_projection(projection: &serde_json::Value) -> Self {
+        ThreadState::from_projection(projection).view()
+    }
+}
+
+/// ISO timestamp with optional fraction to unix milliseconds.
+pub fn parse_iso_ms(iso: &str) -> Option<i64> {
+    let secs = parse_iso_unix(iso)?;
+    let ms = iso.find('.').and_then(|i| iso.get(i + 1..i + 4)).and_then(|f| f.parse::<i64>().ok()).unwrap_or(0);
+    Some(secs * 1000 + ms)
 }

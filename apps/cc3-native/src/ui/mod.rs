@@ -12,3 +12,7 @@ pub fn app_css() -> &'static str {
     static CSS: std::sync::LazyLock<String> = std::sync::LazyLock::new(|| include_str!("../../assets/app.css").replace(":root", ".cc3-root"));
     &CSS
 }
+pub mod markdown;
+pub mod timeline_rows;
+pub mod clock;
+pub mod timeline;

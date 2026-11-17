@@ -5,6 +5,8 @@ use crate::ui::thread_row::ThreadRow;
 
 #[derive(Clone, PartialEq)]
 pub struct ThreadRowData {
+    /// Thread id without the environment prefix.
+    pub thread_id: String,
     pub thread_key: String,
     pub aria_label: String,
     pub ui_id: String,
@@ -17,7 +19,7 @@ pub struct ThreadRowData {
 }
 
 #[component]
-pub fn SidebarList(rows: Vec<ThreadRowData>) -> Element {
+pub fn SidebarList(rows: Vec<ThreadRowData>, onselect: EventHandler<String>) -> Element {
     rsx! {
     div {
         "class": "flex w-full min-w-0 flex-col [overflow-anchor:none] group-data-[collapsible=icon]:overflow-hidden [&>[data-sidebar=group]+[data-sidebar=group]]:pt-0 [&>[data-sidebar=group]:first-child]:pt-0 min-h-full",
@@ -48,7 +50,7 @@ pub fn SidebarList(rows: Vec<ThreadRowData>) -> Element {
                     "style": "transition: none;",
                 }
                 for row in rows.iter() {
-                    ThreadRow { key: "{row.thread_key}", thread_key: row.thread_key.clone(), aria_label: row.aria_label.clone(), ui_id: row.ui_id.clone(), title: row.title.clone(), project: row.project.clone(), monogram: row.monogram.clone(), age: row.age.clone(), branch: row.branch.clone(), active: row.active }
+                    ThreadRow { key: "{row.thread_key}", onselect: { let id = row.thread_id.clone(); move |_| onselect.call(id.clone()) }, thread_key: row.thread_key.clone(), aria_label: row.aria_label.clone(), ui_id: row.ui_id.clone(), title: row.title.clone(), project: row.project.clone(), monogram: row.monogram.clone(), age: row.age.clone(), branch: row.branch.clone(), active: row.active }
                 }
                 li {
                     "data-thread-selection-safe": "true",

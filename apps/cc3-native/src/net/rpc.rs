@@ -91,6 +91,11 @@ impl RpcClient {
 
     /// Sends a request and returns its event stream (chunks, then the exit).
     pub fn request(&self, tag: &str, payload: Value) -> Receiver<StreamEvent> {
+        self.request_with_id(tag, payload).1
+    }
+
+    /// Like `request`, also returning the request id (needed to `interrupt` a stream).
+    pub fn request_with_id(&self, tag: &str, payload: Value) -> (u64, Receiver<StreamEvent>) {
         let id = self.next_id.fetch_add(1, Ordering::Relaxed);
         let (tx, rx) = mpsc::channel();
         self.pending.lock().unwrap().insert(id, tx);
@@ -103,7 +108,13 @@ impl RpcClient {
                 let _ = tx.send(StreamEvent::End(Err(RpcError::Closed)));
             }
         }
-        rx
+        (id, rx)
+    }
+
+    /// Ends a stream on the server and forgets it locally.
+    pub fn interrupt(&self, id: u64) {
+        self.pending.lock().unwrap().remove(&id);
+        let _ = self.outgoing.send(json!({"_tag": "Interrupt", "requestId": id}).to_string());
     }
 
     /// Unary call: waits for the exit value.
