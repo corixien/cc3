@@ -205,9 +205,6 @@ pub fn CommandPalette(query: String, rows: Vec<PaletteRow>, oninput: EventHandle
                                                 onkeydown: move |e| onkey.call(e.key().to_string()),
                                                 "aria-controls": "_r_6o_",
                                             }
-                                if query.is_empty() {
-                                    span { "class": "pointer-events-none absolute inset-y-0 flex items-center text-base font-normal text-placeholder sm:text-sm", "style": "left: calc(var(--command-shell-inset) + 1.5rem);", "Search commands, projects, and threads..." }
-                                }
                                         }
                                     }
                                 }

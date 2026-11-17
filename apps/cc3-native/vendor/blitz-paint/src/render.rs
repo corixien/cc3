@@ -950,6 +950,17 @@ impl ElementCx<'_, '_> {
                 };
             }
 
+            // CC3: placeholder while the value is empty (dimmed text colour).
+            if let (true, Some(placeholder)) = (input_data.editor.text().to_string().is_empty(), input_data.placeholder.as_ref()) {
+                if let Some(layout) = placeholder.try_layout() {
+                    let mut draw_text_context = self.context.draw_text_context.borrow_mut();
+                    let clip = kurbo::Rect::new(-1.0e6, -1.0e6, 1.0e6, 1.0e6);
+                    scene.push_layer(Fill::NonZero, peniko::Mix::Normal, 0.65, transform, &clip, None, None);
+                    crate::text::stroke_text(scene, layout.lines(), self.context.dom, transform, self.scale, self.node.id, &mut draw_text_context);
+                    scene.pop_layer();
+                }
+            }
+
             // Render text
             let mut draw_text_context = self.context.draw_text_context.borrow_mut();
             crate::text::stroke_text(

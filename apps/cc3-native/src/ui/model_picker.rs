@@ -24,6 +24,7 @@ pub fn ModelPicker(options: Vec<ModelOption>, current: String, query: String, on
                         "class": "h-7 w-full bg-transparent text-sm outline-none",
                         "autocomplete": "off",
                         "spellcheck": "false",
+                        "placeholder": "Search models...",
                         "value": "{query}",
                         onmounted: move |e| {
                             spawn(async move {
@@ -36,9 +37,6 @@ pub fn ModelPicker(options: Vec<ModelOption>, current: String, query: String, on
                                 onclose.call(());
                             }
                         },
-                    }
-                    if query.is_empty() {
-                        span { "class": "pointer-events-none absolute left-3 top-2 flex h-7 items-center text-sm font-normal text-placeholder", "Search models..." }
                     }
                 }
                 div {

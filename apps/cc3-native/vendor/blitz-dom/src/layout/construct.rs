@@ -891,7 +891,7 @@ fn create_text_editor(doc: &mut BaseDocument, input_element_id: NodeId, is_multi
 
     let styles = editor.edit_styles();
     styles.retain(|_| false);
-    styles.insert(StyleProperty::FontFamily(parley_style.font_family));
+    styles.insert(StyleProperty::FontFamily(parley_style.font_family.clone()));
     styles.insert(StyleProperty::FontSize(parley_style.font_size));
     styles.insert(StyleProperty::FontWidth(parley_style.font_width));
     styles.insert(StyleProperty::FontStyle(parley_style.font_style));
@@ -907,11 +907,36 @@ fn create_text_editor(doc: &mut BaseDocument, input_element_id: NodeId, is_multi
     styles.insert(StyleProperty::WhiteSpaceCollapse(
         parley_style.white_space_collapse,
     ));
-    styles.insert(StyleProperty::Brush(parley_style.brush));
+    styles.insert(StyleProperty::Brush(parley_style.brush.clone()));
     editor.set_alignment(alignment);
     editor.set_base_direction(base_direction);
 
     editor.refresh_layout(&mut doc.font_ctx.lock().unwrap(), &mut doc.layout_ctx);
+
+    // CC3: placeholder text, laid out like the value.
+    let placeholder_text = doc.nodes[input_element_id].attr(local_name!("placeholder")).unwrap_or("").to_string();
+    let element = &mut doc.nodes[input_element_id].data.downcast_element_mut().unwrap();
+    if let SpecialElementData::TextInput(text_input_data) = &mut element.special_data {
+        if placeholder_text.is_empty() || is_multiline {
+            text_input_data.placeholder = None;
+        } else {
+            let mut ph = Box::new(parley::PlainEditor::new(16.0));
+            ph.set_text(&placeholder_text);
+            ph.set_scale(doc.viewport.scale_f64() as f32);
+            ph.set_width(None);
+            let styles = ph.edit_styles();
+            styles.insert(StyleProperty::FontFamily(parley_style.font_family.clone()));
+            styles.insert(StyleProperty::FontSize(parley_style.font_size));
+            styles.insert(StyleProperty::FontWidth(parley_style.font_width));
+            styles.insert(StyleProperty::FontStyle(parley_style.font_style));
+            styles.insert(StyleProperty::FontWeight(parley_style.font_weight));
+            styles.insert(StyleProperty::LineHeight(parley_style.line_height));
+            styles.insert(StyleProperty::LetterSpacing(parley_style.letter_spacing));
+            styles.insert(StyleProperty::Brush(parley_style.brush.clone()));
+            ph.refresh_layout(&mut doc.font_ctx.lock().unwrap(), &mut doc.layout_ctx);
+            text_input_data.placeholder = Some(ph);
+        }
+    }
 }
 
 fn create_checkbox_input(doc: &mut BaseDocument, input_element_id: NodeId) {

@@ -50,9 +50,6 @@ pub fn AddProjectDialog(value: String, error: String, oninput: EventHandler<Stri
                                 }
                             },
                         }
-                        if value.is_empty() {
-                            span { "class": "pointer-events-none absolute inset-y-0 left-3 flex items-center text-sm font-normal text-placeholder", "/path/to/project" }
-                        }
                     }
                     if !error.is_empty() {
                         div { "class": "text-sm text-destructive-foreground", "{error}" }
