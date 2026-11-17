@@ -47,5 +47,5 @@ Referenz: Chromium-Goldens in `apps/web/test/golden/__screenshots__`, Messung `c
 
 ## H. Betrieb
 
-- [ ] `--ui=web|native` Schalter, Packaging, RAM/CPU-Messung, Server-Orphan bei SIGTERM, Release-Profil
+- [x] `--ui=native` Schalter im Tauri-Start (exec cc3-native-ui oder CC3_NATIVE_BIN), strip im Release-Profil; Packaging, RAM/CPU-Messung, Server-Orphan bei SIGTERM offen
 - [ ] Start der App erst bei ~99 % Paritaet

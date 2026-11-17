@@ -51,6 +51,7 @@ image = { version = "0.25", default-features = false, features = ["png"] }
 
 [profile.release]
 opt-level = 3
+strip = "symbols"
 
 # Patched copies of Blitz (see docs/native/README.md, "Blitz-Anpassungen"): changes needed for
 # pixel parity with Chromium live here, each marked with `CC3:` in the source.

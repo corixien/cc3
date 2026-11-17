@@ -129,7 +129,29 @@ fn on_menu(app: &tauri::AppHandle, id: &str) {
     }
 }
 
+/// `--ui=native` (or `CC3_UI=native`) starts the native Rust UI (`cc3-native-ui`, next to this binary or
+/// named by `CC3_NATIVE_BIN`) instead of the web UI. Returns only when it could not be started.
+#[cfg(unix)]
+fn try_native_ui() {
+    use std::os::unix::process::CommandExt;
+    let wants = std::env::args().any(|a| a == "--ui=native") || std::env::var("CC3_UI").is_ok_and(|v| v == "native");
+    if !wants {
+        return;
+    }
+    let sibling = std::env::current_exe().ok().and_then(|p| p.parent().map(|d| d.join("cc3-native-ui")));
+    let bin = std::env::var_os("CC3_NATIVE_BIN").map(std::path::PathBuf::from).or(sibling).filter(|p| p.exists());
+    let Some(bin) = bin else {
+        eprintln!("cc3: native UI binary not found (set CC3_NATIVE_BIN); starting the web UI");
+        return;
+    };
+    let args: Vec<String> = std::env::args().skip(1).filter(|a| !a.starts_with("--ui=")).collect();
+    let error = std::process::Command::new(bin).args(args).exec();
+    eprintln!("cc3: could not start the native UI: {error}");
+}
+
 fn main() {
+    #[cfg(unix)]
+    try_native_ui();
     tauri::Builder::default()
         .plugin(tauri_plugin_single_instance::init(|app, argv, _cwd| {
             if !links::receive_args(app, argv.into_iter().skip(1)) {
