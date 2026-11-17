@@ -24,7 +24,7 @@ fn fixture_store() -> Arc<Store> {
     {
         let mut s = store.shell.lock().unwrap();
         *s = Shell::default();
-        s.apply(&serde_json::json!({"kind": "snapshot", "snapshot": shell}));
+        s.apply(&serde_json::json!({"kind": "snapshot", "snapshot": {"projects": [{"id": shell["projectId"], "title": "render", "workspaceRoot": "/tmp/render"}], "threads": [shell]}}));
         *store.environment_id.lock().unwrap() = "environment-render".into();
     }
     let projection: serde_json::Value = serde_json::from_str(include_str!("../fixtures/thread-golden.projection.json")).unwrap();
@@ -272,4 +272,19 @@ fn model_picker_changes_the_label() {
     h.click(x, y);
     assert!(!h.html_contains("Model picker"), "picking closes the picker");
     assert!(h.center_of("aria-label", "Claude Opus 5.5").is_some(), "composer shows the new model");
+}
+
+#[test]
+fn sidebar_search_filters_threads() {
+    let rt = runtime();
+    let _guard = rt.enter();
+    let mut h = Harness::new(fixture_store());
+    // Let the store-version loop run once so the sidebar rows exist.
+    rt.block_on(tokio::time::sleep(std::time::Duration::from_millis(250)));
+    h.settle();
+    assert!(h.attr_of("aria-label", "Thread thread-golden, render", "role").is_some(), "row present before searching");
+    let (x, y) = h.center_of("aria-label", "Search threads").unwrap();
+    h.click(x, y);
+    h.type_text("zzz");
+    assert!(h.attr_of("aria-label", "Thread thread-golden, render", "role").is_none(), "no row matches the query");
 }

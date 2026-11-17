@@ -59,6 +59,7 @@ pub fn AppRoot(store: StoreHandle, #[props(default)] frame: bool) -> Element {
     let mut palette_open = use_signal(|| std::env::var("CC3_PALETTE").is_ok());
     let mut palette_query = use_signal(String::new);
     let mut palette_active = use_signal(|| 0usize);
+    let mut sidebar_query = use_signal(String::new);
     let mut model_open = use_signal(|| false);
     let mut model_query = use_signal(String::new);
     let mut add_project_open = use_signal(|| false);
@@ -87,7 +88,10 @@ pub fn AppRoot(store: StoreHandle, #[props(default)] frame: bool) -> Element {
 
     let content = rsx! {
                 AppLayout {
-                    rows: rows(),
+                    rows: {
+                        let q = sidebar_query().to_lowercase();
+                        rows().into_iter().filter(|r| q.is_empty() || r.title.to_lowercase().contains(&q) || r.project.to_lowercase().contains(&q)).collect::<Vec<_>>()
+                    },
                     thread: thread(),
                     environment_id: store.environment_id.lock().unwrap().clone(),
                     composer: crate::ui::composer::ComposerMode::Normal,
@@ -117,6 +121,8 @@ pub fn AppRoot(store: StoreHandle, #[props(default)] frame: bool) -> Element {
                             if crate::ui::fragments::page(&name).is_some() {
                                 page.set(Some(name));
                             }
+                        } else if let Some(q) = action.strip_prefix("search:") {
+                            sidebar_query.set(q.to_string());
                         } else if action == "dialog:model-picker" {
                             model_query.set(String::new());
                             model_open.set(true);

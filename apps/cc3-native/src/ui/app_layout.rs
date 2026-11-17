@@ -1468,6 +1468,7 @@ pub fn AppLayout(rows: Vec<ThreadRowData>, thread: ThreadView, environment_id: S
                                                             "data-slot": "input",
                                                             "placeholder": "Search",
                                                             "aria-label": "Search threads",
+                                                            oninput: move |e| onaction.call(format!("search:{}", e.value())),
                                                             "role": "combobox",
                                                             "aria-autocomplete": "list",
                                                             "aria-expanded": "false",
