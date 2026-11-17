@@ -47,6 +47,54 @@ impl Shell {
     }
 }
 
+impl Shell {
+    /// Applies one item of `orchestration.subscribeShell`. Returns whether the model changed.
+    pub fn apply(&mut self, item: &serde_json::Value) -> bool {
+        match item["kind"].as_str() {
+            Some("snapshot") => {
+                let snapshot = &item["snapshot"];
+                self.projects = serde_json::from_value(snapshot["projects"].clone()).unwrap_or_default();
+                self.threads = serde_json::from_value(snapshot["threads"].clone()).unwrap_or_default();
+                true
+            }
+            Some("project.updated") => {
+                let Ok(project) = serde_json::from_value::<Project>(item["project"].clone()) else { return false };
+                match self.projects.iter_mut().find(|p| p.id == project.id) {
+                    Some(existing) => *existing = project,
+                    None => self.projects.push(project),
+                }
+                true
+            }
+            Some("project.removed") => {
+                let id = item["projectId"].as_str().unwrap_or_default();
+                let before = self.projects.len();
+                self.projects.retain(|p| p.id != id);
+                self.projects.len() != before
+            }
+            Some("thread.updated") => {
+                let Ok(thread) = serde_json::from_value::<ThreadShell>(item["thread"].clone()) else { return false };
+                // Archived threads leave the active list (they stay available through the archive).
+                if item["location"].as_str() == Some("archive") {
+                    self.threads.retain(|t| t.id != thread.id);
+                    return true;
+                }
+                match self.threads.iter_mut().find(|t| t.id == thread.id) {
+                    Some(existing) => *existing = thread,
+                    None => self.threads.push(thread),
+                }
+                true
+            }
+            Some("thread.removed") => {
+                let id = item["threadId"].as_str().unwrap_or_default();
+                let before = self.threads.len();
+                self.threads.retain(|t| t.id != id);
+                self.threads.len() != before
+            }
+            _ => false,
+        }
+    }
+}
+
 /// Short relative age like the sidebar shows ("13h", "5m", "2d").
 pub fn relative_age(iso: &str, now_unix: i64) -> String {
     let Some(then) = parse_iso_unix(iso) else { return String::new() };
@@ -85,6 +133,18 @@ mod tests {
     fn iso_and_age() {
         assert_eq!(parse_iso_unix("1970-01-02T00:00:00.000Z"), Some(86_400));
         assert_eq!(relative_age("2026-03-17T19:12:28.000Z", parse_iso_unix("2026-03-18T08:12:28.000Z").unwrap()), "13h");
+    }
+
+    #[test]
+    fn shell_stream_items_update_the_model() {
+        let mut shell = Shell::default();
+        assert!(shell.apply(&serde_json::json!({"kind":"snapshot","snapshot":{"projects":[{"id":"p","title":"render"}],"threads":[{"id":"a","projectId":"p","title":"A"}]}})));
+        assert!(shell.apply(&serde_json::json!({"kind":"thread.updated","location":"active","thread":{"id":"b","projectId":"p","title":"B"}})));
+        assert!(shell.apply(&serde_json::json!({"kind":"thread.updated","location":"active","thread":{"id":"a","projectId":"p","title":"A2"}})));
+        assert_eq!(shell.threads.iter().map(|t| t.title.as_str()).collect::<Vec<_>>(), ["A2", "B"]);
+        assert!(shell.apply(&serde_json::json!({"kind":"thread.removed","threadId":"a"})));
+        assert!(!shell.apply(&serde_json::json!({"kind":"synchronized"})));
+        assert_eq!(shell.threads.len(), 1);
     }
 
     #[test]

@@ -4,4 +4,5 @@ pub mod net;
 pub mod render;
 pub mod report;
 pub mod shell;
+pub mod store;
 pub mod ui;

@@ -65,10 +65,9 @@ fn AlertApp() -> Element {
     rsx! { alert::AlertCard { id, title, body } }
 }
 
-/// Rows for the sidebar, produced by the connection thread and picked up by the UI.
-static LIVE_ROWS: std::sync::Mutex<Option<Vec<ThreadRowData>>> = std::sync::Mutex::new(None);
+static STORE: std::sync::LazyLock<std::sync::Arc<cc3_native::store::Store>> = std::sync::LazyLock::new(Default::default);
 
-/// Starts the server, authenticates and loads the shell snapshot. Runs on its own thread.
+/// Starts the server, authenticates and subscribes to the streams. Runs on its own thread.
 fn connect() -> Result<(), String> {
     let (http, token, port) = cc3_native::net::server::start_global()?;
     let bearer = cc3_native::net::auth::bootstrap(&http, &token)?;
@@ -78,18 +77,19 @@ fn connect() -> Result<(), String> {
         &ticket,
         &cc3_native::net::rpc::ConnectParams { app_version: env!("CARGO_PKG_VERSION"), device_id: "cc3-native" },
     )?;
-    let config = client.request(
-        "subscribeServerConfig",
-        serde_json::json!({"environmentThemes": true, "usageLimitSources": true, "usageLimitsCommand": true, "workspaceSnapshotsOnDemand": true}),
-    );
-    let environment_id = match config.recv_timeout(std::time::Duration::from_secs(10)) {
-        Ok(cc3_native::net::rpc::StreamEvent::Chunk(values)) => values[0]["config"]["environment"]["environmentId"].as_str().unwrap_or("").to_string(),
-        other => return Err(format!("no server config: {other:?}")),
-    };
-    let snapshot = cc3_native::net::auth::get_json(&http, &bearer, "/api/orchestration/shell?omitIdleSubagents=1&omitOlderSettled=1")?;
-    let shell = cc3_native::model::Shell::from_json(&snapshot);
+    let client = std::sync::Arc::new(client);
+    cc3_native::store::spawn_streams(client.clone(), STORE.clone());
+    // The RPC client stays alive for the app's lifetime.
+    std::mem::forget(client);
+    Ok(())
+}
+
+/// Sidebar rows from the shell model.
+fn rows_from_store(store: &cc3_native::store::Store) -> Vec<ThreadRowData> {
+    let shell = store.shell.lock().unwrap();
+    let environment_id = store.environment_id.lock().unwrap().clone();
     let now = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).map(|d| d.as_secs() as i64).unwrap_or(0);
-    let rows = shell
+    shell
         .visible_threads()
         .iter()
         .enumerate()
@@ -108,11 +108,7 @@ fn connect() -> Result<(), String> {
                 active: false,
             }
         })
-        .collect();
-    *LIVE_ROWS.lock().unwrap() = Some(rows);
-    // The RPC client stays alive for the app's lifetime (live updates come next).
-    std::mem::forget(client);
-    Ok(())
+        .collect()
 }
 
 #[component]
@@ -136,15 +132,18 @@ fn App() -> Element {
         move || {
             let window = window.clone();
             async move {
+                let mut seen = u64::MAX;
                 loop {
                     for event in shell::drain_events() {
                         window.set_minimized(false);
                         window.focus_window();
                         last_event.set(format!("{event:?}"));
                     }
-                    if let Some(live) = LIVE_ROWS.lock().unwrap().take() {
+                    let version = STORE.version();
+                    if version != seen {
+                        seen = version;
                         status.set(String::new());
-                        rows.set(live);
+                        rows.set(rows_from_store(&STORE));
                     }
                     tokio::time::sleep(std::time::Duration::from_millis(150)).await;
                 }
