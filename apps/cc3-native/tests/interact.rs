@@ -94,6 +94,15 @@ impl Harness {
         self.settle();
     }
 
+    /// Pointer move right after the vdom changed, before layout ran (what the window does between frames).
+    fn hover_before_layout(&mut self, x: f32, y: f32) {
+        use blitz_dom::Document;
+        for _ in 0..6 {
+            self.doc.poll(None);
+        }
+        self.doc.handle_ui_event(UiEvent::PointerMove(self.pointer(x, y, MouseEventButton::Main)));
+    }
+
     fn right_click(&mut self, x: f32, y: f32) {
         use blitz_dom::Document;
         let mut down = self.pointer(x, y, MouseEventButton::Secondary);
@@ -572,4 +581,46 @@ fn commit_button_asks_for_a_message_and_dead_buttons_explain_themselves() {
     rt.block_on(tokio::time::sleep(std::time::Duration::from_millis(250)));
     h.settle();
     assert!(h.text_contains("Voice input"), "an unavailable action shows a toast");
+}
+
+#[test]
+fn hovering_between_a_change_and_the_next_layout_does_not_panic() {
+    let _home = home_lock();
+    let rt = runtime();
+    let _guard = rt.enter();
+    let mut h = Harness::new(fixture_store());
+    for round in 0..4 {
+        h.key(Key::Character("k".into()), Code::KeyK, Modifiers::CONTROL);
+        h.type_text("th");
+        h.key(Key::Named(keyboard_types::NamedKey::Escape), Code::Escape, Modifiers::empty());
+        h.click(24.0, 876.0);
+        for (x, y) in [(700.0, 117.0), (300.0, 300.0), (1200.0, 90.0 + round as f32), (150.0, 140.0)] {
+            h.hover_before_layout(x, y);
+        }
+        h.key(Key::Named(keyboard_types::NamedKey::Escape), Code::Escape, Modifiers::empty());
+        for (x, y) in [(700.0, 400.0), (200.0, 600.0)] {
+            h.hover_before_layout(x, y);
+        }
+        h.settle();
+    }
+}
+
+#[test]
+fn hovering_right_after_a_settings_fragment_changed_does_not_panic() {
+    let _home = home_lock();
+    let rt = runtime();
+    let _guard = rt.enter();
+    let home = std::env::temp_dir().join(format!("cc3-interact-frag-{}", std::process::id()));
+    std::fs::create_dir_all(&home).unwrap();
+    unsafe { std::env::set_var("CC3_HOME", &home) };
+    let mut h = Harness::new(fixture_store());
+    h.click(24.0, 876.0);
+    for label in ["Confirm thread archiving", "Project grouping", "Working section"] {
+        let (x, y) = h.center_of("aria-label", label).expect(label);
+        h.click(x, y);
+        for dx in [-40.0, 0.0, 40.0, 200.0] {
+            h.hover_before_layout(x + dx, y);
+            h.hover_before_layout(x + dx, y + 30.0);
+        }
+    }
 }

@@ -1838,9 +1838,13 @@ impl BaseDocument {
             return (None, None);
         }
         let mut scrollbar = None;
-        let hit = self
-            .root_element()
-            .hit_inner(x, y, self.viewport().scale_f64(), &mut scrollbar);
+        // CC3: between a DOM change and the next layout the paint lists can name removed nodes.
+        // A missed hit is harmless, an abort of the window is not.
+        let hit = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+            self.root_element()
+                .hit_inner(x, y, self.viewport().scale_f64(), &mut scrollbar)
+        }))
+        .unwrap_or(None);
         (hit, scrollbar)
     }
 

@@ -1480,7 +1480,8 @@ impl Node {
 
         // Call `.hit()` on each child in turn. If any return `Some` then return that value. Else return `Some(self.id).
         for child_id in self.paint_children.borrow().iter().flatten().rev() {
-            let child = self.with(*child_id);
+            // CC3: paint children can list nodes removed since the last layout.
+            let Some(child) = self.tree().get(*child_id) else { continue };
             let child_position = child.taffy_position();
             let mut child_x = x;
             let mut child_y = y;
@@ -1538,8 +1539,9 @@ impl Node {
                 {
                     let node_id = cluster.style().brush.id;
                     let text_pointer_events_none = self
-                        .with(node_id)
-                        .primary_styles()
+                        .tree()
+                        .get(node_id)
+                        .and_then(|n| n.primary_styles())
                         .is_some_and(|style| style.clone_pointer_events() == PointerEvents::None);
                     if !text_pointer_events_none {
                         return Some(HitResult {
