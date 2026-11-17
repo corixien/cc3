@@ -60,6 +60,7 @@ pub fn AppRoot(store: StoreHandle, #[props(default)] frame: bool) -> Element {
     let mut palette_query = use_signal(String::new);
     let mut palette_active = use_signal(|| 0usize);
     let mut diff_open = use_signal(|| false);
+    let mut toasts = use_signal(Vec::<crate::ui::toast::ToastView>::new);
     let mut terminal_open = use_signal(|| false);
     let mut sidebar_query = use_signal(String::new);
     let mut model_open = use_signal(|| false);
@@ -74,9 +75,13 @@ pub fn AppRoot(store: StoreHandle, #[props(default)] frame: bool) -> Element {
             async move {
                 let mut seen = u64::MAX;
                 loop {
+                    if store.prune_toasts(None, std::time::Duration::from_secs(6)) {
+                        toasts.set(store.toasts_view());
+                    }
                     let version = store.version();
                     if version != seen {
                         seen = version;
+                        toasts.set(store.toasts_view());
                         rows.set(rows_from_store(store, selected()));
                         let mut view = if draft() { crate::model::ThreadView::default() } else { store.thread_view().unwrap_or_default() };
                         view.model_label = store.model_label();
@@ -169,6 +174,15 @@ pub fn AppRoot(store: StoreHandle, #[props(default)] frame: bool) -> Element {
                         rows.set(rows_from_store(store, Some(id.clone())));
                         store.open_thread(&id);
                     },
+                }
+                if !toasts().is_empty() {
+                    crate::ui::toast::ToastStack {
+                        items: toasts(),
+                        ondismiss: move |id: u64| {
+                            store.prune_toasts(Some(id), std::time::Duration::from_secs(3600));
+                            toasts.set(store.toasts_view());
+                        },
+                    }
                 }
                 if terminal_open() {
                     {

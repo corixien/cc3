@@ -353,3 +353,19 @@ fn welcome_page_start_opens_add_project() {
     h.click(x, y);
     assert!(h.html_contains("dialog-popup"), "Start opens the add-project dialog");
 }
+
+#[test]
+fn toasts_show_and_dismiss() {
+    let rt = runtime();
+    let _guard = rt.enter();
+    let store = fixture_store();
+    let mut h = Harness::new(store.clone());
+    store.notify("error", "Message not sent", "Connection lost");
+    rt.block_on(tokio::time::sleep(std::time::Duration::from_millis(250)));
+    h.settle();
+    assert!(h.text_contains("Message not sent") && h.text_contains("Connection lost"), "toast is shown");
+    h.screenshot("interact-toast");
+    let (x, y) = h.center_of("aria-label", "Dismiss notification").expect("close button");
+    h.click(x, y);
+    assert!(!h.text_contains("Message not sent"), "dismissed");
+}

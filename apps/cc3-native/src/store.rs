@@ -16,6 +16,8 @@ pub struct Store {
     selected_model: Mutex<Option<serde_json::Value>>,
     /// Latest `review.getDiffPreview` result for the open thread's workspace, or an error text.
     pub diff: Mutex<Option<Result<serde_json::Value, String>>>,
+    /// Notifications shown as toasts: (id, kind, title, description, created).
+    pub toasts: Mutex<Vec<(u64, String, String, String, std::time::Instant)>>,
     /// The terminal drawer's screen, fed by `terminal.attach`.
     pub terminal: Mutex<Option<TerminalState>>,
     /// Bumped on every change so the UI only rebuilds when needed.
@@ -221,6 +223,25 @@ impl Store {
         let Some(current) = self.current_model() else { return String::new() };
         let (instance, slug) = (current["instanceId"].as_str().unwrap_or_default(), current["model"].as_str().unwrap_or_default());
         self.model_options().into_iter().find(|(i, _, s, _)| i == instance && s == slug).map(|(_, _, _, name)| name).unwrap_or_else(|| slug.to_string())
+    }
+
+    /// Shows a toast (`success` or `error`); the UI drops it after a few seconds.
+    pub fn notify(&self, kind: &str, title: &str, description: &str) {
+        let id = self.version.load(Ordering::Relaxed) * 1000 + self.toasts.lock().unwrap().len() as u64 + 1;
+        self.toasts.lock().unwrap().push((id, kind.into(), title.into(), description.into(), std::time::Instant::now()));
+        self.bump();
+    }
+
+    pub fn toasts_view(&self) -> Vec<crate::ui::toast::ToastView> {
+        self.toasts.lock().unwrap().iter().map(|(id, kind, title, description, _)| crate::ui::toast::ToastView { id: *id, kind: kind.clone(), title: title.clone(), description: description.clone() }).collect()
+    }
+
+    /// Drops toasts older than `max_age` (or the given one); returns whether any went.
+    pub fn prune_toasts(&self, dismiss: Option<u64>, max_age: std::time::Duration) -> bool {
+        let mut toasts = self.toasts.lock().unwrap();
+        let before = toasts.len();
+        toasts.retain(|t| Some(t.0) != dismiss && t.4.elapsed() < max_age);
+        toasts.len() != before
     }
 
     /// Workspace folder of the open thread's project.
