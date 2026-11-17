@@ -270,7 +270,8 @@ pub fn AssistantMessageRow(message_id: String, environment_id: String, thread_id
 }
 
 #[component]
-pub fn WorkSummaryRow(run_id: String, label: String, time: String, uid: String) -> Element {
+pub fn WorkSummaryRow(run_id: String, label: String, time: String, uid: String, expanded: bool, ontoggle: EventHandler<()>) -> Element {
+    let ms_auto = if expanded { "ms-auto" } else { "" };
     rsx! {
             div {
                 "class": "messages-timeline-row-frame",
@@ -287,7 +288,8 @@ pub fn WorkSummaryRow(run_id: String, label: String, time: String, uid: String) 
                                 "class": "relative flex items-center gap-1",
                                 button {
                                     "type": "button",
-                                    "aria-expanded": "false",
+                                    "aria-expanded": "{expanded}",
+                                    onclick: move |_| ontoggle.call(()),
                                     "data-scroll-anchor-ignore": "true",
                                     "aria-busy": "false",
                                     "class": "flex cursor-pointer select-none items-center gap-1 rounded-md px-1 text-sm leading-relaxed text-muted-foreground tabular-nums transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring/70",
@@ -301,15 +303,15 @@ pub fn WorkSummaryRow(run_id: String, label: String, time: String, uid: String) 
                                         "stroke-width": "2",
                                         "stroke-linecap": "round",
                                         "stroke-linejoin": "round",
-                                        "class": "lucide lucide-chevron-right size-3.5",
+                                        "class": if expanded { "lucide lucide-chevron-down size-3.5" } else { "lucide lucide-chevron-right size-3.5" },
                                         "aria-hidden": "true",
                                         path {
-                                            "d": "m9 18 6-6-6-6",
+                                            "d": if expanded { "m6 9 6 6 6-6" } else { "m9 18 6-6-6-6" },
                                         }
                                     }
                                 }
                                 span {
-                                    "class": "pointer-events-none absolute me-1 shrink-0 whitespace-nowrap rounded-md text-muted-foreground text-xs tabular-nums opacity-0 group-hover/timeline-row:pointer-events-auto group-hover/timeline-row:static group-hover/timeline-row:opacity-100 group-focus-within/timeline-row:pointer-events-auto group-focus-within/timeline-row:static group-focus-within/timeline-row:opacity-100 ms-auto",
+                                    "class": "pointer-events-none absolute me-1 shrink-0 whitespace-nowrap rounded-md text-muted-foreground text-xs tabular-nums opacity-0 group-hover/timeline-row:pointer-events-auto group-hover/timeline-row:static group-hover/timeline-row:opacity-100 group-focus-within/timeline-row:pointer-events-auto group-focus-within/timeline-row:static group-focus-within/timeline-row:opacity-100 {ms_auto}",
                                     "id": "base-ui-{uid}-2t",
                                     "data-base-ui-tooltip-trigger": "",
                                     "data-slot": "tooltip-trigger",
@@ -320,5 +322,67 @@ pub fn WorkSummaryRow(run_id: String, label: String, time: String, uid: String) 
                     }
                 }
             }
+    }
+}
+
+/// Collapsed group of a run's work entries ("Ran 1 command, changed 1 file, ...").
+#[component]
+pub fn WorkToggleRow(first_item_id: String, label: String, time: String, uid: String) -> Element {
+    rsx! {
+        div {
+            "class": "messages-timeline-row-frame",
+            div {
+                "class": "chat-content-lane overflow-x-clip",
+                "data-timeline-root": "true",
+                div {
+                    "class": "",
+                    "data-timeline-row-id": "work-toggle:{first_item_id}",
+                    "data-timeline-row-kind": "work-toggle",
+                    div {
+                        "class": "pb-2",
+                        button {
+                            "aria-label": "{label}",
+                            "aria-expanded": "false",
+                            "type": "button",
+                            "class": "group/timeline-row relative w-full min-w-0 rounded-md px-0.5 text-left transition-colors py-0.5 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring/70",
+                            div {
+                                "class": "flex min-h-6 min-w-0 gap-1.5 text-sm leading-relaxed select-none [&_*]:select-none items-center",
+                                div {
+                                    "class": "flex min-w-0 flex-1 items-baseline gap-1.5",
+                                    span {
+                                        "class": "relative w-6 shrink-0 leading-0",
+                                        span {
+                                            "class": "inline-block size-6 overflow-hidden align-[calc(0.5cap_-_0.75rem)]",
+                                            span {
+                                                "class": "flex size-full items-center justify-center",
+                                                svg {
+                                                    "width": "24", "height": "24", "viewBox": "0 0 24 24", "fill": "none", "stroke": "currentColor", "stroke-width": "2", "stroke-linecap": "round", "stroke-linejoin": "round",
+                                                    "class": "lucide lucide-hammer size-4 shrink-0 stroke-2 text-icon-muted opacity-70 light:brightness-60",
+                                                    "aria-hidden": "true",
+                                                    path { "d": "m15 12-9.373 9.373a1 1 0 0 1-3.001-3L12 9" }
+                                                    path { "d": "m18 15 4-4" }
+                                                    path { "d": "m21.5 11.5-1.914-1.914A2 2 0 0 1 19 8.172v-.344a2 2 0 0 0-.586-1.414l-1.657-1.657A6 6 0 0 0 12.516 3H9l1.243 1.243A6 6 0 0 1 12 8.485V10l2 2h1.172a2 2 0 0 1 1.414.586L18.5 14.5" }
+                                                }
+                                            }
+                                        }
+                                    }
+                                    div {
+                                        "class": "min-w-0 flex-1 text-secondary-label truncate [&_*]:whitespace-nowrap",
+                                        span { "class": "block truncate", "{label}" }
+                                    }
+                                }
+                                span {
+                                    "class": "pointer-events-none absolute me-1 shrink-0 whitespace-nowrap rounded-md text-muted-foreground text-xs tabular-nums opacity-0 group-hover/timeline-row:pointer-events-auto group-hover/timeline-row:static group-hover/timeline-row:opacity-100 group-focus-within/timeline-row:pointer-events-auto group-focus-within/timeline-row:static group-focus-within/timeline-row:opacity-100",
+                                    "id": "base-ui-{uid}-wt",
+                                    "data-base-ui-tooltip-trigger": "",
+                                    "data-slot": "tooltip-trigger",
+                                    "{time}"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
     }
 }

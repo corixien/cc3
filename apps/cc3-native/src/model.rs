@@ -188,7 +188,7 @@ mod tests {
 pub enum TimelineRow {
     User { id: String, text: String, at: String },
     /// Collapsed work of a run ("Worked for 4s").
-    Work { run_id: String, duration_ms: i64, at: String },
+    Work { run_id: String, duration_ms: i64, at: String, first_item_id: String, summary: String },
     Assistant { id: String, text: String, at: String },
 }
 
@@ -258,6 +258,27 @@ impl ThreadState {
         }
     }
 
+    /// Id of the run's first work item and the collapsed group label ("Ran 1 command, changed 1 file, ...").
+    fn work_summary(&self, run_id: &str) -> (String, String) {
+        let work: Vec<&serde_json::Value> = self.items.iter().filter(|i| i["runId"] == run_id && !matches!(i["type"].as_str(), Some("user_message" | "assistant_message"))).collect();
+        let count = |f: &dyn Fn(&str) -> bool| work.iter().filter(|i| i["type"].as_str().is_some_and(f)).count();
+        let commands = count(&|t| t == "command_execution");
+        let files = count(&|t| t == "file_change");
+        let other = count(&|t| !matches!(t, "command_execution" | "file_change" | "reasoning"));
+        let plural = |n: usize, one: &str, many: &str| format!("{n} {}", if n == 1 { one } else { many });
+        let mut parts = Vec::new();
+        if commands > 0 { parts.push(format!("Ran {}", plural(commands, "command", "commands"))); }
+        if files > 0 { parts.push(format!("{} {}", if parts.is_empty() { "Changed" } else { "changed" }, plural(files, "file", "files"))); }
+        if other > 0 { parts.push(format!("{} {}", if parts.is_empty() { "Performed" } else { "performed" }, plural(other, "other action", "other actions"))); }
+        let label = match parts.len() {
+            0 => "Reasoned".to_string(),
+            1 => parts.remove(0),
+            2 => format!("{} and {}", parts[0], parts[1]),
+            _ => { let last = parts.pop().unwrap(); format!("{}, and {last}", parts.join(", ")) }
+        };
+        (work.first().and_then(|i| i["id"].as_str()).unwrap_or_default().into(), label)
+    }
+
     pub fn view(&self) -> ThreadView {
         let run = |id: &str| self.runs.iter().find(|r| r["id"] == id);
         let mut rows = Vec::new();
@@ -273,7 +294,8 @@ impl ThreadState {
                     if did_work && !folded.contains(&run_id) {
                         if let Some(run) = run(&run_id) {
                             if let (Some(start), Some(end)) = (run["startedAt"].as_str().and_then(parse_iso_ms), run["completedAt"].as_str().and_then(parse_iso_ms)) {
-                                rows.push(TimelineRow::Work { run_id: run_id.clone(), duration_ms: end - start, at: run["completedAt"].as_str().unwrap_or_default().into() });
+                                let (first_item_id, summary) = self.work_summary(&run_id);
+                                rows.push(TimelineRow::Work { run_id: run_id.clone(), duration_ms: end - start, at: run["completedAt"].as_str().unwrap_or_default().into(), first_item_id, summary });
                             }
                         }
                         folded.push(run_id);
