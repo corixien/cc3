@@ -2,3 +2,5 @@
 pub mod window_frame;
 pub mod generated;
 pub mod screens;
+pub mod sidebar_list;
+pub mod thread_row;

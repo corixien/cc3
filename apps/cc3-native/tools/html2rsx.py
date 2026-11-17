@@ -42,9 +42,16 @@ def emit(el, depth, lines):
         if (kid.tail or '').strip(): lines.append(f'{pad}    {rs(kid.tail)}')
     lines.append(f'{pad}}}')
 
-def find(root, slot):
+def find(root, sel):
+    """sel: a data-slot value, or `class:<prefix>`, optionally followed by `#<n>` (n-th match, 0-based)."""
+    n = 0
+    if '#' in sel: sel, n = sel.rsplit('#', 1); n = int(n)
+    seen = 0
     for el in root.iter():
-        if el.attrib.get('data-slot') == slot: return el
+        hit = el.attrib.get('class', '').startswith(sel[6:]) if sel.startswith('class:') else el.attrib.get('data-slot') == sel
+        if hit:
+            if seen == n: return el
+            seen += 1
     return None
 
 tree = ET.parse(sys.argv[1]).getroot()
