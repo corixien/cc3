@@ -40,6 +40,8 @@ mod document;
 pub mod node;
 
 mod config;
+mod container_queries;
+pub use container_queries::set_container_thresholds;
 /// CSSOM stylesheet access (`document.styleSheets`, `CSSStyleSheet`, `CSSRule`)
 mod cssom;
 mod debug;

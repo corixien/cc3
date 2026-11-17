@@ -67,6 +67,11 @@ fn collect_boxes(doc: &HtmlDocument) -> Vec<(String, f32, f32, f32, f32)> {
                 out.push(("svg".to_string(), x, y, s.width, s.height));
                 continue;
             }
+            // Fragment hosts are layout-neutral wrappers (`display: contents`) the web DOM does not have.
+            if data.attrs().iter().any(|a| &*a.name.local == "data-cc3-fragment") {
+                stack.extend(node.children.iter().rev().copied());
+                continue;
+            }
             let (x, y) = unrounded_position(doc, id);
             let s = node.unrounded_layout().size;
             out.push((data.name.local.to_string(), x, y, s.width, s.height));

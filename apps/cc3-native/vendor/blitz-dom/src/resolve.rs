@@ -37,6 +37,17 @@ use crate::{
 impl BaseDocument {
     /// Restyle the tree and then relayout it
     pub fn resolve(&mut self, current_time_for_animations: f64) {
+        self.resolve_once(current_time_for_animations);
+        // CC3: container queries are emulated by attributes set from measured widths; settle them.
+        for _ in 0..4 {
+            if !self.apply_container_queries() {
+                break;
+            }
+            self.resolve_once(current_time_for_animations);
+        }
+    }
+
+    fn resolve_once(&mut self, current_time_for_animations: f64) {
         if TDocument::as_node(&self.root_node())
             .first_element_child()
             .is_none()

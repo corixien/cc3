@@ -107,10 +107,10 @@ pub fn markdown(results: &[StateResult]) -> String {
 
 /// Renders every Rust screen and compares it with the golden image and geometry of the same name.
 pub fn run_ui(snapshots: &Path, goldens: &Path, out: &Path) -> Vec<StateResult> {
-    use crate::ui::screens::{render_html, SCREENS};
+    use crate::ui::screens::{render_html, screens};
     std::fs::create_dir_all(out).ok();
     let mut results = Vec::new();
-    for screen in SCREENS {
+    for screen in &screens() {
         for dark in [true, false] {
             let name = format!("{}-{}", screen.name, if dark { "dark" } else { "light" });
             let Ok(golden) = image::open(goldens.join(format!("{name}.png"))).map(|i| i.to_rgba8()) else { continue };

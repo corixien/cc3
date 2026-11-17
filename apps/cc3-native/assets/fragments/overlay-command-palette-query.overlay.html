@@ -1,0 +1,815 @@
+<div id="_r_df_" data-base-ui-portal="">
+  <div
+    role="presentation"
+    data-base-ui-inert=""
+    aria-hidden="true"
+    style="position: fixed; inset: 0px; user-select: none"
+  ></div>
+  <div
+    data-open=""
+    role="presentation"
+    data-slot="command-dialog-backdrop"
+    class="dialog-backdrop fixed inset-0 z-50 transition-all duration-200 data-ending-style:opacity-0 data-starting-style:opacity-0 data-ending-style:pointer-events-none"
+    aria-hidden="true"
+    data-base-ui-inert=""
+    style="user-select: none"
+  ></div>
+  <div
+    data-open=""
+    role="presentation"
+    data-slot="command-dialog-viewport"
+    class="pointer-events-none fixed inset-0 z-50 flex flex-col items-center px-4 [-webkit-app-region:no-drag] pt-[max(--spacing(4),4vh,calc(var(--command-titlebar-height)+--spacing(2)))] pb-[max(--spacing(4),4vh)] sm:pt-[max(10vh,calc(var(--command-titlebar-height)+--spacing(2)))] sm:pb-[10vh]"
+    style="--command-titlebar-height: 0px"
+  >
+    <span
+      data-type="inside"
+      aria-hidden="true"
+      tabindex="0"
+      data-base-ui-focus-guard=""
+      data-base-ui-inert=""
+      style="
+        clip-path: inset(50%);
+        overflow: hidden;
+        white-space: nowrap;
+        border: 0px;
+        padding: 0px;
+        width: 1px;
+        height: 1px;
+        margin: 0px;
+        position: fixed;
+        top: 0px;
+        left: 0px;
+      "
+    ></span>
+    <div
+      data-open=""
+      id="_r_6u_"
+      role="dialog"
+      tabindex="-1"
+      data-base-ui-focusable=""
+      data-slot="command-dialog-popup"
+      aria-label="Command palette"
+      data-command-palette="true"
+      data-palette-mode="command"
+      data-testid="command-palette"
+      class="dialog-glass -translate-y-[calc(1.25rem*var(--nested-dialogs))] relative flex min-h-0 w-full min-w-0 scale-[calc(1-0.1*var(--nested-dialogs))] flex-col opacity-[calc(1-0.1*var(--nested-dialogs))] outline-none transition-[scale,opacity,translate] duration-200 ease-in-out will-change-transform data-nested:data-ending-style:translate-y-8 data-nested:data-starting-style:translate-y-8 data-nested-dialog-open:origin-top data-ending-style:scale-98 data-starting-style:scale-98 data-ending-style:opacity-0 data-starting-style:opacity-0 [-webkit-app-region:no-drag] rounded-2xl border pointer-events-auto max-h-105 max-w-xl text-foreground data-ending-style:pointer-events-none overflow-hidden"
+      style="--nested-dialogs: 0"
+    >
+      <div class="contents">
+        <div class="relative">
+          <div
+            class="px-[var(--command-shell-inset)] py-1.5 [&amp;_[data-slot=autocomplete-start-addon]]:ps-[calc(var(--command-shell-inset)+0.0625rem)]"
+          >
+            <div
+              class="relative not-has-[&gt;*.w-full]:w-fit w-full text-foreground has-disabled:opacity-64"
+            >
+              <div
+                aria-hidden="true"
+                class="[&amp;_svg]:-mx-0.5 pointer-events-none has-[button]:pointer-events-auto absolute inset-y-0 start-px z-10 flex items-center ps-[calc(--spacing(3)-1px)] opacity-80 has-[+[data-size=sm]]:ps-[calc(--spacing(2.5)-1px)] [&amp;_svg:not([class*='size-'])]:size-4.5 sm:[&amp;_svg:not([class*='size-'])]:size-4"
+                data-slot="autocomplete-start-addon"
+              >
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  width="24"
+                  height="24"
+                  viewbox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  class="lucide lucide-search translate-x-0.5 text-icon-muted"
+                  aria-hidden="true"
+                >
+                  <path d="m21 21-4.34-4.34"></path>
+                  <circle cx="11" cy="11" r="8"></circle>
+                </svg>
+              </div>
+              <span
+                class="relative inline-flex w-full rounded-lg border border-input bg-background not-dark:bg-clip-padding text-base text-foreground ring-ring/24 transition-shadow before:pointer-events-none before:absolute before:inset-0 before:rounded-[calc(var(--radius-lg)-1px)] not-has-disabled:not-has-focus-visible:not-has-aria-invalid:before:shadow-[0_1px_--theme(--color-black/4%)] has-focus-visible:has-aria-invalid:border-destructive/64 has-focus-visible:has-aria-invalid:ring-destructive/16 has-aria-invalid:border-destructive/36 has-focus-visible:border-ring has-autofill:bg-foreground/4 has-disabled:opacity-64 has-[:disabled,:focus-visible,[aria-invalid]]:shadow-none has-focus-visible:ring-inset sm:text-sm dark:bg-input/32 dark:has-autofill:bg-foreground/8 dark:has-aria-invalid:ring-destructive/24 dark:not-has-disabled:not-has-focus-visible:not-has-aria-invalid:before:shadow-[0_-1px_--theme(--color-white/6%)] data-[size=sm]:*:data-[slot=autocomplete-input]:ps-[calc(--spacing(7.5)-1px)] *:data-[slot=autocomplete-input]:ps-[calc(--spacing(8.5)-1px)] sm:data-[size=sm]:*:data-[slot=autocomplete-input]:ps-[calc(--spacing(7)-1px)] sm:*:data-[slot=autocomplete-input]:ps-[calc(--spacing(8)-1px)] has-[+[data-slot=autocomplete-trigger],+[data-slot=autocomplete-clear]]:*:data-[slot=autocomplete-input]:pe-7 border-transparent! bg-transparent! shadow-none before:hidden has-focus-visible:ring-0 placeholder:text-placeholder *:data-[slot=autocomplete-input]:ps-9! sm:*:data-[slot=autocomplete-input]:ps-[calc(var(--command-shell-inset)+1.5rem)]!"
+                data-size="lg"
+                data-slot="input-control"
+                ><input
+                  class="w-full min-w-0 rounded-[inherit] px-[calc(--spacing(3)-1px)] outline-none placeholder:text-placeholder [transition:background-color_5000000s_ease-in-out_0s] h-9.5 leading-9.5 sm:h-8.5 sm:leading-8.5"
+                  data-slot="autocomplete-input"
+                  data-popup-open=""
+                  data-pressed=""
+                  autocomplete="off"
+                  spellcheck="false"
+                  autocorrect="off"
+                  autocapitalize="none"
+                  role="combobox"
+                  aria-expanded="true"
+                  aria-haspopup="listbox"
+                  aria-autocomplete="none"
+                  id="base-ui-_r_dj_"
+                  placeholder="Search commands, projects, and threads..."
+                  value="thread"
+                  aria-activedescendant="base-ui-_r_dh_-0"
+                  aria-controls="_r_di_"
+              /></span>
+            </div>
+          </div>
+        </div>
+        <div
+          class="relative overflow-hidden rounded-t-xl not-has-[+[data-slot=command-footer]]:rounded-b-2xl bg-transparent **:data-[slot=scroll-area-scrollbar]:mt-2 [touch-action:pan-y] flex max-h-[min(28rem,70vh)] min-h-0 flex-col"
+        >
+          <div
+            role="listbox"
+            tabindex="-1"
+            id="_r_di_"
+            data-slot="command-list"
+            class="size-full min-w-0 flex max-h-[inherit] min-h-0 flex-col"
+            aria-activedescendant="base-ui-_r_dh_-0"
+          >
+            <div
+              class="min-h-0 scroll-py-6 overflow-x-hidden overscroll-y-contain [&amp;::-webkit-scrollbar-track]:my-2 virtualized-scroll-fade [--fade-size:1.5rem] [--virtualized-scroll-fade-mask:linear-gradient(to_bottom,black_calc(100%-var(--fade-size)),transparent)]"
+              style="overflow: auto; padding-top: 8px; padding-bottom: 8px; overflow-anchor: none"
+            >
+              <div
+                class="legend-list-content-container px-2"
+                style="
+                  display: block;
+                  min-height: 100%;
+                  box-sizing: border-box;
+                  overflow-anchor: none;
+                "
+              >
+                <div style="height: 452px; opacity: 1; position: relative">
+                  <div
+                    style="
+                      contain: layout style paint;
+                      left: 0px;
+                      position: absolute;
+                      right: 0px;
+                      top: 0px;
+                    "
+                  >
+                    <div>
+                      <div
+                        class="px-2 py-1.5 font-medium text-muted-foreground text-xs"
+                        data-slot="command-group-label"
+                        role="presentation"
+                      >
+                        Actions
+                      </div>
+                    </div>
+                  </div>
+                  <div
+                    style="
+                      contain: layout style paint;
+                      left: 0px;
+                      position: absolute;
+                      right: 0px;
+                      top: 28px;
+                    "
+                  >
+                    <div
+                      data-highlighted=""
+                      role="option"
+                      id="base-ui-_r_dh_-0"
+                      data-slot="command-item"
+                      class="flex min-h-8 select-none items-center gap-2 rounded-sm px-2 text-base outline-none data-disabled:pointer-events-none data-disabled:opacity-64 sm:min-h-7 sm:text-sm [&amp;_svg:not([class*='text-'])]:text-muted-foreground py-1.5 cursor-pointer hover:bg-transparent hover:text-inherit data-highlighted:bg-transparent data-highlighted:text-inherit data-selected:bg-transparent data-selected:text-inherit [&amp;[data-highlighted][data-selected]]:bg-transparent [&amp;[data-highlighted][data-selected]]:text-inherit"
+                    >
+                      <span class="flex h-5 shrink-0 items-center self-start pt-0.5"
+                        ><svg
+                          xmlns="http://www.w3.org/2000/svg"
+                          width="24"
+                          height="24"
+                          viewbox="0 0 24 24"
+                          fill="none"
+                          stroke="currentColor"
+                          stroke-width="2"
+                          stroke-linecap="round"
+                          stroke-linejoin="round"
+                          class="lucide lucide-square-pen size-4 text-icon-muted"
+                          aria-hidden="true"
+                        >
+                          <path
+                            d="M12 3H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"
+                          ></path>
+                          <path
+                            d="M18.375 2.625a1 1 0 0 1 3 3l-9.013 9.014a2 2 0 0 1-.853.505l-2.873.84a.5.5 0 0 1-.62-.62l.84-2.873a2 2 0 0 1 .506-.852z"
+                          ></path></svg></span
+                      ><span
+                        class="flex min-w-0 flex-1 items-center gap-1.5 text-sm text-foreground"
+                        ><span class="truncate"
+                          >New thread in <span class="font-semibold">render</span></span
+                        ></span
+                      ><kbd
+                        class="ms-auto font-medium font-sans text-secondary-label text-xs tracking-widest"
+                        data-slot="command-shortcut"
+                        >Ctrl+Shift+N</kbd
+                      >
+                    </div>
+                  </div>
+                  <div
+                    style="
+                      contain: layout style paint;
+                      left: 0px;
+                      position: absolute;
+                      right: 0px;
+                      top: 60px;
+                    "
+                  >
+                    <div
+                      role="option"
+                      id="base-ui-_r_dh_-1"
+                      data-slot="command-item"
+                      class="flex min-h-8 select-none items-center gap-2 rounded-sm px-2 text-base outline-none data-disabled:pointer-events-none data-disabled:opacity-64 sm:min-h-7 sm:text-sm [&amp;_svg:not([class*='text-'])]:text-muted-foreground py-1.5 cursor-pointer hover:bg-transparent hover:text-inherit data-highlighted:bg-transparent data-highlighted:text-inherit data-selected:bg-transparent data-selected:text-inherit [&amp;[data-highlighted][data-selected]]:bg-transparent [&amp;[data-highlighted][data-selected]]:text-inherit"
+                    >
+                      <span class="flex h-5 shrink-0 items-center self-start pt-0.5"
+                        ><svg
+                          xmlns="http://www.w3.org/2000/svg"
+                          width="24"
+                          height="24"
+                          viewbox="0 0 24 24"
+                          fill="none"
+                          stroke="currentColor"
+                          stroke-width="2"
+                          stroke-linecap="round"
+                          stroke-linejoin="round"
+                          class="lucide lucide-square-pen size-4 text-icon-muted"
+                          aria-hidden="true"
+                        >
+                          <path
+                            d="M12 3H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"
+                          ></path>
+                          <path
+                            d="M18.375 2.625a1 1 0 0 1 3 3l-9.013 9.014a2 2 0 0 1-.853.505l-2.873.84a.5.5 0 0 1-.62-.62l.84-2.873a2 2 0 0 1 .506-.852z"
+                          ></path></svg></span
+                      ><span
+                        class="flex min-w-0 flex-1 items-center gap-1.5 text-sm text-foreground"
+                        ><span class="truncate" dir="ltr">New thread in...</span></span
+                      ><svg
+                        xmlns="http://www.w3.org/2000/svg"
+                        width="24"
+                        height="24"
+                        viewbox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        stroke-width="2"
+                        stroke-linecap="round"
+                        stroke-linejoin="round"
+                        class="lucide lucide-chevron-right -me-0.5 ms-auto size-4 shrink-0 text-muted-foreground/70"
+                        aria-hidden="true"
+                      >
+                        <path d="m9 18 6-6-6-6"></path>
+                      </svg>
+                    </div>
+                  </div>
+                  <div
+                    style="
+                      contain: layout style paint;
+                      left: 0px;
+                      position: absolute;
+                      right: 0px;
+                      top: 92px;
+                    "
+                  >
+                    <div
+                      role="option"
+                      id="base-ui-_r_dh_-2"
+                      data-slot="command-item"
+                      class="flex min-h-8 select-none items-center gap-2 rounded-sm px-2 text-base outline-none data-disabled:pointer-events-none data-disabled:opacity-64 sm:min-h-7 sm:text-sm [&amp;_svg:not([class*='text-'])]:text-muted-foreground py-1.5 cursor-pointer hover:bg-transparent hover:text-inherit data-highlighted:bg-transparent data-highlighted:text-inherit data-selected:bg-transparent data-selected:text-inherit [&amp;[data-highlighted][data-selected]]:bg-transparent [&amp;[data-highlighted][data-selected]]:text-inherit"
+                    >
+                      <span class="flex h-5 shrink-0 items-center self-start pt-0.5"
+                        ><svg
+                          xmlns="http://www.w3.org/2000/svg"
+                          width="24"
+                          height="24"
+                          viewbox="0 0 24 24"
+                          fill="none"
+                          stroke="currentColor"
+                          stroke-width="2"
+                          stroke-linecap="round"
+                          stroke-linejoin="round"
+                          class="lucide lucide-link size-4 text-icon-muted"
+                          aria-hidden="true"
+                        >
+                          <path
+                            d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"
+                          ></path>
+                          <path
+                            d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"
+                          ></path></svg></span
+                      ><span class="flex min-w-0 flex-1 flex-col"
+                        ><span class="flex min-w-0 items-center gap-1.5 text-sm text-foreground"
+                          ><span class="truncate" dir="ltr">Copy thread</span></span
+                        ><span class="min-w-0 text-muted-foreground/70 text-xs"
+                          >Thread thread-golden</span
+                        ></span
+                      ><kbd
+                        class="ms-auto font-medium font-sans text-secondary-label text-xs tracking-widest"
+                        data-slot="command-shortcut"
+                        >Ctrl+Shift+C</kbd
+                      >
+                    </div>
+                  </div>
+                  <div
+                    style="
+                      contain: layout style paint;
+                      left: 0px;
+                      position: absolute;
+                      right: 0px;
+                      top: 140px;
+                    "
+                  >
+                    <div class="pt-1.5">
+                      <div
+                        class="px-2 py-1.5 font-medium text-muted-foreground text-xs"
+                        data-slot="command-group-label"
+                        role="presentation"
+                      >
+                        Threads
+                      </div>
+                    </div>
+                  </div>
+                  <div
+                    style="
+                      contain: layout style paint;
+                      left: 0px;
+                      position: absolute;
+                      right: 0px;
+                      top: 174px;
+                    "
+                  >
+                    <div
+                      role="option"
+                      id="base-ui-_r_dh_-3"
+                      data-slot="command-item"
+                      class="flex min-h-8 select-none items-center gap-2 rounded-sm px-2 text-base outline-none data-disabled:pointer-events-none data-disabled:opacity-64 sm:min-h-7 sm:text-sm [&amp;_svg:not([class*='text-'])]:text-muted-foreground py-1.5 cursor-pointer hover:bg-transparent hover:text-inherit data-highlighted:bg-transparent data-highlighted:text-inherit data-selected:bg-transparent data-selected:text-inherit [&amp;[data-highlighted][data-selected]]:bg-transparent [&amp;[data-highlighted][data-selected]]:text-inherit"
+                    >
+                      <span class="flex h-5 shrink-0 items-center self-start pt-0.5"
+                        ><svg
+                          xmlns="http://www.w3.org/2000/svg"
+                          width="24"
+                          height="24"
+                          viewbox="0 0 24 24"
+                          fill="none"
+                          stroke="currentColor"
+                          stroke-width="2"
+                          stroke-linecap="round"
+                          stroke-linejoin="round"
+                          class="lucide lucide-message-square size-4 text-icon-muted"
+                          aria-hidden="true"
+                        >
+                          <path
+                            d="M22 17a2 2 0 0 1-2 2H6.828a2 2 0 0 0-1.414.586l-2.202 2.202A.71.71 0 0 1 2 21.286V5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2z"
+                          ></path></svg></span
+                      ><span class="flex min-w-0 flex-1 flex-col"
+                        ><span class="flex min-w-0 items-center gap-1.5 text-sm text-foreground"
+                          ><span class="contents"></span
+                          ><span class="truncate" dir="ltr">Thread thread-other</span></span
+                        ><span class="min-w-0 text-muted-foreground/70 text-xs"
+                          ><span
+                            class="inline-flex min-w-0 max-w-full items-center gap-1 text-xs text-muted-foreground/70"
+                            ><span class="inline-flex min-w-0 items-center gap-1"
+                              ><span
+                                aria-hidden="true"
+                                data-slot="project-monogram"
+                                class="inline-flex items-center justify-center size-3 shrink-0"
+                                ><svg
+                                  viewbox="0 0 16 16"
+                                  class="size-full overflow-hidden rounded-[25%] font-mono select-none text-sky-600 dark:text-sky-400"
+                                  style="
+                                    background-color: color-mix(
+                                      in srgb,
+                                      currentcolor 14%,
+                                      transparent 86%
+                                    );
+                                  "
+                                >
+                                  <text
+                                    x="8"
+                                    y="10.8"
+                                    text-anchor="middle"
+                                    fill="currentColor"
+                                    class="font-mono"
+                                    font-size="8.25"
+                                    font-weight="700"
+                                    textlength="12"
+                                    lengthadjust="spacingAndGlyphs"
+                                    text-rendering="geometricPrecision"
+                                  >
+                                    RR
+                                  </text>
+                                </svg></span
+                              ><span class="min-w-0 truncate">render</span
+                              ><span class="shrink-0 text-muted-foreground/50">·</span
+                              ><span class="shrink-0">Local</span></span
+                            ><span class="shrink-0 text-muted-foreground/50">·</span
+                            ><span class="inline-flex min-w-0 items-center gap-1"
+                              ><svg
+                                xmlns="http://www.w3.org/2000/svg"
+                                width="24"
+                                height="24"
+                                viewbox="0 0 24 24"
+                                fill="none"
+                                stroke="currentColor"
+                                stroke-width="2"
+                                stroke-linecap="round"
+                                stroke-linejoin="round"
+                                class="lucide lucide-folder size-3 shrink-0 text-muted-foreground/70"
+                                aria-hidden="true"
+                              >
+                                <path
+                                  d="M20 20a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.69-.9L9.6 3.9A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2Z"
+                                ></path></svg
+                              ><span
+                                title="main"
+                                class="inline-flex min-w-0 max-w-full overflow-hidden whitespace-nowrap"
+                                ><span class="min-w-0 truncate">main</span></span
+                              ></span
+                            ><span class="shrink-0 text-muted-foreground/50">·</span
+                            ><span
+                              class="relative isolate z-30 inline-flex shrink-0 items-center justify-center overflow-visible"
+                              ><svg
+                                aria-hidden="true"
+                                preserveaspectratio="xMidYMid"
+                                viewbox="100 100 411 411"
+                                class="fill-current size-3 shrink-0 opacity-70"
+                              >
+                                <path
+                                  fill-rule="evenodd"
+                                  clip-rule="evenodd"
+                                  d="M252.794 108.802C289.191 99.0484 326.265 110.305 351.148 135.135C385.113 126.072 422.85 134.862 449.492 161.505C476.136 188.149 484.925 225.888 475.862 259.85V259.854C500.696 284.735 511.95 321.81 502.198 358.207C492.447 394.602 464.161 421.084 430.215 430.217C421.083 464.162 394.603 492.448 358.206 502.199C321.812 511.951 284.734 500.693 259.852 475.864C225.887 484.927 188.15 476.137 161.507 449.495C134.864 422.851 126.073 385.111 135.136 351.149C110.304 326.266 99.0496 289.192 108.801 252.795C118.552 216.4 146.84 189.918 180.784 180.785C189.917 146.841 216.396 118.553 252.794 108.802ZM374.292 407.145C374.292 411.271 372.092 415.086 368.517 417.148L283.723 466.102C302.487 480.585 327.555 486.459 352.217 479.852C386.997 470.532 410.068 439.312 410.555 405.006V317.717C410.555 315.08 409.125 312.621 406.843 311.303L374.292 292.509V407.145ZM251.868 415.897C248.296 417.959 243.893 417.959 240.317 415.897L155.526 366.942C152.366 390.436 159.811 415.08 177.866 433.136H177.863C203.325 458.594 241.896 462.962 271.85 446.232L347.449 402.586C349.735 401.268 351.148 398.8 351.148 396.163V358.579L251.868 415.897ZM368.602 220.628C366.319 219.309 363.474 219.318 361.191 220.637L328.641 239.431L427.921 296.749C431.496 298.811 433.697 302.627 433.697 306.752V404.661C455.622 395.654 473.244 376.881 479.851 352.218C489.169 317.442 473.668 281.85 444.201 264.274L368.602 220.628ZM177.303 206.34C155.377 215.348 137.756 234.122 131.148 258.783C121.832 293.561 137.331 329.153 166.799 346.727L242.398 390.373C244.68 391.692 247.525 391.684 249.807 390.366L282.357 371.572L183.078 314.253C179.504 312.189 177.303 308.375 177.303 304.251V206.34ZM259.849 279.145V331.858L305.5 358.213L351.15 331.858V279.145L305.5 252.789L259.849 279.145ZM327.276 144.9C308.512 130.418 283.445 124.543 258.782 131.15C224.002 140.471 200.931 171.691 200.445 205.995V293.286C200.445 295.923 201.875 298.381 204.158 299.7L236.707 318.493V203.856C236.707 199.731 238.909 195.916 242.483 193.853L327.276 144.9ZM433.137 177.867C407.675 152.407 369.103 148.038 339.149 164.769L263.55 208.415C261.265 209.734 259.852 212.202 259.852 214.838V252.423L359.132 195.105C362.703 193.041 367.108 193.041 370.682 195.105L455.473 244.06C458.635 220.567 451.189 195.922 433.135 177.867H433.137Z"
+                                ></path></svg></span></span></span></span
+                      ><span
+                        class="min-w-12 shrink-0 text-right text-xs tabular-nums text-muted-foreground/70"
+                        >13h ago</span
+                      >
+                    </div>
+                  </div>
+                  <div
+                    style="
+                      contain: layout style paint;
+                      left: 0px;
+                      position: absolute;
+                      right: 0px;
+                      top: 224px;
+                    "
+                  >
+                    <div
+                      role="option"
+                      id="base-ui-_r_dh_-4"
+                      data-slot="command-item"
+                      class="flex min-h-8 select-none items-center gap-2 rounded-sm px-2 text-base outline-none data-disabled:pointer-events-none data-disabled:opacity-64 sm:min-h-7 sm:text-sm [&amp;_svg:not([class*='text-'])]:text-muted-foreground py-1.5 cursor-pointer hover:bg-transparent hover:text-inherit data-highlighted:bg-transparent data-highlighted:text-inherit data-selected:bg-transparent data-selected:text-inherit [&amp;[data-highlighted][data-selected]]:bg-transparent [&amp;[data-highlighted][data-selected]]:text-inherit"
+                    >
+                      <span class="flex h-5 shrink-0 items-center self-start pt-0.5"
+                        ><svg
+                          xmlns="http://www.w3.org/2000/svg"
+                          width="24"
+                          height="24"
+                          viewbox="0 0 24 24"
+                          fill="none"
+                          stroke="currentColor"
+                          stroke-width="2"
+                          stroke-linecap="round"
+                          stroke-linejoin="round"
+                          class="lucide lucide-message-square size-4 text-icon-muted"
+                          aria-hidden="true"
+                        >
+                          <path
+                            d="M22 17a2 2 0 0 1-2 2H6.828a2 2 0 0 0-1.414.586l-2.202 2.202A.71.71 0 0 1 2 21.286V5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2z"
+                          ></path></svg></span
+                      ><span class="flex min-w-0 flex-1 flex-col"
+                        ><span class="flex min-w-0 items-center gap-1.5 text-sm text-foreground"
+                          ><span class="contents"></span
+                          ><span class="truncate" dir="ltr">Thread thread-golden</span></span
+                        ><span class="min-w-0 text-muted-foreground/70 text-xs"
+                          ><span
+                            class="inline-flex min-w-0 max-w-full items-center gap-1 text-xs text-muted-foreground/70"
+                            ><span class="inline-flex min-w-0 items-center gap-1"
+                              ><span
+                                aria-hidden="true"
+                                data-slot="project-monogram"
+                                class="inline-flex items-center justify-center size-3 shrink-0"
+                                ><svg
+                                  viewbox="0 0 16 16"
+                                  class="size-full overflow-hidden rounded-[25%] font-mono select-none text-sky-600 dark:text-sky-400"
+                                  style="
+                                    background-color: color-mix(
+                                      in srgb,
+                                      currentcolor 14%,
+                                      transparent 86%
+                                    );
+                                  "
+                                >
+                                  <text
+                                    x="8"
+                                    y="10.8"
+                                    text-anchor="middle"
+                                    fill="currentColor"
+                                    class="font-mono"
+                                    font-size="8.25"
+                                    font-weight="700"
+                                    textlength="12"
+                                    lengthadjust="spacingAndGlyphs"
+                                    text-rendering="geometricPrecision"
+                                  >
+                                    RR
+                                  </text>
+                                </svg></span
+                              ><span class="min-w-0 truncate">render</span
+                              ><span class="shrink-0 text-muted-foreground/50">·</span
+                              ><span class="shrink-0">Local</span></span
+                            ><span class="shrink-0 text-muted-foreground/50">·</span
+                            ><span class="inline-flex min-w-0 items-center gap-1"
+                              ><svg
+                                xmlns="http://www.w3.org/2000/svg"
+                                width="24"
+                                height="24"
+                                viewbox="0 0 24 24"
+                                fill="none"
+                                stroke="currentColor"
+                                stroke-width="2"
+                                stroke-linecap="round"
+                                stroke-linejoin="round"
+                                class="lucide lucide-folder size-3 shrink-0 text-muted-foreground/70"
+                                aria-hidden="true"
+                              >
+                                <path
+                                  d="M20 20a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.69-.9L9.6 3.9A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2Z"
+                                ></path></svg
+                              ><span
+                                title="main"
+                                class="inline-flex min-w-0 max-w-full overflow-hidden whitespace-nowrap"
+                                ><span class="min-w-0 truncate">main</span></span
+                              ></span
+                            ><span class="shrink-0 text-muted-foreground/50">·</span
+                            ><span
+                              class="relative isolate z-30 inline-flex shrink-0 items-center justify-center overflow-visible"
+                              ><svg
+                                aria-hidden="true"
+                                preserveaspectratio="xMidYMid"
+                                viewbox="100 100 411 411"
+                                class="fill-current size-3 shrink-0 opacity-70"
+                              >
+                                <path
+                                  fill-rule="evenodd"
+                                  clip-rule="evenodd"
+                                  d="M252.794 108.802C289.191 99.0484 326.265 110.305 351.148 135.135C385.113 126.072 422.85 134.862 449.492 161.505C476.136 188.149 484.925 225.888 475.862 259.85V259.854C500.696 284.735 511.95 321.81 502.198 358.207C492.447 394.602 464.161 421.084 430.215 430.217C421.083 464.162 394.603 492.448 358.206 502.199C321.812 511.951 284.734 500.693 259.852 475.864C225.887 484.927 188.15 476.137 161.507 449.495C134.864 422.851 126.073 385.111 135.136 351.149C110.304 326.266 99.0496 289.192 108.801 252.795C118.552 216.4 146.84 189.918 180.784 180.785C189.917 146.841 216.396 118.553 252.794 108.802ZM374.292 407.145C374.292 411.271 372.092 415.086 368.517 417.148L283.723 466.102C302.487 480.585 327.555 486.459 352.217 479.852C386.997 470.532 410.068 439.312 410.555 405.006V317.717C410.555 315.08 409.125 312.621 406.843 311.303L374.292 292.509V407.145ZM251.868 415.897C248.296 417.959 243.893 417.959 240.317 415.897L155.526 366.942C152.366 390.436 159.811 415.08 177.866 433.136H177.863C203.325 458.594 241.896 462.962 271.85 446.232L347.449 402.586C349.735 401.268 351.148 398.8 351.148 396.163V358.579L251.868 415.897ZM368.602 220.628C366.319 219.309 363.474 219.318 361.191 220.637L328.641 239.431L427.921 296.749C431.496 298.811 433.697 302.627 433.697 306.752V404.661C455.622 395.654 473.244 376.881 479.851 352.218C489.169 317.442 473.668 281.85 444.201 264.274L368.602 220.628ZM177.303 206.34C155.377 215.348 137.756 234.122 131.148 258.783C121.832 293.561 137.331 329.153 166.799 346.727L242.398 390.373C244.68 391.692 247.525 391.684 249.807 390.366L282.357 371.572L183.078 314.253C179.504 312.189 177.303 308.375 177.303 304.251V206.34ZM259.849 279.145V331.858L305.5 358.213L351.15 331.858V279.145L305.5 252.789L259.849 279.145ZM327.276 144.9C308.512 130.418 283.445 124.543 258.782 131.15C224.002 140.471 200.931 171.691 200.445 205.995V293.286C200.445 295.923 201.875 298.381 204.158 299.7L236.707 318.493V203.856C236.707 199.731 238.909 195.916 242.483 193.853L327.276 144.9ZM433.137 177.867C407.675 152.407 369.103 148.038 339.149 164.769L263.55 208.415C261.265 209.734 259.852 212.202 259.852 214.838V252.423L359.132 195.105C362.703 193.041 367.108 193.041 370.682 195.105L455.473 244.06C458.635 220.567 451.189 195.922 433.135 177.867H433.137Z"
+                                ></path></svg></span
+                            ><span class="shrink-0 text-muted-foreground/50">·</span
+                            ><span class="shrink-0">Current thread</span></span
+                          ></span
+                        ></span
+                      ><span
+                        class="min-w-12 shrink-0 text-right text-xs tabular-nums text-muted-foreground/70"
+                        >13h ago</span
+                      >
+                    </div>
+                  </div>
+                  <div
+                    style="
+                      contain: layout style paint;
+                      left: 0px;
+                      position: absolute;
+                      right: 0px;
+                      top: 274px;
+                    "
+                  >
+                    <div class="pt-1.5">
+                      <div
+                        class="px-2 py-1.5 font-medium text-muted-foreground text-xs"
+                        data-slot="command-group-label"
+                        role="presentation"
+                      >
+                        Settings
+                      </div>
+                    </div>
+                  </div>
+                  <div
+                    style="
+                      contain: layout style paint;
+                      left: 0px;
+                      position: absolute;
+                      right: 0px;
+                      top: 308px;
+                    "
+                  >
+                    <div
+                      role="option"
+                      id="base-ui-_r_dh_-5"
+                      data-slot="command-item"
+                      class="flex min-h-8 select-none items-center gap-2 rounded-sm px-2 text-base outline-none data-disabled:pointer-events-none data-disabled:opacity-64 sm:min-h-7 sm:text-sm [&amp;_svg:not([class*='text-'])]:text-muted-foreground py-1.5 cursor-pointer hover:bg-transparent hover:text-inherit data-highlighted:bg-transparent data-highlighted:text-inherit data-selected:bg-transparent data-selected:text-inherit [&amp;[data-highlighted][data-selected]]:bg-transparent [&amp;[data-highlighted][data-selected]]:text-inherit"
+                    >
+                      <span class="flex h-5 shrink-0 items-center self-start pt-0.5"
+                        ><svg
+                          xmlns="http://www.w3.org/2000/svg"
+                          width="24"
+                          height="24"
+                          viewbox="0 0 24 24"
+                          fill="none"
+                          stroke="currentColor"
+                          stroke-width="2"
+                          stroke-linecap="round"
+                          stroke-linejoin="round"
+                          class="lucide lucide-settings size-4 text-icon-muted"
+                          aria-hidden="true"
+                        >
+                          <path
+                            d="M9.671 4.136a2.34 2.34 0 0 1 4.659 0 2.34 2.34 0 0 0 3.319 1.915 2.34 2.34 0 0 1 2.33 4.033 2.34 2.34 0 0 0 0 3.831 2.34 2.34 0 0 1-2.33 4.033 2.34 2.34 0 0 0-3.319 1.915 2.34 2.34 0 0 1-4.659 0 2.34 2.34 0 0 0-3.32-1.915 2.34 2.34 0 0 1-2.33-4.033 2.34 2.34 0 0 0 0-3.831A2.34 2.34 0 0 1 6.35 6.051a2.34 2.34 0 0 0 3.319-1.915"
+                          ></path>
+                          <circle cx="12" cy="12" r="3"></circle></svg></span
+                      ><span class="flex min-w-0 flex-1 flex-col"
+                        ><span class="flex min-w-0 items-center gap-1.5 text-sm text-foreground"
+                          ><span class="truncate" dir="ltr">Thread details</span></span
+                        ><span class="min-w-0 text-muted-foreground/70 text-xs"
+                          >Settings · Appearance</span
+                        ></span
+                      >
+                    </div>
+                  </div>
+                  <div
+                    style="
+                      contain: layout style paint;
+                      left: 0px;
+                      position: absolute;
+                      right: 0px;
+                      top: 356px;
+                    "
+                  >
+                    <div
+                      role="option"
+                      id="base-ui-_r_dh_-6"
+                      data-slot="command-item"
+                      class="flex min-h-8 select-none items-center gap-2 rounded-sm px-2 text-base outline-none data-disabled:pointer-events-none data-disabled:opacity-64 sm:min-h-7 sm:text-sm [&amp;_svg:not([class*='text-'])]:text-muted-foreground py-1.5 cursor-pointer hover:bg-transparent hover:text-inherit data-highlighted:bg-transparent data-highlighted:text-inherit data-selected:bg-transparent data-selected:text-inherit [&amp;[data-highlighted][data-selected]]:bg-transparent [&amp;[data-highlighted][data-selected]]:text-inherit"
+                    >
+                      <span class="flex h-5 shrink-0 items-center self-start pt-0.5"
+                        ><svg
+                          xmlns="http://www.w3.org/2000/svg"
+                          width="24"
+                          height="24"
+                          viewbox="0 0 24 24"
+                          fill="none"
+                          stroke="currentColor"
+                          stroke-width="2"
+                          stroke-linecap="round"
+                          stroke-linejoin="round"
+                          class="lucide lucide-settings size-4 text-icon-muted"
+                          aria-hidden="true"
+                        >
+                          <path
+                            d="M9.671 4.136a2.34 2.34 0 0 1 4.659 0 2.34 2.34 0 0 0 3.319 1.915 2.34 2.34 0 0 1 2.33 4.033 2.34 2.34 0 0 0 0 3.831 2.34 2.34 0 0 1-2.33 4.033 2.34 2.34 0 0 0-3.319 1.915 2.34 2.34 0 0 1-4.659 0 2.34 2.34 0 0 0-3.32-1.915 2.34 2.34 0 0 1-2.33-4.033 2.34 2.34 0 0 0 0-3.831A2.34 2.34 0 0 1 6.35 6.051a2.34 2.34 0 0 0 3.319-1.915"
+                          ></path>
+                          <circle cx="12" cy="12" r="3"></circle></svg></span
+                      ><span class="flex min-w-0 flex-1 flex-col"
+                        ><span class="flex min-w-0 items-center gap-1.5 text-sm text-foreground"
+                          ><span class="truncate" dir="ltr">Thread notifications</span></span
+                        ><span class="min-w-0 text-muted-foreground/70 text-xs"
+                          >Settings · General</span
+                        ></span
+                      >
+                    </div>
+                  </div>
+                  <div
+                    style="
+                      contain: layout style paint;
+                      left: 0px;
+                      position: absolute;
+                      right: 0px;
+                      top: 404px;
+                    "
+                  >
+                    <div
+                      role="option"
+                      id="base-ui-_r_dh_-7"
+                      data-slot="command-item"
+                      class="flex min-h-8 select-none items-center gap-2 rounded-sm px-2 text-base outline-none data-disabled:pointer-events-none data-disabled:opacity-64 sm:min-h-7 sm:text-sm [&amp;_svg:not([class*='text-'])]:text-muted-foreground py-1.5 cursor-pointer hover:bg-transparent hover:text-inherit data-highlighted:bg-transparent data-highlighted:text-inherit data-selected:bg-transparent data-selected:text-inherit [&amp;[data-highlighted][data-selected]]:bg-transparent [&amp;[data-highlighted][data-selected]]:text-inherit"
+                    >
+                      <span class="flex h-5 shrink-0 items-center self-start pt-0.5"
+                        ><svg
+                          xmlns="http://www.w3.org/2000/svg"
+                          width="24"
+                          height="24"
+                          viewbox="0 0 24 24"
+                          fill="none"
+                          stroke="currentColor"
+                          stroke-width="2"
+                          stroke-linecap="round"
+                          stroke-linejoin="round"
+                          class="lucide lucide-settings size-4 text-icon-muted"
+                          aria-hidden="true"
+                        >
+                          <path
+                            d="M9.671 4.136a2.34 2.34 0 0 1 4.659 0 2.34 2.34 0 0 0 3.319 1.915 2.34 2.34 0 0 1 2.33 4.033 2.34 2.34 0 0 0 0 3.831 2.34 2.34 0 0 1-2.33 4.033 2.34 2.34 0 0 0-3.319 1.915 2.34 2.34 0 0 1-4.659 0 2.34 2.34 0 0 0-3.32-1.915 2.34 2.34 0 0 1-2.33-4.033 2.34 2.34 0 0 0 0-3.831A2.34 2.34 0 0 1 6.35 6.051a2.34 2.34 0 0 0 3.319-1.915"
+                          ></path>
+                          <circle cx="12" cy="12" r="3"></circle></svg></span
+                      ><span class="flex min-w-0 flex-1 flex-col"
+                        ><span class="flex min-w-0 items-center gap-1.5 text-sm text-foreground"
+                          ><span class="truncate" dir="ltr">Thread title instructions</span></span
+                        ><span class="min-w-0 text-muted-foreground/70 text-xs"
+                          >Settings · Threads</span
+                        ></span
+                      >
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div
+          class="relative flex items-center justify-between gap-2 rounded-b-[calc(var(--radius-2xl)-1px)] border-t border-foreground/[0.07] bg-foreground/[0.025] px-[var(--command-content-inset)] py-2.5 font-medium text-sm text-muted-foreground [&amp;_[data-slot=kbd-group]]:font-sans [&amp;_[data-slot=kbd]]:bg-foreground/[0.08] [&amp;_[data-slot=kbd]]:text-foreground [&amp;_[data-slot=kbd]]:ring-0 max-sm:flex-col max-sm:items-start"
+          data-slot="command-footer"
+        >
+          <div class="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1.5">
+            <kbd class="inline-flex items-center gap-1" data-slot="kbd-group"
+              ><kbd
+                class="pointer-events-none inline-flex h-5 min-w-5 select-none items-center justify-center gap-1 rounded px-1 font-medium font-sans text-muted-foreground text-xs [&amp;_svg:not([class*='size-'])]:size-3 bg-foreground/[0.07]"
+                data-slot="kbd"
+                ><svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  width="24"
+                  height="24"
+                  viewbox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  class="lucide lucide-arrow-up"
+                  aria-hidden="true"
+                >
+                  <path d="m5 12 7-7 7 7"></path>
+                  <path d="M12 19V5"></path></svg></kbd
+              ><kbd
+                class="pointer-events-none inline-flex h-5 min-w-5 select-none items-center justify-center gap-1 rounded px-1 font-medium font-sans text-muted-foreground text-xs [&amp;_svg:not([class*='size-'])]:size-3 bg-foreground/[0.07]"
+                data-slot="kbd"
+                ><svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  width="24"
+                  height="24"
+                  viewbox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  class="lucide lucide-arrow-down"
+                  aria-hidden="true"
+                >
+                  <path d="M12 5v14"></path>
+                  <path d="m19 12-7 7-7-7"></path></svg></kbd
+              ><span>Navigate</span></kbd
+            ><kbd class="inline-flex items-center gap-1" data-slot="kbd-group"
+              ><kbd
+                class="pointer-events-none inline-flex h-5 min-w-5 select-none items-center justify-center gap-1 rounded px-1 font-medium font-sans text-muted-foreground text-xs [&amp;_svg:not([class*='size-'])]:size-3 bg-foreground/[0.07]"
+                data-slot="kbd"
+                >Enter</kbd
+              ><span>Select</span></kbd
+            ><kbd class="inline-flex items-center gap-1" data-slot="kbd-group"
+              ><kbd
+                class="pointer-events-none inline-flex h-5 min-w-5 select-none items-center justify-center gap-1 rounded px-1 font-medium font-sans text-muted-foreground text-xs [&amp;_svg:not([class*='size-'])]:size-3 bg-foreground/[0.07]"
+                data-slot="kbd"
+                >Esc</kbd
+              ><span>Close</span></kbd
+            >
+          </div>
+          <span class="text-muted-foreground text-xs">Searching messages…</span>
+        </div>
+        <input
+          id="base-ui-_r_dh_-hidden-input"
+          tabindex="-1"
+          aria-hidden="true"
+          value="thread"
+          style="
+            clip-path: inset(50%);
+            overflow: hidden;
+            white-space: nowrap;
+            border: 0px;
+            padding: 0px;
+            width: 1px;
+            height: 1px;
+            margin: 0px;
+            position: fixed;
+            top: 0px;
+            left: 0px;
+          "
+        />
+      </div>
+    </div>
+    <span
+      data-type="inside"
+      aria-hidden="true"
+      tabindex="0"
+      data-base-ui-focus-guard=""
+      data-base-ui-inert=""
+      style="
+        clip-path: inset(50%);
+        overflow: hidden;
+        white-space: nowrap;
+        border: 0px;
+        padding: 0px;
+        width: 1px;
+        height: 1px;
+        margin: 0px;
+        position: fixed;
+        top: 0px;
+        left: 0px;
+      "
+    ></span>
+  </div>
+</div>

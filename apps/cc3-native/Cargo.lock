@@ -654,6 +654,7 @@ dependencies = [
  "blitz-traits",
  "chrono",
  "dioxus",
+ "dioxus-native-dom",
  "dioxus-ssr",
  "image",
  "parley",

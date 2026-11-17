@@ -5,12 +5,16 @@ use dioxus::prelude::*;
 use crate::model::ThreadView;
 use crate::ui::sidebar_list::{SidebarList, ThreadRowData};
 use crate::model::TimelineRow;
+use crate::ui::page::Fragment;
 use crate::ui::minimap::{self, Minimap};
 use crate::ui::composer::{ComposerMode, ComposerNormal, ComposerQuestion};
 use crate::ui::timeline::Timeline;
 
 #[component]
-pub fn AppLayout(rows: Vec<ThreadRowData>, thread: ThreadView, environment_id: String, onselect: EventHandler<String>, composer: ComposerMode, #[props(default)] onsend: Option<EventHandler<String>>) -> Element {
+pub fn AppLayout(rows: Vec<ThreadRowData>, thread: ThreadView, environment_id: String, onselect: EventHandler<String>, composer: ComposerMode, #[props(default)] onsend: Option<EventHandler<String>>, #[props(default)] page: Option<String>, #[props(default)] onaction: EventHandler<String>) -> Element {
+    let page_def = page.as_deref().and_then(crate::ui::fragments::page);
+    let page_main = page_def.and_then(|p| p.main);
+    let page_overlay = page_def.and_then(|p| p.overlay);
     // Opens at the newest message and follows new ones, as the web timeline does.
     let mut scroller = use_signal(|| None::<std::rc::Rc<MountedData>>);
     let follow = (thread.thread_id.clone(), thread.rows.len());
@@ -1693,6 +1697,7 @@ pub fn AppLayout(rows: Vec<ThreadRowData>, thread: ThreadView, environment_id: S
                                                     "data-size": "icon",
                                                     "data-slot": "tooltip-trigger",
                                                     "aria-label": "Settings",
+                                                    onclick: move |_| onaction.call("page:settings-general".to_string()),
                                                     "id": "base-ui-_r_a_",
                                                     "data-base-ui-tooltip-trigger": "",
                                                     svg {
@@ -1820,6 +1825,9 @@ pub fn AppLayout(rows: Vec<ThreadRowData>, thread: ThreadView, environment_id: S
                     main {
                         "class": "relative flex min-w-0 w-full flex-1 flex-col bg-background surface-grain md:peer-data-[variant=inset]:peer-data-[state=collapsed]:ms-2 md:peer-data-[variant=inset]:m-2 md:peer-data-[variant=inset]:ms-0 md:peer-data-[variant=inset]:rounded-xl md:peer-data-[variant=inset]:shadow-sm/5 h-svh min-h-0 overflow-hidden overscroll-y-none md:h-dvh",
                         "data-slot": "sidebar-inset",
+                        if let Some(main_html) = page_main {
+                            Fragment { html: main_html, onaction }
+                        } else {
                         div {
                             "class": "relative flex min-h-0 min-w-0 flex-1 overflow-hidden bg-background",
                             div {
@@ -2672,6 +2680,7 @@ pub fn AppLayout(rows: Vec<ThreadRowData>, thread: ThreadView, environment_id: S
                                 }
                             }
                         }
+                        }
                     }
                     div {
                         "aria-live": "polite",
@@ -2719,6 +2728,9 @@ pub fn AppLayout(rows: Vec<ThreadRowData>, thread: ThreadView, environment_id: S
                     }
                 }
             }
+        }
+        if let Some(overlay_html) = page_overlay {
+            Fragment { html: overlay_html, onaction, overlay: true }
         }
         div {
             "id": "_r_k_",
