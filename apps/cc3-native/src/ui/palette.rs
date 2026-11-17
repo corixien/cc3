@@ -225,7 +225,7 @@ pub fn CommandPalette(query: String, rows: Vec<PaletteRow>, oninput: EventHandle
                                                 "style": "display: block; position: relative;",
                                                 for (i, row) in rows.iter().enumerate() {
                                                     div {
-                                                        key: "{i}",
+                                                        key: "{i}-{row.html.len()}-{row.key}",
                                                         onclick: { let key = row.key.clone(); move |_| if !key.is_empty() { onpick.call(key.clone()) } },
                                                         dangerous_inner_html: row.html.clone(),
                                                     }

@@ -7,9 +7,7 @@ use winit::dpi::{LogicalPosition, LogicalSize};
 use winit::window::{WindowAttributes, WindowLevel};
 
 use cc3_native::shell::{self, alert, badge, instance, ShellEvent};
-use cc3_native::ui::app_layout::AppLayout;
-use cc3_native::ui::sidebar_list::ThreadRowData;
-use cc3_native::ui::window_frame::WindowFrame;
+use cc3_native::ui::root::{AppRoot, StoreHandle};
 
 /// The CC3 icon is also the taskbar and Alt-Tab icon.
 fn window_icon() -> Option<winit::icon::Icon> {
@@ -84,47 +82,9 @@ fn connect() -> Result<(), String> {
     Ok(())
 }
 
-/// Sidebar rows from the shell model.
-fn rows_from_store(store: &cc3_native::store::Store, open: Option<String>) -> Vec<ThreadRowData> {
-    let shell = store.shell.lock().unwrap();
-    let environment_id = store.environment_id.lock().unwrap().clone();
-    let now = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).map(|d| d.as_secs() as i64).unwrap_or(0);
-    shell
-        .visible_threads()
-        .iter()
-        .enumerate()
-        .map(|(i, t)| {
-            let project = shell.project(&t.project_id).map(|p| p.title.clone()).unwrap_or_default();
-            let monogram: String = project.chars().filter(|c| c.is_alphanumeric()).take(2).collect::<String>().to_uppercase();
-            ThreadRowData {
-                thread_id: t.id.clone(),
-                thread_key: format!("{environment_id}:{}", t.id),
-                aria_label: format!("{}, {project}", t.title),
-                ui_id: format!("_r_{i}_"),
-                title: t.title.clone(),
-                project,
-                monogram,
-                age: cc3_native::model::relative_age(&t.updated_at, now),
-                branch: t.branch.clone().unwrap_or_default(),
-                active: open.as_deref() == Some(t.id.as_str()),
-            }
-        })
-        .collect()
-}
-
 #[component]
 fn App() -> Element {
     let window = dioxus::native::use_window();
-    let mut last_event = use_signal(String::new);
-    let mut rows = use_signal(Vec::<ThreadRowData>::new);
-    let mut status = use_signal(|| "Connecting...".to_string());
-    let mut selected = use_signal(|| None::<String>);
-    let mut page = use_signal(|| std::env::var("CC3_PAGE").ok());
-    let mut thread = use_signal(cc3_native::model::ThreadView::default);
-    let mut draft = use_signal(|| false);
-    let mut palette_open = use_signal(|| std::env::var("CC3_PALETTE").is_ok());
-    let mut palette_query = use_signal(String::new);
-    let mut palette_active = use_signal(|| 0usize);
 
     use_hook(|| {
         std::thread::spawn(|| {
@@ -134,25 +94,16 @@ fn App() -> Element {
         });
     });
 
-    // Links, activation and notification clicks arrive from other threads and processes; so do rows.
+    // Links, activation and notification clicks arrive from other threads and processes.
     use_future({
         let window = window.clone();
         move || {
             let window = window.clone();
             async move {
-                let mut seen = u64::MAX;
                 loop {
-                    for event in shell::drain_events() {
+                    for _event in shell::drain_events() {
                         window.set_minimized(false);
                         window.focus_window();
-                        last_event.set(format!("{event:?}"));
-                    }
-                    let version = STORE.version();
-                    if version != seen {
-                        seen = version;
-                        status.set(String::new());
-                        rows.set(rows_from_store(&STORE, selected()));
-                        thread.set(if draft() { cc3_native::model::ThreadView::default() } else { STORE.thread_view().unwrap_or_default() });
                     }
                     tokio::time::sleep(std::time::Duration::from_millis(150)).await;
                 }
@@ -180,127 +131,6 @@ fn App() -> Element {
         }
     });
 
-    let _ = (&last_event, &status);
-    rsx! {
-        style { {cc3_native::ui::app_css()} }
-        div {
-            class: "cc3-root dark",
-            tabindex: "0",
-            onkeydown: move |e| {
-                let m = e.modifiers();
-                let key = e.key().to_string();
-                if (m.ctrl() || m.meta()) && key.eq_ignore_ascii_case("k") {
-                    palette_query.set(String::new());
-                    palette_active.set(0);
-                    palette_open.set(!palette_open());
-                } else if key == "Escape" && palette_open() {
-                    palette_open.set(false);
-                }
-            },
-            style: "width:100vw;height:100vh;--workspace-topbar-height:40px;--native-titlebar-height:40px;--workspace-controls-top:0px;--workspace-controls-left:0.75rem;--workspace-controls-right:calc(138px + 0.75rem);--workspace-native-controls-inset:calc(138px + 0.75rem);",
-            WindowFrame {
-                dark: true,
-                background: "var(--background)".to_string(),
-                title_content: rsx! { div {} },
-                AppLayout {
-                    rows: rows(),
-                    thread: thread(),
-                    environment_id: STORE.environment_id.lock().unwrap().clone(),
-                    composer: cc3_native::ui::composer::ComposerMode::Normal,
-                    onsend: move |text: String| {
-                        if draft() {
-                            if let Some(id) = STORE.start_thread(&text, None) {
-                                draft.set(false);
-                                selected.set(Some(id));
-                            }
-                        } else {
-                            STORE.send_message(&text);
-                        }
-                    },
-                    page: page(),
-                    onstop: move |_| STORE.stop_thread(),
-                    onanswer: move |(request_id, value): (String, String)| STORE.answer_question(&request_id, &value),
-                    onaction: move |action: String| {
-                        if action == "page:new-chat" {
-                            page.set(None);
-                            draft.set(true);
-                            selected.set(None);
-                            thread.set(cc3_native::model::ThreadView::default());
-                        } else if let Some(name) = action.strip_prefix("page:") {
-                            page.set(Some(name.to_string()));
-                        } else if let Some(section) = action.strip_prefix("section:") {
-                            let name = format!("settings-{}", section.trim_start_matches("/settings/"));
-                            if cc3_native::ui::fragments::page(&name).is_some() {
-                                page.set(Some(name));
-                            }
-                        } else if let Some(rest) = action.strip_prefix("switch:") {
-                            if let Some((value, label)) = rest.split_once(':') {
-                                cc3_native::ui::settings::set_switch(label, value == "true", |key, on| STORE.update_server_setting(key, serde_json::json!(on)));
-                            }
-                        } else if action == "close" {
-                            page.set(None);
-                        }
-                    },
-                    onselect: move |id: String| {
-                        draft.set(false);
-                        page.set(None);
-                        selected.set(Some(id.clone()));
-                        rows.set(rows_from_store(&STORE, Some(id.clone())));
-                        STORE.open_thread(&id);
-                    },
-                }
-                if palette_open() {
-                    {
-                        let threads: Vec<cc3_native::ui::palette::PaletteThread> = rows()
-                            .iter()
-                            .map(|r| cc3_native::ui::palette::PaletteThread { id: r.thread_id.clone(), title: r.title.clone(), project: r.project.clone(), monogram: r.monogram.clone(), branch: r.branch.clone(), age: r.age.clone() })
-                            .collect();
-                        let items = cc3_native::ui::palette::rows_for(&palette_query(), &threads, palette_active());
-                        let selectable: Vec<String> = items.iter().filter(|r| r.selectable).map(|r| r.key.clone()).collect();
-                        let run = {
-                            let selectable = selectable.clone();
-                            move |key: String| {
-                                palette_open.set(false);
-                                if let Some(id) = key.strip_prefix("thread:") {
-                                    draft.set(false);
-                                    page.set(None);
-                                    selected.set(Some(id.to_string()));
-                                    rows.set(rows_from_store(&STORE, Some(id.to_string())));
-                                    STORE.open_thread(id);
-                                } else if key == "page:new-chat" {
-                                    page.set(None);
-                                    draft.set(true);
-                                    selected.set(None);
-                                    thread.set(cc3_native::model::ThreadView::default());
-                                } else if let Some(name) = key.strip_prefix("page:") {
-                                    page.set(Some(name.to_string()));
-                                }
-                                let _ = &selectable;
-                            }
-                        };
-                        rsx! {
-                            cc3_native::ui::palette::CommandPalette {
-                                query: palette_query(),
-                                rows: items,
-                                oninput: move |q: String| { palette_query.set(q); palette_active.set(0); },
-                                onkey: {
-                                    let selectable = selectable.clone();
-                                    let mut run = run.clone();
-                                    move |key: String| match key.as_str() {
-                                        "ArrowDown" => palette_active.set((palette_active() + 1).min(selectable.len().saturating_sub(1))),
-                                        "ArrowUp" => palette_active.set(palette_active().saturating_sub(1)),
-                                        "Enter" => if let Some(k) = selectable.get(palette_active()) { run(k.clone()) },
-                                        "Escape" => palette_open.set(false),
-                                        _ => {}
-                                    }
-                                },
-                                onpick: { let mut run = run.clone(); move |k: String| run(k) },
-                                onclose: move |_| palette_open.set(false),
-                            }
-                        }
-                    }
-                }
-            }
-        }
-    }
+    rsx! { AppRoot { store: StoreHandle(STORE.clone()), frame: true } }
 }
+

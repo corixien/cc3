@@ -61,3 +61,8 @@ blitz-traits = { path = "vendor/blitz-traits" }
 stylo_taffy = { path = "vendor/stylo_taffy" }
 parley_engine = { path = "vendor/parley_engine" }
 stylo = { path = "vendor/stylo" }
+
+[dev-dependencies]
+keyboard-types = "0.8"
+smol_str = "0.3"
+tokio = { version = "1", features = ["rt", "time"] }

@@ -73,3 +73,7 @@ Stand (ui-report, dunkel): alle 28 Settings-Seiten, Usage und New chat haben DOM
 Wichtig: Fragmente sind Golden-Daten. Werte der Settings-Seiten (Provider, Keybindings, Projekte ...) sind noch nicht an den Server gebunden und Schalter/Eingaben noch ohne Wirkung. Das ist der groesste offene Block fuer "alle Funktionen".
 
 Offen: Tool-Call-/Diff-/Plan-Zeilen der Timeline (Fixture `threadWithWork` und `thread-golden-work.projection.json` liegen bereit; der Golden-Lauf dafuer haengt noch), Eingabefeld-Hoehe, `backdrop-filter`, Transform in der Geometrie (Minimap-Streifen), Sidebar-Suchfeld 5 px zu hoch (Baseline von Inline-`input`).
+
+## Interaktionstests ohne Fenster
+
+`tests/interact.rs` mountet `ui::root::AppRoot` (ohne `WindowFrame`) in einem `DioxusDocument` und schickt Pointer- und Tastenevents durch Blitz' Eventsystem (`handle_ui_event`). So pruefen Hotkeys (Strg+K), Klicks (Zahnrad, Schliessen) und Tippen (Palette-Filter) ohne echtes Fenster und ohne Eingabe auf dem Desktop des Nutzers. Wichtig: der Test muss `html_parser_provider: HtmlProvider` setzen, sonst bleibt `dangerous_inner_html` leer. Screenshots nach `$CC3_TEST_OUT`. Globale Eingabe-Injektion (uinput) wird nicht benutzt: sie trifft jedes Fenster unter dem Mauszeiger.

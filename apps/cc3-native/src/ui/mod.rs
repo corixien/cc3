@@ -40,5 +40,6 @@ pub mod composer;
 pub mod cq;
 pub mod fragments;
 pub mod page;
+pub mod root;
 pub mod palette;
 pub mod settings;
