@@ -67,4 +67,6 @@ fn main() {
         println!("terminal[{}]: {}", t.status, text.lines().filter(|l| !l.trim().is_empty()).collect::<Vec<_>>().join(" | "));
     }
     drop(guard);
+    println!("config keys: {:?}", config.as_object().map(|o| o.keys().cloned().collect::<Vec<_>>()));
+    println!("settings: {}", config["settings"].to_string().chars().take(300).collect::<String>());
 }

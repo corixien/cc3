@@ -82,6 +82,8 @@ pub fn AppRoot(store: StoreHandle, #[props(default)] frame: bool) -> Element {
                     if version != seen {
                         seen = version;
                         toasts.set(store.toasts_view());
+                        let settings = store.config.lock().unwrap()["settings"].clone();
+                        crate::ui::settings::sync_from_server(&settings);
                         rows.set(rows_from_store(store, selected()));
                         let mut view = if draft() { crate::model::ThreadView::default() } else { store.thread_view().unwrap_or_default() };
                         view.model_label = store.model_label();

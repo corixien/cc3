@@ -30,6 +30,16 @@ fn save(map: &HashMap<String, bool>) {
     }
 }
 
+/// Takes the server-owned switches from the server's settings (the server is the source of truth).
+pub fn sync_from_server(settings: &serde_json::Value) {
+    for (label, key) in SERVER_KEYS {
+        let Some(value) = settings[*key].as_bool() else { continue };
+        if SWITCHES.read().get(*label) != Some(&value) {
+            SWITCHES.write().insert((*label).to_string(), value);
+        }
+    }
+}
+
 /// Sets a switch, persists it and forwards server-owned settings.
 pub fn set_switch(label: &str, value: bool, send: impl FnOnce(&str, bool)) {
     let mut map = SWITCHES.write();
