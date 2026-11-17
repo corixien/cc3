@@ -77,3 +77,7 @@ Offen: Tool-Call-/Diff-/Plan-Zeilen der Timeline (Fixture `threadWithWork` und `
 ## Interaktionstests ohne Fenster
 
 `tests/interact.rs` mountet `ui::root::AppRoot` (ohne `WindowFrame`) in einem `DioxusDocument` und schickt Pointer- und Tastenevents durch Blitz' Eventsystem (`handle_ui_event`). So pruefen Hotkeys (Strg+K), Klicks (Zahnrad, Schliessen) und Tippen (Palette-Filter) ohne echtes Fenster und ohne Eingabe auf dem Desktop des Nutzers. Wichtig: der Test muss `html_parser_provider: HtmlProvider` setzen, sonst bleibt `dangerous_inner_html` leer. Screenshots nach `$CC3_TEST_OUT`. Globale Eingabe-Injektion (uinput) wird nicht benutzt: sie trifft jedes Fenster unter dem Mauszeiger.
+
+## Messung (2026-11-17, Leerlauf 25 s, echte Daten)
+
+Native UI 124 MB PSS, Server 352 MB PSS, zusammen 476 MB (Tauri-CC3 im Leerlauf 807 bis 888 MB). Beim SIGTERM des UI-Prozesses endet der Server mit.

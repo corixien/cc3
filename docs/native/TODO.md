@@ -47,5 +47,5 @@ Referenz: Chromium-Goldens in `apps/web/test/golden/__screenshots__`, Messung `c
 
 ## H. Betrieb
 
-- [x] `--ui=native` Schalter im Tauri-Start (exec cc3-native-ui oder CC3_NATIVE_BIN), strip im Release-Profil; Packaging, RAM/CPU-Messung, Server-Orphan bei SIGTERM offen
+- [x] `--ui=native` Schalter im Tauri-Start (exec cc3-native-ui oder CC3_NATIVE_BIN), strip im Release-Profil; RAM gemessen (476 MB), Server endet mit SIGTERM; Packaging offen
 - [ ] Start der App erst bei ~99 % Paritaet
