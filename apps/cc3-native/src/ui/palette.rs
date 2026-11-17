@@ -46,6 +46,7 @@ pub struct PaletteRow {
 fn action_key(i: usize) -> &'static str {
     match i {
         0 | 1 => "page:new-chat",
+        7 => "dialog:add-project",
         11 => "page:route-pull-requests",
         13 => "page:route-usage",
         16 => "page:settings-general",
@@ -195,7 +196,12 @@ pub fn CommandPalette(query: String, rows: Vec<PaletteRow>, oninput: EventHandle
                                                 "id": "base-ui-_r_6p_",
                                                 "placeholder": "Search commands, projects, and threads...",
                                                 "value": "{query}",
-                                                oninput: move |e| oninput.call(e.value()),
+                                                onmounted: move |e| {
+                                    spawn(async move {
+                                        let _ = e.set_focus(true).await;
+                                    });
+                                },
+                                oninput: move |e| oninput.call(e.value()),
                                                 onkeydown: move |e| onkey.call(e.key().to_string()),
                                                 "aria-controls": "_r_6o_",
                                             }

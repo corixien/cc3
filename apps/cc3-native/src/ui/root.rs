@@ -59,6 +59,9 @@ pub fn AppRoot(store: StoreHandle, #[props(default)] frame: bool) -> Element {
     let mut palette_open = use_signal(|| std::env::var("CC3_PALETTE").is_ok());
     let mut palette_query = use_signal(String::new);
     let mut palette_active = use_signal(|| 0usize);
+    let mut add_project_open = use_signal(|| false);
+    let mut add_project_path = use_signal(String::new);
+    let mut add_project_error = use_signal(String::new);
 
     // The store is fed from other threads; rows and the open thread follow its version.
     use_future({
@@ -110,6 +113,10 @@ pub fn AppRoot(store: StoreHandle, #[props(default)] frame: bool) -> Element {
                             if crate::ui::fragments::page(&name).is_some() {
                                 page.set(Some(name));
                             }
+                        } else if action == "dialog:add-project" {
+                            add_project_path.set(String::new());
+                            add_project_error.set(String::new());
+                            add_project_open.set(true);
                         } else if let Some(rest) = action.strip_prefix("row:") {
                             if let Some((what, id)) = rest.split_once(':') {
                                 store.thread_action(id, what);
@@ -130,6 +137,18 @@ pub fn AppRoot(store: StoreHandle, #[props(default)] frame: bool) -> Element {
                         store.open_thread(&id);
                     },
                 }
+                if add_project_open() {
+                    crate::ui::add_project::AddProjectDialog {
+                        value: add_project_path(),
+                        error: add_project_error(),
+                        oninput: move |v: String| add_project_path.set(v),
+                        onsubmit: move |_| match store.add_project(&add_project_path()) {
+                            Ok(()) => add_project_open.set(false),
+                            Err(e) => add_project_error.set(e),
+                        },
+                        onclose: move |_| add_project_open.set(false),
+                    }
+                }
                 if palette_open() {
                     {
                         let threads: Vec<crate::ui::palette::PaletteThread> = rows()
@@ -148,6 +167,10 @@ pub fn AppRoot(store: StoreHandle, #[props(default)] frame: bool) -> Element {
                                     selected.set(Some(id.to_string()));
                                     rows.set(rows_from_store(store, Some(id.to_string())));
                                     store.open_thread(id);
+                                } else if key == "dialog:add-project" {
+                                    add_project_path.set(String::new());
+                                    add_project_error.set(String::new());
+                                    add_project_open.set(true);
                                 } else if key == "page:new-chat" {
                                     page.set(None);
                                     draft.set(true);

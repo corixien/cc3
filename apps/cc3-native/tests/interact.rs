@@ -240,3 +240,17 @@ fn settings_switch_toggles_and_persists() {
     let saved = std::fs::read_to_string(home.join("native-ui-settings.json")).unwrap();
     assert!(saved.contains("Confirm thread archiving"), "state is persisted: {saved}");
 }
+
+#[test]
+fn add_project_dialog_opens_from_the_sidebar() {
+    let rt = runtime();
+    let _guard = rt.enter();
+    let mut h = Harness::new(fixture_store());
+    let (x, y) = h.center_of("aria-label", "Add project").expect("sidebar button");
+    h.click(x, y);
+    assert!(h.html_contains("dialog-popup"), "dialog opens");
+    h.screenshot("interact-add-project");
+    h.type_text("x");
+    h.key(Key::Named(keyboard_types::NamedKey::Escape), Code::Escape, Modifiers::empty());
+    assert!(!h.html_contains("dialog-popup"), "Escape closes it");
+}

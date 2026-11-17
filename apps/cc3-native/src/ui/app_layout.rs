@@ -1600,6 +1600,7 @@ pub fn AppLayout(rows: Vec<ThreadRowData>, thread: ThreadView, environment_id: S
                                                         "data-size": "icon",
                                                         "data-slot": "tooltip-trigger",
                                                         "aria-label": "Add project",
+                                                        onclick: move |_| onaction.call("dialog:add-project".to_string()),
                                                         "id": "base-ui-_r_s_",
                                                         "data-base-ui-tooltip-trigger": "",
                                                         svg {

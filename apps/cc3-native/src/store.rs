@@ -118,6 +118,33 @@ impl Store {
         });
     }
 
+    /// Registers a workspace folder as a project (`projects.mutate` / `project.create`). Blocks until the
+    /// server answers so the dialog can show the error.
+    pub fn add_project(self: &Arc<Self>, path: &str) -> Result<(), String> {
+        let client = self.client.lock().unwrap().clone().ok_or("Not connected")?;
+        let path = path.trim();
+        let path = match path.strip_prefix("~/") {
+            Some(rest) => format!("{}/{rest}", std::env::var("HOME").unwrap_or_default()),
+            None => path.to_string(),
+        };
+        if !std::path::Path::new(&path).is_absolute() {
+            return Err("Enter an absolute folder path".into());
+        }
+        if !std::path::Path::new(&path).is_dir() {
+            return Err("That folder does not exist".into());
+        }
+        let title = std::path::Path::new(&path).file_name().map(|n| n.to_string_lossy().to_string()).unwrap_or_else(|| path.clone());
+        let seed = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).map(|d| d.as_nanos()).unwrap_or(0);
+        client
+            .call(
+                "projects.mutate",
+                serde_json::json!({"type": "project.create", "commandId": format!("cc3-cmd-p-{seed:x}"), "projectId": format!("cc3-project-{seed:x}"), "title": title, "workspaceRoot": path}),
+                std::time::Duration::from_secs(20),
+            )
+            .map(|_| ())
+            .map_err(|e| format!("{e:?}"))
+    }
+
     /// Settles, snoozes, pins, archives or deletes a thread from the sidebar.
     pub fn thread_action(self: &Arc<Self>, thread_id: &str, action: &str) {
         let Some(client) = self.client.lock().unwrap().clone() else { return };

@@ -23,7 +23,10 @@ fn processed() -> &'static str {
 
 /// For the app: `:root` variables move to the `.cc3-root` wrapper (where the theme class sits).
 pub fn app_css() -> &'static str {
-    static CSS: std::sync::LazyLock<String> = std::sync::LazyLock::new(|| processed().replace(":root", ".cc3-root"));
+    static CSS: std::sync::LazyLock<String> = std::sync::LazyLock::new(|| {
+        // No backdrop-filter in the renderer yet: glass surfaces would show unblurred content behind them.
+        format!("{}\n.dialog-glass{{background:color-mix(in srgb,var(--background) 96%,transparent)!important}}.dropdown-glass{{background:color-mix(in srgb,var(--popover) 96%,transparent)!important}}", processed().replace(":root", ".cc3-root"))
+    });
     &CSS
 }
 
@@ -39,6 +42,7 @@ pub mod timeline;
 pub mod composer;
 pub mod cq;
 pub mod fragments;
+pub mod add_project;
 pub mod page;
 pub mod root;
 pub mod palette;
