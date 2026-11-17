@@ -25,8 +25,8 @@ Referenz: Chromium-Goldens in `apps/web/test/golden/__screenshots__`, Messung `c
 
 ## D. Panels (`ui/panels.rs`)
 
-- [ ] Diff-Panel (Dateiliste, Unified/Split, Hunks, Stage/Revert)
-- [ ] Terminal (PTY ueber Server, ANSI, Eingabe, Tabs)
+- [x] Diff-Panel (Dateiliste, Unified, Zeilenfarben, Refresh); Split, Hunks, Stage/Revert offen
+- [x] Terminal (PTY ueber Server, vt100-Screen, Farben, Tastatur); Tabs, Resize, Maus offen
 - [ ] Dateibaum/Files, Preview
 
 ## E. Composer (`ui/composer.rs`)

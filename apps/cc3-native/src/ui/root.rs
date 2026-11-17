@@ -60,6 +60,7 @@ pub fn AppRoot(store: StoreHandle, #[props(default)] frame: bool) -> Element {
     let mut palette_query = use_signal(String::new);
     let mut palette_active = use_signal(|| 0usize);
     let mut diff_open = use_signal(|| false);
+    let mut terminal_open = use_signal(|| false);
     let mut sidebar_query = use_signal(String::new);
     let mut model_open = use_signal(|| false);
     let mut model_query = use_signal(String::new);
@@ -122,6 +123,11 @@ pub fn AppRoot(store: StoreHandle, #[props(default)] frame: bool) -> Element {
                             if crate::ui::fragments::page(&name).is_some() {
                                 page.set(Some(name));
                             }
+                        } else if action == "panel:terminal" {
+                            if !terminal_open() {
+                                store.terminal_attach();
+                            }
+                            terminal_open.set(!terminal_open());
                         } else if action == "panel:diff" {
                             if !diff_open() {
                                 store.refresh_diff();
@@ -155,6 +161,25 @@ pub fn AppRoot(store: StoreHandle, #[props(default)] frame: bool) -> Element {
                         rows.set(rows_from_store(store, Some(id.clone())));
                         store.open_thread(&id);
                     },
+                }
+                if terminal_open() {
+                    {
+                        let (rows, status) = match &*store.terminal.lock().unwrap() {
+                            Some(t) => (crate::ui::terminal_panel::screen_runs(t.parser.screen()), t.status.clone()),
+                            None => (Vec::new(), "Open a thread to start a shell".to_string()),
+                        };
+                        rsx! {
+                            crate::ui::terminal_panel::TerminalPanel {
+                                rows,
+                                status,
+                                onkey: move |(key, ctrl, alt): (String, bool, bool)| {
+                                    if let Some(bytes) = crate::ui::terminal_panel::key_bytes(&key, ctrl, alt) {
+                                        store.terminal_write(bytes);
+                                    }
+                                },
+                            }
+                        }
+                    }
                 }
                 if diff_open() {
                     {

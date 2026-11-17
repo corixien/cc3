@@ -16,12 +16,20 @@ pub struct Store {
     selected_model: Mutex<Option<serde_json::Value>>,
     /// Latest `review.getDiffPreview` result for the open thread's workspace, or an error text.
     pub diff: Mutex<Option<Result<serde_json::Value, String>>>,
+    /// The terminal drawer's screen, fed by `terminal.attach`.
+    pub terminal: Mutex<Option<TerminalState>>,
     /// Bumped on every change so the UI only rebuilds when needed.
     pub version: AtomicU64,
     client: Mutex<Option<Arc<RpcClient>>>,
     /// The open thread: its id, the stream request id and the state built from the stream.
     open: Mutex<Option<(String, u64)>>,
     pub thread: Mutex<Option<ThreadState>>,
+}
+
+pub struct TerminalState {
+    pub parser: vt100::Parser,
+    pub thread_id: String,
+    pub status: String,
 }
 
 impl Store {
@@ -237,6 +245,57 @@ impl Store {
             let result = client.call("review.getDiffPreview", serde_json::json!({"cwd": cwd}), std::time::Duration::from_secs(30)).map_err(|e| format!("{e:?}"));
             *store.diff.lock().unwrap() = Some(result);
             store.bump();
+        });
+    }
+
+    /// Attaches the drawer terminal of the open thread (shell in the project folder). Streams on its own thread.
+    pub fn terminal_attach(self: &Arc<Self>) {
+        let Some(client) = self.client.lock().unwrap().clone() else { return };
+        let Some(thread_id) = self.thread.lock().unwrap().as_ref().map(|t| t.thread_id.clone()) else { return };
+        let Some(cwd) = self.current_workspace() else { return };
+        if self.terminal.lock().unwrap().as_ref().is_some_and(|t| t.thread_id == thread_id) {
+            return;
+        }
+        let (cols, rows) = (crate::ui::terminal_panel::COLS, crate::ui::terminal_panel::ROWS);
+        *self.terminal.lock().unwrap() = Some(TerminalState { parser: vt100::Parser::new(rows, cols, 0), thread_id: thread_id.clone(), status: "Starting...".into() });
+        self.bump();
+        let stream = client.request(
+            "terminal.attach",
+            serde_json::json!({"threadId": thread_id, "terminalId": "cc3-drawer", "cwd": cwd, "cols": cols, "rows": rows, "restartIfNotRunning": true}),
+        );
+        let store = self.clone();
+        std::thread::spawn(move || {
+            while let Ok(event) = stream.recv() {
+                let StreamEvent::Chunk(values) = event else { break };
+                for v in &values {
+                    let mut guard = store.terminal.lock().unwrap();
+                    let Some(t) = guard.as_mut() else { return };
+                    if t.thread_id != thread_id {
+                        return;
+                    }
+                    match v["type"].as_str() {
+                        Some("snapshot") => {
+                            t.parser.process(v["snapshot"]["history"].as_str().unwrap_or_default().as_bytes());
+                            t.status = v["snapshot"]["status"].as_str().unwrap_or("running").to_string();
+                        }
+                        Some("output") => t.parser.process(v["data"].as_str().unwrap_or_default().as_bytes()),
+                        Some("exited") => t.status = "exited".into(),
+                        Some("error") => t.status = v["message"].as_str().unwrap_or("error").to_string(),
+                        _ => continue,
+                    }
+                    drop(guard);
+                    store.bump();
+                }
+            }
+        });
+    }
+
+    /// Sends keyboard input to the drawer terminal.
+    pub fn terminal_write(self: &Arc<Self>, data: String) {
+        let Some(client) = self.client.lock().unwrap().clone() else { return };
+        let Some(thread_id) = self.terminal.lock().unwrap().as_ref().map(|t| t.thread_id.clone()) else { return };
+        std::thread::spawn(move || {
+            let _ = client.call("terminal.write", serde_json::json!({"threadId": thread_id, "terminalId": "cc3-drawer", "data": data}), std::time::Duration::from_secs(10));
         });
     }
 

@@ -323,3 +323,19 @@ fn diff_panel_shows_changed_files() {
     assert!(h.text_contains("src/a.rs") && h.text_contains("let x = 2;"), "diff lines are listed");
     h.screenshot("interact-diff");
 }
+
+#[test]
+fn terminal_drawer_renders_the_screen() {
+    let rt = runtime();
+    let _guard = rt.enter();
+    let store = fixture_store();
+    let mut parser = vt100::Parser::new(14, 110, 0);
+    parser.process(b"\x1b[32muser@host\x1b[0m:\x1b[34m~/proj\x1b[0m$ echo hi\r\nhi\r\n\x1b[32muser@host\x1b[0m:\x1b[34m~/proj\x1b[0m$ ");
+    *store.terminal.lock().unwrap() = Some(cc3_native::store::TerminalState { parser, thread_id: "thread-golden".into(), status: "running".into() });
+    let mut h = Harness::new(store);
+    let (x, y) = h.center_of("aria-label", "Toggle terminal drawer").expect("toggle");
+    h.click(x, y);
+    assert!(h.html_contains("terminal-panel"), "drawer opens");
+    assert!(h.text_contains("echo hi"), "screen text is drawn");
+    h.screenshot("interact-terminal");
+}

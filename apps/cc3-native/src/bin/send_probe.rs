@@ -55,4 +55,16 @@ fn main() {
     }
     let r = client.call("review.getDiffPreview", json!({"cwd": root.to_string_lossy()}), Duration::from_secs(20));
     println!("diff: {}", format!("{r:?}").chars().take(1500).collect::<String>());
+    store.open_thread("probe-t1");
+    std::thread::sleep(Duration::from_secs(2));
+    store.terminal_attach();
+    std::thread::sleep(Duration::from_secs(2));
+    store.terminal_write("echo cc3-term-ok\r".to_string());
+    std::thread::sleep(Duration::from_secs(2));
+    let guard = store.terminal.lock().unwrap();
+    if let Some(t) = guard.as_ref() {
+        let text = t.parser.screen().contents();
+        println!("terminal[{}]: {}", t.status, text.lines().filter(|l| !l.trim().is_empty()).collect::<Vec<_>>().join(" | "));
+    }
+    drop(guard);
 }

@@ -53,6 +53,7 @@ pub mod add_project;
 pub mod model_picker;
 pub mod diff_panel;
 pub mod page;
+pub mod terminal_panel;
 pub mod root;
 pub mod palette;
 pub mod settings;
