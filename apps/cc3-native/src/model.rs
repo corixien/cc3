@@ -242,6 +242,10 @@ pub struct ThreadState {
 
 #[derive(Debug, Clone, Default, PartialEq)]
 pub struct ThreadView {
+    /// Project title, its two-letter monogram and the thread's branch, for the header and details panel.
+    pub project_name: String,
+    pub monogram: String,
+    pub branch: String,
     /// Display name of the model messages are sent with (empty: default label).
     pub model_label: String,
     pub pending_question: Option<PendingQuestion>,
@@ -415,7 +419,7 @@ impl ThreadState {
                 _ => {}
             }
         }
-        ThreadView { model_label: String::new(), pending_question: self.pending_question(), running: self.has_active_run(), workspace_name: String::new(), thread_id: self.thread_id.clone(), title: self.title.clone(), rows }
+        ThreadView { project_name: String::new(), monogram: String::new(), branch: String::new(), model_label: String::new(), pending_question: self.pending_question(), running: self.has_active_run(), workspace_name: String::new(), thread_id: self.thread_id.clone(), title: self.title.clone(), rows }
     }
 }
 

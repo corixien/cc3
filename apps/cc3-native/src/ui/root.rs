@@ -80,6 +80,11 @@ pub fn AppRoot(store: StoreHandle, #[props(default)] frame: bool) -> Element {
                         rows.set(rows_from_store(store, selected()));
                         let mut view = if draft() { crate::model::ThreadView::default() } else { store.thread_view().unwrap_or_default() };
                         view.model_label = store.model_label();
+                        if let Some((project, branch)) = store.current_project_info() {
+                            view.monogram = project.chars().filter(|c| c.is_alphanumeric()).take(2).collect::<String>().to_uppercase();
+                            view.project_name = project;
+                            view.branch = branch;
+                        }
                         thread.set(view);
                     }
                     tokio::time::sleep(std::time::Duration::from_millis(150)).await;

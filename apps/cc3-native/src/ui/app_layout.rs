@@ -1980,14 +1980,14 @@ pub fn AppLayout(rows: Vec<ThreadRowData>, thread: ThreadView, environment_id: S
                                                                     "textLength": "12",
                                                                     "lengthAdjust": "spacingAndGlyphs",
                                                                     "text-rendering": "geometricPrecision",
-                                                                    "RR"
+                                                                    "{thread.monogram}"
                                                                 }
                                                             }
                                                         }
                                                         span {
                                                             "class": "inline-flex min-w-0 max-w-full overflow-hidden whitespace-nowrap overflow-x-clip overflow-y-visible [&>span]:[text-box:trim-both_cap_alphabetic] [&>span]:-mb-1 [&>span]:pb-1 [&>span]:overflow-x-clip [&>span]:overflow-y-visible",
                                                             "data-slot": "workspace-breadcrumb-text",
-                                                            span { "class": "min-w-0 truncate", "render" }
+                                                            span { "class": "min-w-0 truncate", "{thread.project_name}" }
                                                         }
                                                     }
                                                 }
@@ -2120,10 +2120,12 @@ pub fn AppLayout(rows: Vec<ThreadRowData>, thread: ThreadView, environment_id: S
                                                                 ComposerMode::Normal => rsx! { ComposerNormal { onsend, onstop, running: thread.running, model_label: thread.model_label.clone(), onmodel: move |_| onaction.call("dialog:model-picker".to_string()) } },
                                                             }
                                                         }
+if !thread.thread_id.is_empty() {
                                                         div {
                                                             "aria-hidden": "true",
                                                             "class": "h-[calc(env(safe-area-inset-bottom)+1rem)] sm:h-[calc(env(safe-area-inset-bottom)+1.25rem)]",
                                                         }
+}
                                                     }
                                                 }
                                             }
@@ -2228,7 +2230,7 @@ pub fn AppLayout(rows: Vec<ThreadRowData>, thread: ThreadView, environment_id: S
                                                                                     span {
                                                                                         "data-composer-label-motion": "true",
                                                                                         "class": "block w-full min-w-0 truncate [text-box:trim-both_cap_alphabetic] overflow-x-clip overflow-y-visible",
-                                                                                        "Render scenarios"
+                                                                                        "{thread.project_name}"
                                                                                     }
                                                                                 }
                                                                                 span {
@@ -2421,10 +2423,10 @@ pub fn AppLayout(rows: Vec<ThreadRowData>, thread: ThreadView, environment_id: S
                                                                                                     "data-composer-label-motion": "true",
                                                                                                     "class": "block w-full min-w-0 truncate [text-box:trim-both_cap_alphabetic] overflow-x-clip overflow-y-visible",
                                                                                                     span {
-                                                                                                        "title": "main",
+                                                                                                        "title": "{thread.branch}",
                                                                                                         "class": "inline-flex min-w-0 max-w-full overflow-hidden whitespace-nowrap overflow-x-clip overflow-y-visible [&>span]:[text-box:trim-both_cap_alphabetic] [&>span]:-mb-1 [&>span]:pb-1 [&>span]:overflow-x-clip [&>span]:overflow-y-visible w-full",
                                                                                                         "aria-hidden": "true",
-                                                                                                        span { "class": "min-w-0 truncate", "main" }
+                                                                                                        span { "class": "min-w-0 truncate", "{thread.branch}" }
                                                                                                     }
                                                                                                 }
                                                                                             }
@@ -2455,7 +2457,7 @@ pub fn AppLayout(rows: Vec<ThreadRowData>, thread: ThreadView, environment_id: S
                                                                                 "id": "base-ui-_r_3p_-hidden-input",
                                                                                 "tabindex": "-1",
                                                                                 "aria-hidden": "true",
-                                                                                "value": "main",
+                                                                                "value": "{thread.branch}",
                                                                                 "style": "clip-path: inset(50%); overflow: hidden; white-space: nowrap; border: 0px; padding: 0px; width: 1px; height: 1px; margin: 0px; position: fixed; top: 0px; left: 0px;",
                                                                             }
                                                                         }

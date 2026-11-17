@@ -27,7 +27,7 @@ pub fn fixture_rows() -> Vec<ThreadRowData> {
 
 pub fn fixture_view() -> ThreadView {
     let projection: serde_json::Value = serde_json::from_str(include_str!("../../../fixtures/thread-golden.projection.json")).unwrap();
-    ThreadView::from_projection(&projection)
+    ThreadView { project_name: "render".into(), monogram: "RR".into(), branch: "main".into(), ..ThreadView::from_projection(&projection) }
 }
 
 #[component]

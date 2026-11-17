@@ -231,6 +231,15 @@ impl Store {
         shell.project(&project_id).map(|p| p.workspace_root.clone())
     }
 
+    /// (project title, branch) of the open thread.
+    pub fn current_project_info(&self) -> Option<(String, String)> {
+        let thread_id = self.thread.lock().unwrap().as_ref().map(|t| t.thread_id.clone())?;
+        let shell = self.shell.lock().unwrap();
+        let thread = shell.threads.iter().find(|t| t.id == thread_id)?;
+        let project = shell.project(&thread.project_id)?.title.clone();
+        Some((project, thread.branch.clone().unwrap_or_default()))
+    }
+
     /// Loads the working-tree diff of the open thread's workspace in the background.
     pub fn refresh_diff(self: &Arc<Self>) {
         let Some(client) = self.client.lock().unwrap().clone() else { return };
