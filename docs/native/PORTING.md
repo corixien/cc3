@@ -63,3 +63,13 @@ Erledigt: Composer `Normal` mit echtem `<textarea>` (Enter sendet, Shift+Enter Z
 | CPU Leerlauf  | unter 1 Prozent                             | 1,3 Prozent                              |
 
 Der Server ist nun der groesste Block (Phase 2 des Performance-Plans: Schema-Aufbau 31 MB, Worker-Threads 78 MB).
+
+## Seiten aus dem Golden-Markup (17. Nov 2026, Abend)
+
+`tools/extract_fragments.py` zerlegt die Snapshots in `assets/fragments/<zustand>.{main,overlay}.html` und schreibt `src/ui/fragments.rs`. `AppLayout` setzt Fragmente in `main` (Routen) und als Overlay (Dialoge, Popups); `ui/page.rs` loest Klicks per Hit-Test auf (`data-settings-section`, `aria-label=Close`, Backdrop). `ui/cq.rs` plus `blitz-dom/src/container_queries.rs` ersetzen `@container` durch Attribute (`data-cq-NAME~="ge-PX"`), die nach dem Layout aus gemessenen Breiten gesetzt werden. Navigation in der laufenden App: Settings (alle Seiten ueber die Navigation), Usage, Pull requests, New thread; Klick-Aktionen sind in `page::tests` abgesichert.
+
+Stand (ui-report, dunkel): alle 28 Settings-Seiten, Usage und New chat haben DOM-Reihenfolge gleich, Geometrie 71 bis 98 Prozent, Pixel 1,6 bis 5,7 Prozent (Rest: `backdrop-filter`-Unschaerfe hinter Dialogen, 1-px-Textresiduen). Schwach: Chat-Zustaende mit Popups (Palette 31 Prozent, Kontextmenue, Tooltip, Toast, Panels), weil die Chat-Spalte dort andere Daten hat; Diff- und Terminal-Panel 20 bis 31 Prozent.
+
+Wichtig: Fragmente sind Golden-Daten. Werte der Settings-Seiten (Provider, Keybindings, Projekte ...) sind noch nicht an den Server gebunden und Schalter/Eingaben noch ohne Wirkung. Das ist der groesste offene Block fuer "alle Funktionen".
+
+Offen: Tool-Call-/Diff-/Plan-Zeilen der Timeline (Fixture `threadWithWork` und `thread-golden-work.projection.json` liegen bereit; der Golden-Lauf dafuer haengt noch), Eingabefeld-Hoehe, `backdrop-filter`, Transform in der Geometrie (Minimap-Streifen), Sidebar-Suchfeld 5 px zu hoch (Baseline von Inline-`input`).

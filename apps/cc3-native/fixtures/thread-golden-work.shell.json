@@ -1,0 +1,39 @@
+{
+  "id": "thread-golden-work",
+  "projectId": "project-render",
+  "title": "Thread thread-golden-work",
+  "providerInstanceId": "codex",
+  "modelSelection": {
+    "instanceId": "codex",
+    "model": "gpt-5.4"
+  },
+  "runtimeMode": "full-access",
+  "interactionMode": "default",
+  "branch": "main",
+  "worktreePath": null,
+  "activeProviderThreadId": null,
+  "lineage": {
+    "rootThreadId": "thread-golden-work",
+    "parentThreadId": null,
+    "relationshipToParent": null
+  },
+  "forkedFrom": null,
+  "createdBy": "user",
+  "creationSource": "web",
+  "latestRunId": "thread-golden-work-run-0",
+  "activeRunId": null,
+  "status": "completed",
+  "pendingRuntimeRequest": null,
+  "latestVisibleMessage": null,
+  "latestUserMessageAt": "2026-03-17T19:12:28.000Z",
+  "hasActionableProposedPlan": false,
+  "itemCount": 6,
+  "visibleItemCount": 6,
+  "createdAt": "2026-03-17T19:12:28.000Z",
+  "updatedAt": "2026-03-17T19:12:28.000Z",
+  "archivedAt": null,
+  "settledOverride": null,
+  "settledAt": null,
+  "lastVisitedAt": "2026-03-17T19:12:28.000Z",
+  "deletedAt": null
+}

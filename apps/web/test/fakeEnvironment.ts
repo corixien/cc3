@@ -261,6 +261,58 @@ export function threadWithHistory(
   return { id, title: `Thread ${name}`, modelSelection, runs, items };
 }
 
+/** One turn where the agent works (reasoning, command, file change, web search) before it answers. */
+export function threadWithWork(name: string, modelSelection: ModelSelection = MODEL): FakeThread {
+  const id = ThreadId.make(name);
+  const runId = RunId.make(`${name}-run-0`);
+  const item = (suffix: string, ordinal: number) => base(id, runId, `${name}-${suffix}`, ordinal);
+  const items: OrchestrationV2TurnItem[] = [
+    userItem(id, runId, `${name}-user-0`, 0, "Fix the sidebar width and run the tests."),
+    {
+      ...item("reasoning", 1),
+      type: "reasoning",
+      text: "The sidebar width is read before the clamp runs, so I need to move the clamp first.",
+      streaming: false,
+    },
+    {
+      ...item("command", 2),
+      type: "command_execution",
+      input: "pnpm test --filter sidebar",
+      output: "Test Files  3 passed (3)\n     Tests  14 passed (14)",
+      exitCode: 0,
+    },
+    {
+      ...item("file", 3),
+      type: "file_change",
+      fileName: "src/Sidebar.tsx",
+      additions: 4,
+      deletions: 1,
+      diffStr:
+        "@@ -10,1 +10,4 @@\n-const width = next;\n+const width = clamp(next, MIN_WIDTH, MAX_WIDTH);",
+    },
+    {
+      ...item("search", 4),
+      type: "web_search",
+      patterns: ["css clamp sidebar width"],
+      results: [],
+    },
+    assistantItem(
+      id,
+      runId,
+      `${name}-assistant-0`,
+      5,
+      "Done. The width now uses `clamp(next, MIN_WIDTH, MAX_WIDTH)`.",
+    ),
+  ];
+  return {
+    id,
+    title: `Thread ${name}`,
+    modelSelection,
+    runs: [run(id, runId, 1, `${name}-user-0`, modelSelection)],
+    items,
+  };
+}
+
 /** A one-turn thread whose agent waits on an answer to one question. */
 export function threadWithQuestion(name: string, question: string): FakeThread {
   const thread = threadWithHistory(name, 1);
