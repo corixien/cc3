@@ -4,11 +4,26 @@ use dioxus::prelude::*;
 
 use crate::model::ThreadView;
 use crate::ui::sidebar_list::{SidebarList, ThreadRowData};
+use crate::model::TimelineRow;
+use crate::ui::minimap::{self, Minimap};
 use crate::ui::composer::{ComposerMode, ComposerNormal, ComposerQuestion};
 use crate::ui::timeline::Timeline;
 
 #[component]
 pub fn AppLayout(rows: Vec<ThreadRowData>, thread: ThreadView, environment_id: String, onselect: EventHandler<String>, composer: ComposerMode, #[props(default)] onsend: Option<EventHandler<String>>) -> Element {
+    // Opens at the newest message and follows new ones, as the web timeline does.
+    let mut scroller = use_signal(|| None::<std::rc::Rc<MountedData>>);
+    let follow = (thread.thread_id.clone(), thread.rows.len());
+    use_effect(use_reactive!(|follow| {
+        let _ = &follow;
+        spawn(async move {
+            tokio::time::sleep(std::time::Duration::from_millis(30)).await;
+            if let Some(element) = scroller() {
+                let _ = element.scroll(dioxus::html::geometry::PixelsVector2D::new(0.0, 1.0e9), ScrollBehavior::Instant).await;
+            }
+        });
+    }));
+    let user_count = thread.rows.iter().filter(|r| matches!(r, TimelineRow::User { .. })).count();
     rsx! {
         div {
             "id": "t3code-pierre-file-icon-sprite",
@@ -2041,7 +2056,7 @@ pub fn AppLayout(rows: Vec<ThreadRowData>, thread: ThreadView, environment_id: S
                                                     "class": "flex items-center font-medium text-foreground min-w-10 flex-1",
                                                     button {
                                                         "type": "button",
-                                                        "aria-label": "Thread actions for Thread thread-golden-question",
+                                                        "aria-label": "Thread actions for {thread.title}",
                                                         "aria-haspopup": "menu",
                                                         "class": "group/thread-title inline-flex min-w-0 max-w-full cursor-pointer items-center gap-1 rounded-sm text-left focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring",
                                                         "id": "base-ui-_r_24_",
@@ -2053,7 +2068,7 @@ pub fn AppLayout(rows: Vec<ThreadRowData>, thread: ThreadView, environment_id: S
                                                             span {
                                                                 "data-slot": "workspace-breadcrumb-text",
                                                                 "class": "block min-w-0 truncate [text-box:trim-both_cap_alphabetic] supports-[text-box:trim-both_cap_alphabetic]:py-1.5",
-                                                                "Thread thread-golden-question"
+                                                                "{thread.title}"
                                                             }
                                                         }
                                                         svg {
@@ -2115,7 +2130,11 @@ pub fn AppLayout(rows: Vec<ThreadRowData>, thread: ThreadView, environment_id: S
                                                     "tabindex": "-1",
                                                     "data-workspace-focus-default": "true",
                                                     "style": "overflow: auto; overflow-anchor: none;",
-                                                    Timeline { view: thread, environment_id }
+                                                    onmounted: move |e| scroller.set(Some(e.data())),
+                                                    Timeline { view: thread.clone(), environment_id, spacer: if matches!(composer, ComposerMode::Question) { 281 } else { 140 } }
+                                                }
+                                                if user_count > 1 {
+                                                    Minimap { strips: minimap::strips(user_count) }
                                                 }
                                             }
                                         }

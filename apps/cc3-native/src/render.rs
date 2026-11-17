@@ -39,6 +39,11 @@ pub fn render(html: &str, width: u32, height: u32, scheme: ColorScheme) -> Rende
         },
     );
     doc.resolve(0.0);
+    // The chat timeline opens scrolled to the newest message, as in the web UI.
+    if let Ok(Some(scroller)) = doc.query_selector(".messages-timeline-scroll") {
+        doc.scroll_to(scroller, 0.0, f64::MAX, blitz_dom::ScrollBehavior::Instant);
+        doc.resolve(0.0);
+    }
     let boxes = collect_boxes(&doc);
     let rgba = render_to_buffer::<VelloCpuImageRenderer, _>(
         |scene| paint_scene(scene, &mut doc, 1.0, width, height, 0, 0),

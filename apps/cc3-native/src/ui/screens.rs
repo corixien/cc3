@@ -21,8 +21,9 @@ pub fn render_html(screen: &Screen, dark: bool) -> String {
     vdom.rebuild_in_place();
     let body = dioxus_ssr::render(&vdom);
     let css = include_str!("../../assets/app.css");
+    let extra = crate::ui::EXTRA_CSS;
     format!(
-        r#"<!doctype html><html class="{}"><head><meta charset="utf-8"><style>{css}</style></head><body>{body}</body></html>"#,
+        r#"<!doctype html><html class="{}"><head><meta charset="utf-8"><style>{css}{extra}</style></head><body>{body}</body></html>"#,
         if dark { "dark" } else { "light" }
     )
 }

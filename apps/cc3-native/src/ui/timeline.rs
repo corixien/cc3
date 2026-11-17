@@ -8,7 +8,7 @@ use crate::ui::markdown;
 use crate::ui::timeline_rows::{AssistantMessageRow, UserMessageRow, WorkSummaryRow};
 
 #[component]
-pub fn Timeline(view: ThreadView, environment_id: String) -> Element {
+pub fn Timeline(view: ThreadView, environment_id: String, spacer: u32) -> Element {
     let now = now_ms();
     rsx! {
         div {
@@ -33,9 +33,11 @@ pub fn Timeline(view: ThreadView, environment_id: String) -> Element {
                 }
             }
             div {
-                div { }
-                div { "aria-hidden": "true", "style": "height: 281px;" }
-                div { "aria-hidden": "true", "class": "h-3 sm:h-4" }
+                div {
+                    div { }
+                    div { "aria-hidden": "true", "style": "height: {spacer}px;" }
+                    div { "aria-hidden": "true", "class": "h-3 sm:h-4" }
+                }
             }
         }
     }
