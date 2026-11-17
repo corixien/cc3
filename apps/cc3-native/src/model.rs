@@ -315,13 +315,26 @@ impl ThreadState {
 
     fn pending_question(&self) -> Option<PendingQuestion> {
         self.items.iter().rev().find_map(|i| {
-            if i["type"].as_str() != Some("user_input_request") {
+            let kind = i["type"].as_str()?;
+            if kind != "user_input_request" && kind != "approval_request" {
                 return None;
             }
             let request_id = i["requestId"].as_str()?;
-            let pending = self.requests.iter().any(|r| r["id"] == request_id && r["status"].as_str() == Some("pending"));
+            if !self.requests.iter().any(|r| r["id"] == request_id && r["status"].as_str() == Some("pending")) {
+                return None;
+            }
+            if kind == "approval_request" {
+                let text = i["prompt"].as_str().or(i["reason"].as_str()).unwrap_or("The agent asks for permission.");
+                let option = |label: &str, description: &str, decision: &str| (label.to_string(), description.to_string(), format!("decision:{decision}"));
+                return Some(PendingQuestion {
+                    request_id: request_id.into(),
+                    header: "Approval".into(),
+                    question: text.into(),
+                    options: vec![option("Approve once", "Allow this action", "accept"), option("Approve for session", "Allow it until this session ends", "acceptForSession"), option("Decline", "Do not allow this action", "decline")],
+                });
+            }
             let q = i["questions"].get(0)?;
-            pending.then(|| PendingQuestion {
+            Some(PendingQuestion {
                 request_id: request_id.into(),
                 header: q["header"].as_str().unwrap_or_default().into(),
                 question: q["question"].as_str().unwrap_or_default().into(),
