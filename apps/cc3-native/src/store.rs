@@ -28,6 +28,41 @@ impl Store {
 }
 
 impl Store {
+    /// Sends a user message to the open thread (`message.dispatch`). Runs on a background thread.
+    pub fn send_message(self: &Arc<Self>, text: &str) {
+        let text = text.trim();
+        let Some(client) = self.client.lock().unwrap().clone() else { return };
+        let Some((thread_id, model, active)) = self
+            .thread
+            .lock()
+            .unwrap()
+            .as_ref()
+            .map(|t| (t.thread_id.clone(), t.model_selection().clone(), t.has_active_run()))
+        else {
+            return;
+        };
+        if text.is_empty() {
+            return;
+        }
+        let seed = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).map(|d| d.as_nanos()).unwrap_or(0);
+        let dispatch_mode = if active { "queue_after_active" } else { "start_immediately" };
+        let command = serde_json::json!({
+            "type": "message.dispatch",
+            "createdBy": "user",
+            "creationSource": "web",
+            "commandId": format!("cc3-cmd-{seed:x}"),
+            "threadId": thread_id,
+            "messageId": format!("cc3-msg-{seed:x}"),
+            "text": text,
+            "attachments": [],
+            "modelSelection": model,
+            "dispatchMode": {"type": dispatch_mode},
+        });
+        std::thread::spawn(move || {
+            let _ = client.call("orchestration.dispatchCommand", command, std::time::Duration::from_secs(30));
+        });
+    }
+
     pub fn thread_view(&self) -> Option<ThreadView> {
         self.thread.lock().unwrap().as_ref().map(ThreadState::view)
     }

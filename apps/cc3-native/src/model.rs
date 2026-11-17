@@ -199,6 +199,7 @@ pub struct ThreadState {
     pub title: String,
     runs: Vec<serde_json::Value>,
     items: Vec<serde_json::Value>,
+    model_selection: serde_json::Value,
 }
 
 #[derive(Debug, Clone, Default, PartialEq)]
@@ -209,6 +210,17 @@ pub struct ThreadView {
 }
 
 impl ThreadState {
+    pub fn model_selection(&self) -> &serde_json::Value {
+        &self.model_selection
+    }
+
+    /// True while a run has not finished: new messages queue behind it.
+    pub fn has_active_run(&self) -> bool {
+        self.runs.iter().any(|run| {
+            matches!(run["status"].as_str(), Some("preparing" | "queued" | "starting" | "running" | "waiting"))
+        })
+    }
+
     /// From an `OrchestrationV2ThreadProjection` (the `snapshot` item of `orchestration.subscribeThread`).
     pub fn from_projection(projection: &serde_json::Value) -> Self {
         let mut visible: Vec<&serde_json::Value> = projection["visibleTurnItems"].as_array().map(|a| a.iter().collect()).unwrap_or_default();
@@ -216,6 +228,7 @@ impl ThreadState {
         Self {
             thread_id: projection["thread"]["id"].as_str().unwrap_or_default().into(),
             title: projection["thread"]["title"].as_str().unwrap_or_default().into(),
+            model_selection: projection["thread"]["modelSelection"].clone(),
             runs: projection["runs"].as_array().cloned().unwrap_or_default(),
             items: visible.iter().map(|v| v["item"].clone()).collect(),
         }

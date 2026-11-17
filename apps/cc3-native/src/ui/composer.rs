@@ -392,7 +392,12 @@ pub fn ComposerQuestion() -> Element {
 }
 
 #[component]
-pub fn ComposerNormal() -> Element {
+pub fn ComposerNormal(#[props(default)] onsend: Option<EventHandler<String>>) -> Element {
+    let mut text = use_signal(String::new);
+    let live = onsend.is_some();
+    let empty = text().trim().is_empty();
+    let lines = text().lines().count().max(1) + usize::from(text().ends_with('\n'));
+    let rows = lines.clamp(2, 8) as i64;
     rsx! {
             div {
                 "data-slot": "composer-shell",
@@ -437,27 +442,52 @@ pub fn ComposerNormal() -> Element {
                                                 div {
                                                     "class": "relative flow-root font-(family-name:--font-composer,var(--font-sans)) text-(length:--font-size-prompt,var(--text-sm)) max-sm:pointer-coarse:text-(length:--font-size-prompt-touch)",
                                                     div {
-                                                        div {
-                                                            "contenteditable": "true",
-                                                            "role": "textbox",
-                                                            "data-testid": "composer-editor",
-                                                            "data-composer-rich-text": "true",
-                                                            "aria-multiline": "true",
-                                                            "aria-label": "Message Thread thread-golden",
-                                                            "aria-autocomplete": "list",
-                                                            "aria-haspopup": "listbox",
-                                                            "aria-placeholder": "Ask anything. @ files, $ skills, / commands",
-                                                            "translate": "no",
-                                                            "class": "tiptap ProseMirror composer-tiptap -m-1 block max-h-52 min-h-[calc(2lh+--spacing(2))] overflow-y-auto p-1 whitespace-pre-wrap wrap-break-word bg-transparent leading-relaxed text-foreground focus:outline-none ProseMirror-focused",
-                                                            "tabindex": "0",
-                                                            p {
-                                                                br {
-                                                                    "class": "ProseMirror-trailingBreak",
+                                                        if live {
+                                                            textarea {
+                                                                "data-testid": "composer-editor",
+                                                                "aria-label": "Message Thread thread-golden",
+                                                                "class": "composer-tiptap -m-1 block max-h-52 min-h-[calc(2lh+--spacing(2))] w-full resize-none overflow-y-auto p-1 whitespace-pre-wrap wrap-break-word border-0 bg-transparent leading-relaxed text-foreground focus:outline-none",
+                                                                rows: rows,
+                                                                value: "{text}",
+                                                                oninput: move |e| text.set(e.value()),
+                                                                onkeydown: move |e| {
+                                                                    if e.key().to_string() == "Enter" && !e.modifiers().shift() {
+                                                                        e.prevent_default();
+                                                                        let message = text();
+                                                                        if !message.trim().is_empty() {
+                                                                            if let Some(send) = onsend {
+                                                                                send.call(message);
+                                                                            }
+                                                                            text.set(String::new());
+                                                                        }
+                                                                    }
+                                                                },
+                                                            }
+                                                        } else {
+                                                            div {
+                                                                "contenteditable": "true",
+                                                                "role": "textbox",
+                                                                "data-testid": "composer-editor",
+                                                                "data-composer-rich-text": "true",
+                                                                "aria-multiline": "true",
+                                                                "aria-label": "Message Thread thread-golden",
+                                                                "aria-autocomplete": "list",
+                                                                "aria-haspopup": "listbox",
+                                                                "aria-placeholder": "Ask anything. @ files, $ skills, / commands",
+                                                                "translate": "no",
+                                                                "class": "tiptap ProseMirror composer-tiptap -m-1 block max-h-52 min-h-[calc(2lh+--spacing(2))] overflow-y-auto p-1 whitespace-pre-wrap wrap-break-word bg-transparent leading-relaxed text-foreground focus:outline-none ProseMirror-focused",
+                                                                "tabindex": "0",
+                                                                p {
+                                                                    br {
+                                                                        "class": "ProseMirror-trailingBreak",
+                                                                    }
                                                                 }
                                                             }
                                                         }
+                                                        }
+                                                    if !live || text().is_empty() {
+                                                        div { "class": "pointer-events-none absolute inset-0 leading-relaxed text-placeholder", "Ask anything. @ files, $ skills, / commands" }
                                                     }
-                                                    div { "class": "pointer-events-none absolute inset-0 leading-relaxed text-placeholder", "Ask anything. @ files, $ skills, / commands" }
                                                 }
                                             }
                                         }
@@ -598,8 +628,18 @@ pub fn ComposerNormal() -> Element {
                                                     button {
                                                         "type": "submit",
                                                         "class": "relative isolate flex h-9 w-9 items-center justify-center overflow-hidden rounded-full shadow-xs transition-all duration-150 enabled:cursor-pointer enabled:inset-shadow-control-highlight hover:scale-105 active:inset-shadow-control-pressed active:shadow-none disabled:pointer-events-none disabled:shadow-none disabled:hover:scale-100 sm:h-8 sm:w-8 [&_svg]:pointer-events-none bg-transparent text-white enabled:shadow-black/24 enabled:hover:brightness-110 disabled:opacity-64",
-                                                        "disabled": "",
+                                                        disabled: !live || empty,
                                                         "aria-label": "Submit message",
+                                                        onclick: move |e| {
+                                                            e.prevent_default();
+                                                            let message = text();
+                                                            if let Some(send) = onsend {
+                                                                if !message.trim().is_empty() {
+                                                                    send.call(message);
+                                                                    text.set(String::new());
+                                                                }
+                                                            }
+                                                        },
                                                         span {
                                                             "class": "pointer-events-none absolute inset-0 -z-10",
                                                             "aria-hidden": "true",

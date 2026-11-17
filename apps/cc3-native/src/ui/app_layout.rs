@@ -8,7 +8,7 @@ use crate::ui::composer::{ComposerMode, ComposerNormal, ComposerQuestion};
 use crate::ui::timeline::Timeline;
 
 #[component]
-pub fn AppLayout(rows: Vec<ThreadRowData>, thread: ThreadView, environment_id: String, onselect: EventHandler<String>, composer: ComposerMode) -> Element {
+pub fn AppLayout(rows: Vec<ThreadRowData>, thread: ThreadView, environment_id: String, onselect: EventHandler<String>, composer: ComposerMode, #[props(default)] onsend: Option<EventHandler<String>>) -> Element {
     rsx! {
         div {
             "id": "t3code-pierre-file-icon-sprite",
@@ -2136,7 +2136,7 @@ pub fn AppLayout(rows: Vec<ThreadRowData>, thread: ThreadView, environment_id: S
                                                             "class": "relative",
                                                             match composer {
                                                                 ComposerMode::Question => rsx! { ComposerQuestion {} },
-                                                                ComposerMode::Normal => rsx! { ComposerNormal {} },
+                                                                ComposerMode::Normal => rsx! { ComposerNormal { onsend } },
                                                             }
                                                         }
                                                         div {
