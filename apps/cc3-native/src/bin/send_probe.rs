@@ -69,4 +69,7 @@ fn main() {
     drop(guard);
     println!("config keys: {:?}", config.as_object().map(|o| o.keys().cloned().collect::<Vec<_>>()));
     println!("settings: {}", config["settings"].to_string().chars().take(300).collect::<String>());
+    if let Some(o) = config["settings"].as_object() {
+        println!("boolkeys: {:?}", o.iter().filter(|(_, v)| v.is_boolean()).map(|(k, v)| format!("{k}={v}")).collect::<Vec<_>>());
+    }
 }

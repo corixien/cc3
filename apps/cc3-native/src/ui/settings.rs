@@ -12,6 +12,20 @@ const SERVER_KEYS: &[(&str, &str)] = &[
     ("Continue threads after restarts", "continueThreadsAfterServerUpdate"),
     ("Keep awake while agents work", "keepAwakeWhileAgentsWork"),
     ("Agent browser access", "enableAgentBrowserAccess"),
+    ("Guest links", "guestSharingEnabled"),
+    ("Linked environments", "linkedEnvironmentsEnabled"),
+    ("Suggest next prompt", "promptSuggestionsEnabled"),
+    ("Simlock device hosts", "simlockDeviceHostsEnabled"),
+    ("Agent device access", "enableAgentDeviceAccess"),
+    ("Device hub", "enableDeviceSupport"),
+    ("Resume after usage limits", "autoResumeLimitedThreads"),
+    ("Snooze until limits reset", "snoozeLimitedThreads"),
+    ("Auto-settle merged threads", "sidebarAutoSettleOnMerge"),
+    ("Default automatic pull", "defaultAutoPull"),
+    ("Remove agent credits when merging", "removeAgentCreditsOnMerge"),
+    ("Review guides", "reviewGuidesEnabled"),
+    ("Start new worktrees from remote by default", "newWorktreesStartFromOrigin"),
+    ("Clone into host folders", "ghqCloneLayout"),
 ];
 
 pub static SWITCHES: GlobalSignal<HashMap<String, bool>> = Signal::global(load);
