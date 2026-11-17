@@ -14,6 +14,7 @@ pub fn ThreadRow(
     branch: String,
     active: bool,
     onselect: EventHandler<()>,
+    #[props(default)] onaction: EventHandler<String>,
 ) -> Element {
     rsx! {
         li {
@@ -67,6 +68,7 @@ pub fn ThreadRow(
                                 button {
                                     "type": "button",
                                     "aria-label": "Snooze thread",
+                                    onclick: move |e| { e.stop_propagation(); onaction.call("snooze".into()); },
                                     "class": "inline-flex h-full cursor-pointer items-center gap-0.5 rounded-md bg-transparent px-1.5 text-xs text-muted-foreground hover:text-foreground",
                                     "tabindex": "0",
                                     "aria-haspopup": "menu",
@@ -98,6 +100,7 @@ pub fn ThreadRow(
                                 button {
                                     "type": "button",
                                     "aria-label": "Settle thread",
+                                    onclick: move |e| { e.stop_propagation(); onaction.call("settle".into()); },
                                     "class": "-mr-1 inline-flex cursor-pointer items-center gap-1 rounded-md bg-transparent px-1.5 text-xs text-muted-foreground hover:text-foreground",
                                     "id": "base-ui-{ui_id}-settle",
                                     "data-base-ui-tooltip-trigger": "",

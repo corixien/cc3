@@ -1676,7 +1676,7 @@ pub fn AppLayout(rows: Vec<ThreadRowData>, thread: ThreadView, environment_id: S
                                             "class": "h-full max-h-[inherit] overflow-auto overscroll-contain rounded-[inherit] outline-none transition-shadow focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring focus-visible:ring-offset-1 focus-visible:ring-offset-background data-has-overflow-x:overscroll-x-contain mask-t-from-[calc(100%-min(var(--fade-size),var(--scroll-area-overflow-y-start)))] mask-b-from-[calc(100%-min(var(--fade-size),var(--scroll-area-overflow-y-end)))] mask-l-from-[calc(100%-min(var(--fade-size),var(--scroll-area-overflow-x-start)))] mask-r-from-[calc(100%-min(var(--fade-size),var(--scroll-area-overflow-x-end)))] focus-visible:mask-none [--fade-size:1.5rem] has-focus-visible:mask-none [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden base-ui-disable-scrollbar",
                                             "data-slot": "scroll-area-viewport",
                                             "style": "overflow: scroll; --scroll-area-overflow-x-start: 0px; --scroll-area-overflow-x-end: 0px; --scroll-area-overflow-y-start: 0px; --scroll-area-overflow-y-end: 0px;",
-                                            SidebarList { rows, onselect }
+                                            SidebarList { rows, onselect, onaction }
                                         }
                                     }
                                     div {

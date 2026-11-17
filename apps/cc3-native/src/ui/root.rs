@@ -110,6 +110,10 @@ pub fn AppRoot(store: StoreHandle, #[props(default)] frame: bool) -> Element {
                             if crate::ui::fragments::page(&name).is_some() {
                                 page.set(Some(name));
                             }
+                        } else if let Some(rest) = action.strip_prefix("row:") {
+                            if let Some((what, id)) = rest.split_once(':') {
+                                store.thread_action(id, what);
+                            }
                         } else if let Some(rest) = action.strip_prefix("switch:") {
                             if let Some((value, label)) = rest.split_once(':') {
                                 crate::ui::settings::set_switch(label, value == "true", |key, on| store.update_server_setting(key, serde_json::json!(on)));

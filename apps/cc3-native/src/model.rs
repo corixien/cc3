@@ -130,6 +130,13 @@ mod tests {
     use super::*;
 
     #[test]
+    fn iso_roundtrip() {
+        let t = std::time::UNIX_EPOCH + std::time::Duration::from_secs(1_773_824_430);
+        assert_eq!(iso_from_system_time(t), "2026-03-18T09:00:30.000Z");
+        assert_eq!(parse_iso_unix(&iso_from_system_time(t)), Some(1_773_824_430));
+    }
+
+    #[test]
     fn pending_question_from_projection() {
         let p: serde_json::Value = serde_json::from_str(include_str!("../fixtures/thread-golden-question.projection.json")).unwrap();
         let q = ThreadView::from_projection(&p).pending_question.expect("pending question");
@@ -401,4 +408,22 @@ pub fn parse_iso_ms(iso: &str) -> Option<i64> {
     let secs = parse_iso_unix(iso)?;
     let ms = iso.find('.').and_then(|i| iso.get(i + 1..i + 4)).and_then(|f| f.parse::<i64>().ok()).unwrap_or(0);
     Some(secs * 1000 + ms)
+}
+
+/// `2026-03-17T19:12:28.000Z` for a system time (UTC), without a date library.
+pub fn iso_from_system_time(t: std::time::SystemTime) -> String {
+    let secs = t.duration_since(std::time::UNIX_EPOCH).map(|d| d.as_secs() as i64).unwrap_or(0);
+    let (days, rem) = (secs.div_euclid(86_400), secs.rem_euclid(86_400));
+    // civil from days (Howard Hinnant)
+    let z = days + 719_468;
+    let era = z.div_euclid(146_097);
+    let doe = z.rem_euclid(146_097);
+    let yoe = (doe - doe / 1460 + doe / 36_524 - doe / 146_096) / 365;
+    let y = yoe + era * 400;
+    let doy = doe - (365 * yoe + yoe / 4 - yoe / 100);
+    let mp = (5 * doy + 2) / 153;
+    let d = doy - (153 * mp + 2) / 5 + 1;
+    let m = if mp < 10 { mp + 3 } else { mp - 9 };
+    let y = if m <= 2 { y + 1 } else { y };
+    format!("{y:04}-{m:02}-{d:02}T{:02}:{:02}:{:02}.000Z", rem / 3600, rem % 3600 / 60, rem % 60)
 }

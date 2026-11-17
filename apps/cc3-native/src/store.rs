@@ -118,6 +118,31 @@ impl Store {
         });
     }
 
+    /// Settles, snoozes, pins, archives or deletes a thread from the sidebar.
+    pub fn thread_action(self: &Arc<Self>, thread_id: &str, action: &str) {
+        let Some(client) = self.client.lock().unwrap().clone() else { return };
+        let seed = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).map(|d| d.as_nanos()).unwrap_or(0);
+        let mut command = serde_json::json!({"commandId": format!("cc3-cmd-t-{seed:x}"), "threadId": thread_id});
+        let kind = match action {
+            "settle" => "thread.settle",
+            "snooze" => "thread.snooze",
+            "pin" => "thread.pin",
+            "unpin" => "thread.unpin",
+            "archive" => "thread.archive",
+            "delete" => "thread.delete",
+            _ => return,
+        };
+        command["type"] = kind.into();
+        if action == "snooze" {
+            // Until this time tomorrow.
+            let until = std::time::SystemTime::now() + std::time::Duration::from_secs(24 * 3600);
+            command["snoozedUntil"] = crate::model::iso_from_system_time(until).into();
+        }
+        std::thread::spawn(move || {
+            let _ = client.call("orchestration.dispatchCommand", command, std::time::Duration::from_secs(30));
+        });
+    }
+
     /// Stops the open thread's run (`thread.stop`).
     pub fn stop_thread(self: &Arc<Self>) {
         let Some(client) = self.client.lock().unwrap().clone() else { return };
