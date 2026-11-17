@@ -339,8 +339,19 @@ pub fn AppRoot(store: StoreHandle, #[props(default)] frame: bool) -> Element {
                     palette_query.set(String::new());
                     palette_active.set(0);
                     palette_open.set(!palette_open());
+                } else if (m.ctrl() || m.meta()) && m.shift() && key.eq_ignore_ascii_case("n") {
+                    page.set(None);
+                    draft.set(true);
+                    selected.set(None);
+                    thread.set(crate::model::ThreadView::default());
+                } else if (m.ctrl() || m.meta()) && !m.shift() && key.eq_ignore_ascii_case("u") {
+                    page.set(Some("route-usage".to_string()));
+                } else if (m.ctrl() || m.meta()) && key == "," {
+                    page.set(Some("settings-general".to_string()));
                 } else if key == "Escape" && palette_open() {
                     palette_open.set(false);
+                } else if key == "Escape" && page().is_some() {
+                    page.set(None);
                 }
             },
             style: "width:100vw;height:100vh;--workspace-topbar-height:40px;--native-titlebar-height:40px;--workspace-controls-top:0px;--workspace-controls-left:0.75rem;--workspace-controls-right:calc(138px + 0.75rem);--workspace-native-controls-inset:calc(138px + 0.75rem);",

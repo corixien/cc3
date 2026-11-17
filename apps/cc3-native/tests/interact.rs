@@ -397,3 +397,14 @@ fn right_click_on_a_thread_opens_its_menu() {
     h.click(x, y);
     assert!(!h.text_contains("Archive thread"), "confirming closes the menu");
 }
+
+#[test]
+fn shortcuts_open_pages() {
+    let rt = runtime();
+    let _guard = rt.enter();
+    let mut h = Harness::new(fixture_store());
+    h.key(Key::Character(",".into()), Code::Comma, Modifiers::CONTROL);
+    assert!(h.text_contains("In-app notifications"), "Ctrl+, opens settings");
+    h.key(Key::Named(keyboard_types::NamedKey::Escape), Code::Escape, Modifiers::empty());
+    assert!(!h.text_contains("In-app notifications"), "Escape closes it");
+}

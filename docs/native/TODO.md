@@ -21,7 +21,7 @@ Referenz: Chromium-Goldens in `apps/web/test/golden/__screenshots__`, Messung `c
 - [x] Command-Palette (Ctrl+K, Suche, Pfeiltasten, Enter, Esc); Aktionen ausser Page-Wechsel sind Platzhalter
 - [x] Kontextmenue Sidebar-Zeile (Pin, Settle, Snooze, Archive, Delete; Rename offen)
 - [x] Toasts (Queue, Timeout, Dismiss); Tooltips, Bestaetigungsdialoge offen
-- [ ] Globale Tastenkuerzel laut Keybindings
+- [x] Globale Tastenkuerzel: Strg+K, Strg+Shift+N, Strg+U, Strg+, , Esc (feste Belegung, nicht aus Keybindings-Konfig)
 
 ## D. Panels (`ui/panels.rs`)
 
