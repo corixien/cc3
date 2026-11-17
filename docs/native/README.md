@@ -100,6 +100,10 @@ Umsetzung: `server.rs` (startet den unveraenderten Node-Server mit Bootstrap ueb
 
 Offen: Zustandsspeicher (Projektion der Orchestrierungs-Ereignisse zu Projekten, Threads, Nachrichten wie `packages/client-runtime/src/state` und `apps/web/src/state`), Wiederverbindung mit neuem Ticket, wss fuer entfernte Umgebungen, Anbindung an die UI-Signale.
 
+## Live-App (17. Nov 2026)
+
+`cc3` startet den Server, authentifiziert sich, laedt den Shell-Snapshot und zeigt das vollstaendige CC3-Layout (Sidebar mit echten Thread-Zeilen, Kopf, Chat-Spalte als Fixture, Composer, rechtes Panel) mit dem gebauten CSS der Web-UI im dunklen Theme, in einem Prozess ohne Browser. Leerlauf: 127 MB PSS fuer die UI (Tauri: 460 MB), Gesamt mit Server 477 MB (Tauri: 807 MB). Arbeitsweise und Reihenfolge: `docs/native/PORTING.md`.
+
 ## Arbeitspaket-Reihenfolge
 
 1. **N0 (erledigt):** Spike, Renderer ohne Fenster, Vergleichswerkzeug.

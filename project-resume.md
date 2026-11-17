@@ -58,3 +58,4 @@ Plan only: see CC3-PERFORMANCE-PLAN.md (no code changed yet).
 - Native window done: frameless/rounded/outline, caption buttons, resize handles (src/ui/window_frame.rs). Next: alert window, single instance, deep links, then server RPC client.
 - Native shell: single instance (unix socket), links queue, badge, alert card process (src/shell). Next: server RPC client + state.
 - Native net: src/net (server start, bearer/ticket, ws rpc client) verified by bin rpc_probe against real server. Next: state store (shell snapshot + thread streams) and first components.
+- Native app: bin cc3 shows full layout live (sidebar rows from server), 127 MB UI. Docs: docs/native/PORTING.md (workflow + order). Next: state store (subscribeShell/Thread), timeline with real data, composer.

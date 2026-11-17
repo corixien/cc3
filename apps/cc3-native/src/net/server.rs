@@ -108,3 +108,20 @@ pub fn start() -> Result<Server, String> {
         std::thread::sleep(Duration::from_millis(150));
     }
 }
+
+static RUNNING: std::sync::Mutex<Option<Server>> = std::sync::Mutex::new(None);
+
+/// Starts the server once and keeps it for the lifetime of the process (see `stop`).
+pub fn start_global() -> Result<(String, String, u16), String> {
+    let server = start()?;
+    let info = (server.http_base(), server.token.clone(), server.port);
+    *RUNNING.lock().unwrap() = Some(server);
+    Ok(info)
+}
+
+/// Kills the server child. `std::process::exit` skips destructors, so quitting must call this.
+pub fn stop() {
+    if let Some(server) = RUNNING.lock().unwrap().take() {
+        drop(server);
+    }
+}

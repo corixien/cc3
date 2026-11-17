@@ -7,6 +7,8 @@ use winit::dpi::{LogicalPosition, LogicalSize};
 use winit::window::{WindowAttributes, WindowLevel};
 
 use cc3_native::shell::{self, alert, badge, instance, ShellEvent};
+use cc3_native::ui::app_layout::AppLayout;
+use cc3_native::ui::sidebar_list::ThreadRowData;
 use cc3_native::ui::window_frame::WindowFrame;
 
 /// The CC3 icon is also the taskbar and Alt-Tab icon.
@@ -63,12 +65,72 @@ fn AlertApp() -> Element {
     rsx! { alert::AlertCard { id, title, body } }
 }
 
+/// Rows for the sidebar, produced by the connection thread and picked up by the UI.
+static LIVE_ROWS: std::sync::Mutex<Option<Vec<ThreadRowData>>> = std::sync::Mutex::new(None);
+
+/// Starts the server, authenticates and loads the shell snapshot. Runs on its own thread.
+fn connect() -> Result<(), String> {
+    let (http, token, port) = cc3_native::net::server::start_global()?;
+    let bearer = cc3_native::net::auth::bootstrap(&http, &token)?;
+    let ticket = cc3_native::net::auth::websocket_ticket(&http, &bearer)?;
+    let client = cc3_native::net::RpcClient::connect(
+        &format!("ws://127.0.0.1:{port}"),
+        &ticket,
+        &cc3_native::net::rpc::ConnectParams { app_version: env!("CARGO_PKG_VERSION"), device_id: "cc3-native" },
+    )?;
+    let config = client.request(
+        "subscribeServerConfig",
+        serde_json::json!({"environmentThemes": true, "usageLimitSources": true, "usageLimitsCommand": true, "workspaceSnapshotsOnDemand": true}),
+    );
+    let environment_id = match config.recv_timeout(std::time::Duration::from_secs(10)) {
+        Ok(cc3_native::net::rpc::StreamEvent::Chunk(values)) => values[0]["config"]["environment"]["environmentId"].as_str().unwrap_or("").to_string(),
+        other => return Err(format!("no server config: {other:?}")),
+    };
+    let snapshot = cc3_native::net::auth::get_json(&http, &bearer, "/api/orchestration/shell?omitIdleSubagents=1&omitOlderSettled=1")?;
+    let shell = cc3_native::model::Shell::from_json(&snapshot);
+    let now = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).map(|d| d.as_secs() as i64).unwrap_or(0);
+    let rows = shell
+        .visible_threads()
+        .iter()
+        .enumerate()
+        .map(|(i, t)| {
+            let project = shell.project(&t.project_id).map(|p| p.title.clone()).unwrap_or_default();
+            let monogram: String = project.chars().filter(|c| c.is_alphanumeric()).take(2).collect::<String>().to_uppercase();
+            ThreadRowData {
+                thread_key: format!("{environment_id}:{}", t.id),
+                aria_label: format!("{}, {project}", t.title),
+                ui_id: format!("_r_{i}_"),
+                title: t.title.clone(),
+                project,
+                monogram,
+                age: cc3_native::model::relative_age(&t.updated_at, now),
+                branch: t.branch.clone().unwrap_or_default(),
+                active: false,
+            }
+        })
+        .collect();
+    *LIVE_ROWS.lock().unwrap() = Some(rows);
+    // The RPC client stays alive for the app's lifetime (live updates come next).
+    std::mem::forget(client);
+    Ok(())
+}
+
 #[component]
 fn App() -> Element {
     let window = dioxus::native::use_window();
     let mut last_event = use_signal(String::new);
+    let mut rows = use_signal(Vec::<ThreadRowData>::new);
+    let mut status = use_signal(|| "Connecting...".to_string());
 
-    // Links, activation and notification clicks arrive from other threads and processes.
+    use_hook(|| {
+        std::thread::spawn(|| {
+            if let Err(error) = connect() {
+                eprintln!("connect failed: {error}");
+            }
+        });
+    });
+
+    // Links, activation and notification clicks arrive from other threads and processes; so do rows.
     use_future({
         let window = window.clone();
         move || {
@@ -79,6 +141,10 @@ fn App() -> Element {
                         window.set_minimized(false);
                         window.focus_window();
                         last_event.set(format!("{event:?}"));
+                    }
+                    if let Some(live) = LIVE_ROWS.lock().unwrap().take() {
+                        status.set(String::new());
+                        rows.set(live);
                     }
                     tokio::time::sleep(std::time::Duration::from_millis(150)).await;
                 }
@@ -106,16 +172,17 @@ fn App() -> Element {
         }
     });
 
+    let _ = (&last_event, &status);
     rsx! {
-        div { style: "font-family: 'Lexend Deca'; color: white; width: 100vw; height: 100vh;",
+        style { {cc3_native::ui::app_css()} }
+        div {
+            class: "cc3-root dark",
+            style: "width:100vw;height:100vh;--workspace-topbar-height:40px;--native-titlebar-height:40px;--workspace-controls-top:0px;--workspace-controls-left:0.75rem;--workspace-controls-right:calc(138px + 0.75rem);--workspace-native-controls-inset:calc(138px + 0.75rem);",
             WindowFrame {
                 dark: true,
-                background: "#000".to_string(),
-                title_content: rsx! { div { style: "padding: 0 16px; line-height: 40px; font-size: 14px;", "CC3" } },
-                div { style: "padding: 64px 24px 24px;",
-                    h1 { "CC3 native" }
-                    div { "Last shell event: {last_event}" }
-                }
+                background: "var(--background)".to_string(),
+                title_content: rsx! { div {} },
+                AppLayout { rows: rows() }
             }
         }
     }

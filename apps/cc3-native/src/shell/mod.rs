@@ -36,5 +36,6 @@ pub fn is_link(arg: &str) -> bool {
 
 /// Ends the process. A plain `()` function so event handlers keep a unit return type.
 pub fn quit() {
+    crate::net::server::stop();
     std::process::exit(0)
 }
