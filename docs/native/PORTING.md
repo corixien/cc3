@@ -43,6 +43,15 @@ Ziel: dieselbe Oberflaeche und Funktion wie `apps/web`, aber als Rust-Programm (
 8. Rest (Onboarding, Cloud, Geraete, Pull Requests) und Umschalter `--ui=web|native`, Paketierung.
 9. Immer parallel: Golden-Zustaende fuer jede neue Komponente, Animationen aus `docs/perf/ANIMATION-CATALOG.md`, Messung RAM und CPU.
 
+## Stand der Vergleiche (17. Nov 2026, nach der Chat-Spalte)
+
+| Zustand                       | Pixel abw.          | Geometrie         | DOM-Reihenfolge                                                        |
+| ----------------------------- | ------------------- | ----------------- | ---------------------------------------------------------------------- |
+| thread-question dunkel / hell | 5,41 / 3,23 Prozent | 60 bis 79 Prozent | gleich bis auf ein Element (Markdown-Span, Composer-Huelle)            |
+| thread-history dunkel / hell  | 11,7 / 10,1 Prozent | 27,7 Prozent      | abweichend ab dem Scroll-Steuerelement am Timeline-Ende (`chevron-up`) |
+
+Bekannte Luecken fuer thread-history: Scroll-Steuerelement der Timeline (Sprung nach oben/unten), Composer-Variante `Normal` (nur statisch aus dem Golden-DOM), `scrollbar-gutter` (Blitz kennt es nicht, Timeline-Spalte ist 12 px breiter als in Chromium). Die Snapshots werden bei jedem Export neu geschrieben; wenn der Zustand eines Tests von einem vorherigen abhaengt, weichen Golden-PNG und Snapshot voneinander ab (Reihenfolge der Tests beachten).
+
 ## Messung (17. Nov 2026, leeres Home, Leerlauf)
 
 |               | CC3 Tauri                                   | CC3 nativ (`cc3`)                        |

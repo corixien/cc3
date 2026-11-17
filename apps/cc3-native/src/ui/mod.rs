@@ -16,3 +16,4 @@ pub mod markdown;
 pub mod timeline_rows;
 pub mod clock;
 pub mod timeline;
+pub mod composer;

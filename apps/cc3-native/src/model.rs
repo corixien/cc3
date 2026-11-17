@@ -255,7 +255,9 @@ impl ThreadState {
                 Some("user_message") => rows.push(TimelineRow::User { id: item["messageId"].as_str().unwrap_or_default().into(), text: item["text"].as_str().unwrap_or_default().into(), at }),
                 Some("assistant_message") => {
                     let run_id = item["runId"].as_str().unwrap_or_default().to_string();
-                    if !folded.contains(&run_id) {
+                    // A turn folds into "Worked for ..." only when it did more than exchange messages.
+                    let did_work = self.items.iter().any(|i| i["runId"] == run_id.as_str() && !matches!(i["type"].as_str(), Some("user_message" | "assistant_message")));
+                    if did_work && !folded.contains(&run_id) {
                         if let Some(run) = run(&run_id) {
                             if let (Some(start), Some(end)) = (run["startedAt"].as_str().and_then(parse_iso_ms), run["completedAt"].as_str().and_then(parse_iso_ms)) {
                                 rows.push(TimelineRow::Work { run_id: run_id.clone(), duration_ms: end - start, at: run["completedAt"].as_str().unwrap_or_default().into() });

@@ -133,6 +133,14 @@ pub fn geometry_score(path: &Path, boxes: &[(String, f32, f32, f32, f32)]) -> (u
     if let Ok(text) = std::fs::read_to_string(path) {
         if let Ok(serde_json::Value::Array(rows)) = serde_json::from_str::<serde_json::Value>(&text) {
             mismatch = rows.len() != boxes.len();
+            if mismatch && std::env::var("DEBUG_SEQ").is_ok_and(|v| path.to_string_lossy().contains(&v)) {
+                eprintln!("chromium {} elements, native {}", rows.len(), boxes.len());
+                if let Some(i) = rows.iter().zip(boxes.iter()).position(|(r, b)| r[0].as_str() != Some(&b.0)) {
+                    for j in i.saturating_sub(2)..(i + 3).min(rows.len().min(boxes.len())) {
+                        eprintln!("  #{j} chromium {} [{}]  native {}", rows[j][0], rows[j].get(6).and_then(|v| v.as_str()).unwrap_or(""), boxes[j].0);
+                    }
+                }
+            }
             for (row, mine) in rows.iter().zip(boxes.iter()) {
                 let a = row.as_array().unwrap();
                 if matches!(a[5].as_str(), Some("inline" | "contents" | "none")) {

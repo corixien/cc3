@@ -8,7 +8,10 @@ pub struct Screen {
     pub component: fn() -> Element,
 }
 
-pub const SCREENS: &[Screen] = &[Screen { name: "thread-question", component: crate::ui::generated::thread_question::ThreadQuestion }];
+pub const SCREENS: &[Screen] = &[
+    Screen { name: "thread-question", component: crate::ui::generated::thread_question::ThreadQuestion },
+    Screen { name: "thread-history", component: crate::ui::generated::thread_history::ThreadHistory },
+];
 
 /// The page the golden export contains: global CSS plus the body of the screen.
 pub fn render_html(screen: &Screen, dark: bool) -> String {

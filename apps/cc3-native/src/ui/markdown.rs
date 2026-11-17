@@ -69,17 +69,16 @@ pub fn parse(text: &str) -> Vec<Node> {
             }
             Event::Text(t) => {
                 let out = unsafe { &mut *target(&mut stack, &mut root) };
-                // Punctuation right after inline code joins the code's no-break span.
-                if let Some(Node::Element { name: "span", attrs, children }) = out.last_mut() {
-                    if attrs.iter().any(|(k, _)| *k == "data-nobreak") {
-                        let n = leading_punctuation(&t);
-                        if n > 0 && children.len() == 1 {
-                            children.push(Node::Text(t[..n].to_string()));
-                            if n < t.len() {
-                                out.push(Node::Text(t[n..].to_string()));
-                            }
-                            continue;
+                // Punctuation right after inline code joins the code in a no-break span.
+                if let Some(Node::Element { name: "code", attrs, .. }) = out.last() {
+                    let n = leading_punctuation(&t);
+                    if n > 0 && attrs.iter().any(|(k, _)| *k == "data-inline-code") {
+                        let code = out.pop().unwrap();
+                        out.push(Node::Element { name: "span", attrs: vec![("data-nobreak", String::new())], children: vec![code, Node::Text(t[..n].to_string())] });
+                        if n < t.len() {
+                            out.push(Node::Text(t[n..].to_string()));
                         }
+                        continue;
                     }
                 }
                 out.push(Node::Text(t.to_string()));
@@ -87,7 +86,7 @@ pub fn parse(text: &str) -> Vec<Node> {
             Event::Code(code) => {
                 let out = unsafe { &mut *target(&mut stack, &mut root) };
                 let inline = Node::Element { name: "code", attrs: vec![("data-inline-code", String::new()), ("dir", "ltr".into())], children: vec![Node::Text(code.to_string())] };
-                out.push(Node::Element { name: "span", attrs: vec![("data-nobreak", String::new())], children: vec![inline] });
+                out.push(inline);
             }
             Event::SoftBreak => {
                 let out = unsafe { &mut *target(&mut stack, &mut root) };
@@ -170,7 +169,7 @@ mod tests {
         let nodes = parse("Answer 0.\n\n- checked `a`\n- ran\n\nThe width is `x`, so.");
         assert_eq!(
             flat(&nodes),
-            "<p>Answer 0.</p><ul><li>checked <span><code>a</code></span></li><li>ran</li></ul><p>The width is <span><code>x</code>,</span> so.</p>"
+            "<p>Answer 0.</p><ul><li>checked <code>a</code></li><li>ran</li></ul><p>The width is <span><code>x</code>,</span> so.</p>"
         );
     }
 }

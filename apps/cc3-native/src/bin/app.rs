@@ -189,6 +189,7 @@ fn App() -> Element {
                     rows: rows(),
                     thread: thread(),
                     environment_id: STORE.environment_id.lock().unwrap().clone(),
+                    composer: cc3_native::ui::composer::ComposerMode::Normal,
                     onselect: move |id: String| {
                         selected.set(Some(id.clone()));
                         rows.set(rows_from_store(&STORE, Some(id.clone())));
