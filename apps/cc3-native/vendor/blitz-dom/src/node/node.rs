@@ -1465,12 +1465,12 @@ impl Node {
         if matches_hoisted_content {
             if let Some(hoisted) = &self.stacking_context {
                 for hoisted_child in hoisted.pos_z_hoisted_children().rev() {
+                    // CC3: the stacking context can list nodes removed since the last layout.
+                    let Some(child_node) = self.tree().get(hoisted_child.node_id) else { continue };
                     let pos = hoisted_child.position(self.tree(), self.id);
                     let x = x - pos.x;
                     let y = y - pos.y;
-                    if let Some(hit) = self
-                        .with(hoisted_child.node_id)
-                        .hit_inner(x, y, scale, scrollbar)
+                    if let Some(hit) = child_node.hit_inner(x, y, scale, scrollbar)
                     {
                         return Some(hit);
                     }
@@ -1512,12 +1512,12 @@ impl Node {
         if matches_hoisted_content {
             if let Some(hoisted) = &self.stacking_context {
                 for hoisted_child in hoisted.neg_z_hoisted_children().rev() {
+                    // CC3: the stacking context can list nodes removed since the last layout.
+                    let Some(child_node) = self.tree().get(hoisted_child.node_id) else { continue };
                     let pos = hoisted_child.position(self.tree(), self.id);
                     let x = x - pos.x;
                     let y = y - pos.y;
-                    if let Some(hit) = self
-                        .with(hoisted_child.node_id)
-                        .hit_inner(x, y, scale, scrollbar)
+                    if let Some(hit) = child_node.hit_inner(x, y, scale, scrollbar)
                     {
                         return Some(hit);
                     }

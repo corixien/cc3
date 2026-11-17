@@ -81,6 +81,12 @@ impl Harness {
         self.settle();
     }
 
+    fn hover(&mut self, x: f32, y: f32) {
+        use blitz_dom::Document;
+        self.doc.handle_ui_event(UiEvent::PointerMove(self.pointer(x, y, MouseEventButton::Main)));
+        self.settle();
+    }
+
     fn right_click(&mut self, x: f32, y: f32) {
         use blitz_dom::Document;
         let mut down = self.pointer(x, y, MouseEventButton::Secondary);
@@ -196,6 +202,10 @@ fn ctrl_k_opens_the_palette_and_escape_closes_it() {
     h.screenshot("interact-palette");
     h.key(Key::Named(keyboard_types::NamedKey::Escape), Code::Escape, Modifiers::empty());
     assert!(!h.html_contains("command-dialog-popup"), "Escape closes the palette");
+    // Hit-testing after overlays went away must not touch removed nodes.
+    for (x, y) in [(700.0, 117.0), (700.0, 300.0), (1200.0, 100.0), (100.0, 400.0)] {
+        h.hover(x, y);
+    }
 }
 
 fn runtime() -> tokio::runtime::Runtime {
