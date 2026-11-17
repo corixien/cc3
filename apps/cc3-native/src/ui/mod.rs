@@ -25,7 +25,14 @@ fn processed() -> &'static str {
 pub fn app_css() -> &'static str {
     static CSS: std::sync::LazyLock<String> = std::sync::LazyLock::new(|| {
         // No backdrop-filter in the renderer yet: glass surfaces would show unblurred content behind them.
-        format!("{}\n.dialog-glass{{background:color-mix(in srgb,var(--background) 96%,transparent)!important}}.dropdown-glass{{background:color-mix(in srgb,var(--popover) 96%,transparent)!important}}", processed().replace(":root", ".cc3-root"))
+        let css = processed();
+        // SVG `var()` lookups (stage art) only see `:root`; the app is dark, so the dark values go there.
+        let marker = ":root:is(.dark, .dark *) {";
+        let stage_vars: String = css
+            .find(marker)
+            .map(|i| css[i + marker.len()..].split('}').next().unwrap_or_default().split(';').filter(|d| d.trim_start().starts_with("--stage-")).map(|d| format!("{};", d.trim())).collect())
+            .unwrap_or_default();
+        format!("{}\n:root{{{stage_vars}}}\n.dialog-glass{{background:color-mix(in srgb,var(--background) 96%,transparent)!important}}.dropdown-glass{{background:color-mix(in srgb,var(--popover) 96%,transparent)!important}}", css.replace(":root", ".cc3-root"))
     });
     &CSS
 }

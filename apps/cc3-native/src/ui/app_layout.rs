@@ -1133,15 +1133,15 @@ pub fn AppLayout(rows: Vec<ThreadRowData>, thread: ThreadView, environment_id: S
                                                         "gradientUnits": "userSpaceOnUse",
                                                         "spreadMethod": "reflect",
                                                         stop {
-                                                            "style": "stop-color: var(--stage-art-bottom);",
+                                                            "style": "stop-color: #101f6e;",
                                                         }
                                                         stop {
                                                             "offset": "0.5",
-                                                            "style": "stop-color: var(--stage-art-mid);",
+                                                            "style": "stop-color: #2050ae;",
                                                         }
                                                         stop {
                                                             "offset": "1",
-                                                            "style": "stop-color: var(--stage-art-top);",
+                                                            "style": "stop-color: #3a7ad1;",
                                                         }
                                                     }
                                                     radialGradient {
@@ -1153,17 +1153,17 @@ pub fn AppLayout(rows: Vec<ThreadRowData>, thread: ThreadView, environment_id: S
                                                         "gradientUnits": "userSpaceOnUse",
                                                         stop {
                                                             "stop-opacity": "0.4",
-                                                            "style": "stop-color: var(--stage-art-highlight);",
+                                                            "style": "stop-color: #d4f6ff;",
                                                         }
                                                         stop {
                                                             "offset": "0.52",
                                                             "stop-opacity": "0.16",
-                                                            "style": "stop-color: var(--stage-art-secondary);",
+                                                            "style": "stop-color: #65c8ff;",
                                                         }
                                                         stop {
                                                             "offset": "1",
                                                             "stop-opacity": "0",
-                                                            "style": "stop-color: var(--stage-art-bottom);",
+                                                            "style": "stop-color: #101f6e;",
                                                         }
                                                     }
                                                     radialGradient {
@@ -1175,17 +1175,17 @@ pub fn AppLayout(rows: Vec<ThreadRowData>, thread: ThreadView, environment_id: S
                                                         "gradientUnits": "userSpaceOnUse",
                                                         stop {
                                                             "stop-opacity": "0.34",
-                                                            "style": "stop-color: var(--stage-art-celeste-highlight);",
+                                                            "style": "stop-color: #d2ffff;",
                                                         }
                                                         stop {
                                                             "offset": "0.5",
                                                             "stop-opacity": "0.18",
-                                                            "style": "stop-color: var(--stage-art-celeste-secondary);",
+                                                            "style": "stop-color: #48dcf5;",
                                                         }
                                                         stop {
                                                             "offset": "1",
                                                             "stop-opacity": "0",
-                                                            "style": "stop-color: var(--stage-art-bottom);",
+                                                            "style": "stop-color: #101f6e;",
                                                         }
                                                     }
                                                     radialGradient {
@@ -1197,86 +1197,50 @@ pub fn AppLayout(rows: Vec<ThreadRowData>, thread: ThreadView, environment_id: S
                                                         "gradientUnits": "userSpaceOnUse",
                                                         stop {
                                                             "stop-opacity": "0.3",
-                                                            "style": "stop-color: var(--stage-art-violet-highlight);",
+                                                            "style": "stop-color: #d9d8ff;",
                                                         }
                                                         stop {
                                                             "offset": "0.52",
                                                             "stop-opacity": "0.14",
-                                                            "style": "stop-color: var(--stage-art-tertiary);",
+                                                            "style": "stop-color: #7c8bff;",
                                                         }
                                                         stop {
                                                             "offset": "1",
                                                             "stop-opacity": "0",
-                                                            "style": "stop-color: var(--stage-art-bottom);",
+                                                            "style": "stop-color: #101f6e;",
                                                         }
                                                     }
-                                                    pattern {
-                                                        "id": "_r_5_-stage-bp-grid-minor",
-                                                        "width": "8",
-                                                        "height": "8",
-                                                        "patternUnits": "userSpaceOnUse",
-                                                        path {
-                                                            "d": "M8 0H0V8",
-                                                            "stroke-opacity": "0.14",
-                                                            "stroke-width": "0.5",
-                                                            "style": "stroke: var(--stage-art-grid-line);",
-                                                        }
-                                                    }
-                                                    pattern {
-                                                        "id": "_r_5_-stage-bp-grid-major",
-                                                        "width": "32",
-                                                        "height": "32",
-                                                        "patternUnits": "userSpaceOnUse",
-                                                        path {
-                                                            "d": "M32 0H0V32",
-                                                            "stroke-opacity": "0.26",
-                                                            "stroke-width": "0.6",
-                                                            "style": "stroke: var(--stage-art-grid-line);",
-                                                        }
-                                                    }
-                                                    pattern {
-                                                        "id": "_r_5_-stage-bp-ruler",
-                                                        "width": "32",
-                                                        "height": "6",
-                                                        "patternUnits": "userSpaceOnUse",
-                                                        path {
-                                                            "d": "M4 0V2.5M12 0V2.5M20 0V4M28 0V2.5",
-                                                            "stroke-opacity": "0.5",
-                                                            "stroke-width": "0.5",
-                                                            "style": "stroke: var(--stage-art-line);",
-                                                        }
-                                                    }
-                                                    pattern {
-                                                        "id": "_r_5_-stage-bp-glows",
-                                                        "width": "768",
-                                                        "height": "96",
-                                                        "patternUnits": "userSpaceOnUse",
+
+
+
+
+
+                                                }
+                                                rect {
+                                                    "width": "100%",
+                                                    "height": "96",
+                                                    "fill": "url(#_r_5_-stage-bp-paper)",
+                                                }
+                                                g {
                                                         rect {
-                                                            "width": "768",
-                                                            "height": "96",
                                                             "fill": "url(#_r_5_-stage-bp-glow)",
                                                         }
                                                         rect {
-                                                            "width": "768",
-                                                            "height": "96",
                                                             "fill": "url(#_r_5_-stage-bp-glow-celeste)",
                                                         }
                                                         rect {
-                                                            "width": "768",
-                                                            "height": "96",
                                                             "fill": "url(#_r_5_-stage-bp-glow-violet)",
                                                         }
                                                     }
-                                                    pattern {
-                                                        "id": "_r_5_-stage-bp-annotations",
-                                                        "width": "768",
-                                                        "height": "96",
-                                                        "patternUnits": "userSpaceOnUse",
+                                                
+                                                
+                                                
+                                                g {
                                                         g {
                                                             "stroke-linecap": "round",
                                                             "stroke-opacity": "0.6",
                                                             "stroke-width": "0.7",
-                                                            "style": "stroke: var(--stage-art-line);",
+                                                            "style": "stroke: #ddf7ff;",
                                                             path {
                                                                 "d": "M180 64H264",
                                                                 "stroke-dasharray": "5 4",
@@ -1325,7 +1289,7 @@ pub fn AppLayout(rows: Vec<ThreadRowData>, thread: ThreadView, environment_id: S
                                                             "stroke-linecap": "round",
                                                             "stroke-opacity": "0.55",
                                                             "stroke-width": "0.6",
-                                                            "style": "stroke: var(--stage-art-line);",
+                                                            "style": "stroke: #ddf7ff;",
                                                             g {
                                                                 path {
                                                                     "d": "M34 60L38 64M38 60L34 64",
@@ -1365,7 +1329,7 @@ pub fn AppLayout(rows: Vec<ThreadRowData>, thread: ThreadView, environment_id: S
                                                         g {
                                                             "stroke-opacity": "0.35",
                                                             "stroke-width": "0.6",
-                                                            "style": "stroke: var(--stage-art-line);",
+                                                            "style": "stroke: #ddf7ff;",
                                                             circle {
                                                                 "cx": "196",
                                                                 "cy": "38",
@@ -1401,37 +1365,6 @@ pub fn AppLayout(rows: Vec<ThreadRowData>, thread: ThreadView, environment_id: S
                                                             }
                                                         }
                                                     }
-                                                }
-                                                rect {
-                                                    "width": "100%",
-                                                    "height": "96",
-                                                    "fill": "url(#_r_5_-stage-bp-paper)",
-                                                }
-                                                rect {
-                                                    "width": "100%",
-                                                    "height": "96",
-                                                    "fill": "url(#_r_5_-stage-bp-glows)",
-                                                }
-                                                rect {
-                                                    "width": "100%",
-                                                    "height": "96",
-                                                    "fill": "url(#_r_5_-stage-bp-grid-minor)",
-                                                }
-                                                rect {
-                                                    "width": "100%",
-                                                    "height": "96",
-                                                    "fill": "url(#_r_5_-stage-bp-grid-major)",
-                                                }
-                                                rect {
-                                                    "width": "100%",
-                                                    "height": "6",
-                                                    "fill": "url(#_r_5_-stage-bp-ruler)",
-                                                }
-                                                rect {
-                                                    "width": "100%",
-                                                    "height": "96",
-                                                    "fill": "url(#_r_5_-stage-bp-annotations)",
-                                                }
                                             }
                                         }
                                         div {
