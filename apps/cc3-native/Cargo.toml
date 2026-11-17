@@ -37,6 +37,7 @@ parley_engine = "0.12"
 winit = "=0.31.0-beta.3"
 ureq = { version = "3", default-features = false, features = ["json"] }
 tungstenite = { version = "0.30", default-features = false, features = ["handshake"] }
+dioxus-ssr = "0.8.0-alpha.3"
 tokio = { version = "1", default-features = false, features = ["time"] }
 anyrender = "0.14"
 anyrender_vello_cpu = "0.18"

@@ -6,12 +6,8 @@ use dioxus::prelude::*;
 use winit::dpi::{LogicalPosition, LogicalSize};
 use winit::window::{WindowAttributes, WindowLevel};
 
-#[path = "../shell/mod.rs"]
-mod shell;
-#[path = "../ui/mod.rs"]
-mod ui;
-use shell::{alert, badge, instance, ShellEvent};
-use ui::window_frame::WindowFrame;
+use cc3_native::shell::{self, alert, badge, instance, ShellEvent};
+use cc3_native::ui::window_frame::WindowFrame;
 
 /// The CC3 icon is also the taskbar and Alt-Tab icon.
 fn window_icon() -> Option<winit::icon::Icon> {

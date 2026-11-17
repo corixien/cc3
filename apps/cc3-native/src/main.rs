@@ -1,8 +1,7 @@
 //! cc3-native: native renderer for CC3. See docs/native/README.md.
 //!   cc3-native render <snapshot.html> <out.png> [width] [height] [dark|light]
 //!   cc3-native report <snapshots-dir> <goldens-dir> <out-dir>
-mod render;
-mod report;
+use cc3_native::{render, report};
 
 use blitz_traits::shell::ColorScheme;
 use std::path::PathBuf;
@@ -27,6 +26,12 @@ fn main() {
             for (tag, x, y, w, h) in r.boxes {
                 println!("{tag} {x:.2} {y:.2} {w:.2} {h:.2}");
             }
+        }
+        Some("ui-report") => {
+            let results = report::run_ui(&PathBuf::from(&args[1]), &PathBuf::from(&args[2]), &PathBuf::from(&args[3]));
+            let md = report::markdown(&results);
+            std::fs::write(PathBuf::from(&args[3]).join("report.md"), &md).ok();
+            print!("{md}");
         }
         Some("report") => {
             let results = report::run(&PathBuf::from(&args[1]), &PathBuf::from(&args[2]), &PathBuf::from(&args[3]));

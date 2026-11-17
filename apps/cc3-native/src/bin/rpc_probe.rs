@@ -1,8 +1,7 @@
 //! Starts a server in CC3_HOME, connects over HTTP and WebSocket and prints what the first requests return.
 //! Used to verify the protocol port: `CC3_HOME=/tmp/x cargo run --release --bin rpc_probe`.
-#[path = "../net/mod.rs"]
-mod net;
 
+use cc3_native::net;
 use serde_json::json;
 use std::time::Duration;
 

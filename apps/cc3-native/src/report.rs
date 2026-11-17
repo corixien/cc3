@@ -104,3 +104,51 @@ pub fn markdown(results: &[StateResult]) -> String {
     );
     s
 }
+
+/// Renders every Rust screen and compares it with the golden image and geometry of the same name.
+pub fn run_ui(snapshots: &Path, goldens: &Path, out: &Path) -> Vec<StateResult> {
+    use crate::ui::screens::{render_html, SCREENS};
+    std::fs::create_dir_all(out).ok();
+    let mut results = Vec::new();
+    for screen in SCREENS {
+        for dark in [true, false] {
+            let name = format!("{}-{}", screen.name, if dark { "dark" } else { "light" });
+            let Ok(golden) = image::open(goldens.join(format!("{name}.png"))).map(|i| i.to_rgba8()) else { continue };
+            let (w, h) = golden.dimensions();
+            let html = render_html(screen, dark);
+            std::fs::write(out.join(format!("{name}.html")), &html).ok();
+            let scheme = if dark { ColorScheme::Dark } else { ColorScheme::Light };
+            let r = render(&html, w, h, scheme);
+            image::save_buffer(out.join(format!("{name}.png")), &r.rgba, w, h, image::ColorType::Rgba8).ok();
+            let (pct, mean) = compare_pixels(&r.rgba, golden.as_raw());
+            let (ok, n, mismatch) = geometry_score(&snapshots.join(format!("{name}.geometry.json")), &r.boxes);
+            results.push(StateResult { name, pixel_diff_pct: pct, mean_abs: mean, geometry_ok_pct: if n == 0 { 0.0 } else { ok as f64 / n as f64 * 100.0 }, geometry_n: n, tag_mismatch: mismatch });
+        }
+    }
+    results
+}
+
+pub fn geometry_score(path: &Path, boxes: &[(String, f32, f32, f32, f32)]) -> (usize, usize, bool) {
+    let (mut ok, mut n, mut mismatch) = (0usize, 0usize, false);
+    if let Ok(text) = std::fs::read_to_string(path) {
+        if let Ok(serde_json::Value::Array(rows)) = serde_json::from_str::<serde_json::Value>(&text) {
+            mismatch = rows.len() != boxes.len();
+            for (row, mine) in rows.iter().zip(boxes.iter()) {
+                let a = row.as_array().unwrap();
+                if matches!(a[5].as_str(), Some("inline" | "contents" | "none")) {
+                    continue;
+                }
+                let (cw, ch) = (a[3].as_f64().unwrap() as f32, a[4].as_f64().unwrap() as f32);
+                if cw == 0.0 && ch == 0.0 {
+                    continue;
+                }
+                n += 1;
+                let (cx, cy) = (a[1].as_f64().unwrap() as f32, a[2].as_f64().unwrap() as f32);
+                if a[0].as_str() == Some(&mine.0) && (cx - mine.1).abs() <= 0.5 && (cy - mine.2).abs() <= 0.5 && (cw - mine.3).abs() <= 0.5 && (ch - mine.4).abs() <= 0.5 {
+                    ok += 1;
+                }
+            }
+        }
+    }
+    (ok, n, mismatch)
+}
