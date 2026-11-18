@@ -59,3 +59,4 @@ pub mod terminal_panel;
 pub mod root;
 pub mod palette;
 pub mod settings;
+pub mod settings_spec;

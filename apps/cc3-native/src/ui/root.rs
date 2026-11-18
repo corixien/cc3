@@ -122,6 +122,7 @@ pub fn AppRoot(store: StoreHandle, #[props(default)] frame: bool) -> Element {
                         toasts.set(store.toasts_view());
                         let settings = store.config.lock().unwrap()["settings"].clone();
                         crate::ui::settings::sync_from_server(&settings);
+                        crate::ui::settings::sync_values_from_server(&settings);
                         rows.set(rows_from_store(store, selected()));
                         settled.set(settled_rows_from_store(store, selected()));
                         let mut view = if draft() { crate::model::ThreadView::default() } else { store.thread_view().unwrap_or_default() };
@@ -189,6 +190,30 @@ pub fn AppRoot(store: StoreHandle, #[props(default)] frame: bool) -> Element {
                             let name = format!("settings-{}", section.trim_start_matches("/settings/"));
                             if crate::ui::fragments::page(&name).is_some() {
                                 page.set(Some(name));
+                            }
+                        } else if action == "flush" {
+                            crate::ui::settings::flush_typed(|k, v| store.update_server_setting(k, v));
+                        } else if let Some(rest) = action.strip_prefix("select:") {
+                            // select:<key>:<x>:<y>
+                            let mut parts = rest.rsplitn(3, ':');
+                            if let (Some(y), Some(x), Some(key)) = (parts.next().and_then(|v| v.parse::<i32>().ok()), parts.next().and_then(|v| v.parse::<i32>().ok()), parts.next()) {
+                                let base = key.split('#').next().unwrap_or(key);
+                                let items = crate::ui::settings_spec::select_spec(base).map(|s| s.options.iter().map(|(v, l)| (v.to_string(), l.to_string())).collect()).unwrap_or_default();
+                                popup.set(Some((format!("select:{key}"), x, y, items)));
+                            }
+                        } else if let Some(rest) = action.strip_prefix("range:") {
+                            if let Some((key, value)) = rest.rsplit_once(':') {
+                                let value = value.trim_end_matches(".0").to_string();
+                                crate::ui::settings::set_value(key, &value, |k, v| store.update_server_setting(k, v));
+                            }
+                        } else if let Some(rest) = action.strip_prefix("step:") {
+                            if let Some((label, n)) = rest.rsplit_once(':') {
+                                if let Some(&(_, input, step, min, max)) = crate::ui::settings_spec::STEPPERS.iter().find(|s| s.0 == label) {
+                                    let key = crate::ui::settings::control_key(input, n.parse().unwrap_or(0));
+                                    let current = crate::ui::settings::VALUES.read().get(&key).and_then(|v| v.parse::<i64>().ok()).unwrap_or(min);
+                                    let next = (current + step).clamp(min, max);
+                                    crate::ui::settings::set_value(&key, &next.to_string(), |k, v| store.update_server_setting(k, v));
+                                }
                             }
                         } else if action == "ui:shelf" {
                             shelf_open.set(!shelf_open());
@@ -275,6 +300,10 @@ pub fn AppRoot(store: StoreHandle, #[props(default)] frame: bool) -> Element {
                             let kind = kind.clone();
                             move |key: String| {
                                 popup.set(None);
+                                if let Some(control) = kind.strip_prefix("select:") {
+                                    crate::ui::settings::set_value(control, &key, |k, v| store.update_server_setting(k, v));
+                                    return;
+                                }
                                 match kind.as_str() {
                                     "projects" => project_filter.set(if key.is_empty() { None } else { Some(key) }),
                                     "editors" => store.open_in_editor(Some(key)),

@@ -192,6 +192,21 @@ impl Harness {
         None
     }
 
+    /// Text content of the first element whose attribute equals `value`.
+    fn text_of(&self, name: &str, value: &str) -> Option<String> {
+        use blitz_dom::Document;
+        let doc = self.doc.inner();
+        let mut stack = vec![doc.root_node().id];
+        while let Some(id) = stack.pop() {
+            let node = doc.get_node(id)?;
+            if node.element_data().is_some_and(|e| e.attrs().iter().any(|a| &*a.name.local == name && &*a.value == value)) {
+                return Some(node.text_content().trim().to_string());
+            }
+            stack.extend(node.children.iter().copied());
+        }
+        None
+    }
+
     fn text_contains(&self, needle: &str) -> bool {
         use blitz_dom::Document;
         let doc = self.doc.inner();
@@ -623,4 +638,31 @@ fn hovering_right_after_a_settings_fragment_changed_does_not_panic() {
             h.hover_before_layout(x + dx, y + 30.0);
         }
     }
+}
+
+#[test]
+fn settings_select_range_and_text_controls_change_values() {
+    let _home = home_lock();
+    let rt = runtime();
+    let _guard = rt.enter();
+    let home = std::env::temp_dir().join(format!("cc3-interact-ctl-{}", std::process::id()));
+    std::fs::create_dir_all(&home).unwrap();
+    unsafe { std::env::set_var("CC3_HOME", &home) };
+    let mut h = Harness::new(fixture_store());
+    h.key(Key::Character(",".into()), Code::Comma, Modifiers::CONTROL);
+    let (x, y) = h.center_of("data-settings-section", "/settings/appearance").expect("nav");
+    h.click(x, y);
+    // Select: open, pick the last option (Full).
+    let (x, y) = h.center_of("aria-label", "Chat width").expect("select");
+    h.click(x, y);
+    assert!(h.text_contains("Wide"), "options listed");
+    let (x, y) = h.center_of("role", "menuitem").expect("option");
+    h.click(x, y);
+    assert!(!h.html_contains("menu-popup"), "popup closes");
+    assert_eq!(h.text_of("aria-label", "Chat width").as_deref(), Some("Full"), "trigger shows the choice");
+    // Range: click at the right end of the contrast slider.
+    let (x, y) = h.center_of("aria-label", "Contrast").expect("slider");
+    h.click(x + 60.0, y);
+    let saved = std::fs::read_to_string(home.join("native-ui-values.json")).unwrap();
+    assert!(saved.contains("\"Chat width\": \"full\"") && saved.contains("Contrast"), "values persisted: {saved}");
 }

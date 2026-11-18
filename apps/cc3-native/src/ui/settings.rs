@@ -106,3 +106,210 @@ mod tests {
         assert!(!out.contains("data-unchecked"));
     }
 }
+
+// ---------------------------------------------------------------------------------------------
+// Selects, text, number and range controls
+
+use crate::ui::settings_spec;
+
+/// Values of selects (option value) and inputs (text), by control key. Persisted next to the server data.
+pub static VALUES: GlobalSignal<HashMap<String, String>> = Signal::global(load_values);
+
+/// Text typed into inputs since the last flush. Not reactive: re-rendering a page while typing would
+/// replace the focused input.
+static TYPED: std::sync::Mutex<Vec<(String, String)>> = std::sync::Mutex::new(Vec::new());
+
+fn values_path() -> std::path::PathBuf {
+    crate::net::server::home().join("native-ui-values.json")
+}
+
+fn load_values() -> HashMap<String, String> {
+    std::fs::read_to_string(values_path()).ok().and_then(|t| serde_json::from_str(&t).ok()).unwrap_or_default()
+}
+
+fn save_values(map: &HashMap<String, String>) {
+    if let Ok(text) = serde_json::to_string_pretty(map) {
+        let _ = std::fs::write(values_path(), text);
+    }
+}
+
+/// Key of the `n`-th control with this label on a page.
+pub fn control_key(label: &str, n: usize) -> String {
+    if n == 0 { label.to_string() } else { format!("{label}#{n}") }
+}
+
+/// Sets a control value, persists it and forwards server-owned settings through `send(key, json)`.
+pub fn set_value(key: &str, value: &str, send: impl FnOnce(&str, serde_json::Value)) {
+    TYPED.lock().unwrap().retain(|(k, _)| k != key);
+    {
+        let mut map = VALUES.write();
+        map.insert(key.to_string(), value.to_string());
+        save_values(&map);
+    }
+    let base = key.split('#').next().unwrap_or(key);
+    if let Some(server_key) = settings_spec::select_spec(base).and_then(|s| s.server).or_else(|| settings_spec::TEXTS.iter().find(|t| t.0 == base).map(|t| t.1)) {
+        let numeric = settings_spec::TEXTS.iter().any(|t| t.0 == base && t.2);
+        let json = if numeric {
+            value.trim().parse::<i64>().map(serde_json::Value::from).unwrap_or(serde_json::Value::Null)
+        } else if server_key == "pullRequestMergeMethod" && value == "last" {
+            serde_json::Value::Null
+        } else {
+            serde_json::Value::from(value)
+        };
+        send(server_key, json);
+    }
+}
+
+/// Remembers text typed into an input without touching reactive state.
+pub fn remember_typed(key: &str, value: &str) {
+    let mut typed = TYPED.lock().unwrap();
+    typed.retain(|(k, _)| k != key);
+    typed.push((key.to_string(), value.to_string()));
+}
+
+/// Commits everything typed so far (on Enter or when focus leaves an input).
+pub fn flush_typed(send: impl Fn(&str, serde_json::Value)) {
+    let pending: Vec<(String, String)> = std::mem::take(&mut *TYPED.lock().unwrap());
+    for (key, value) in pending {
+        set_value(&key, &value, |k, v| send(k, v));
+    }
+}
+
+/// Takes server-owned values (selects and texts) from the server's settings.
+pub fn sync_values_from_server(settings: &serde_json::Value) {
+    let mut changes = Vec::new();
+    for spec in settings_spec::SELECTS {
+        let Some(key) = spec.server else { continue };
+        let value = match &settings[key] {
+            serde_json::Value::String(s) => s.clone(),
+            serde_json::Value::Null if key == "pullRequestMergeMethod" => "last".to_string(),
+            _ => continue,
+        };
+        changes.push((spec.aria.to_string(), value));
+    }
+    for (aria, key, numeric) in settings_spec::TEXTS {
+        let value = match &settings[*key] {
+            serde_json::Value::String(s) => s.clone(),
+            v if *numeric && v.is_number() => v.to_string(),
+            _ => continue,
+        };
+        changes.push((aria.to_string(), value));
+    }
+    let differs = changes.iter().any(|(k, v)| VALUES.read().get(k) != Some(v));
+    if differs {
+        let mut map = VALUES.write();
+        for (k, v) in changes {
+            map.insert(k, v);
+        }
+    }
+}
+
+fn attr_in<'a>(tag: &'a str, name: &str) -> Option<&'a str> {
+    let key = format!("{name}=\"");
+    let start = tag.find(&key)? + key.len();
+    Some(&tag[start..start + tag[start..].find('"')?])
+}
+
+fn replace_attr(tag: &str, name: &str, value: &str) -> String {
+    let escaped = value.replace('&', "&amp;").replace('"', "&quot;");
+    let key = format!("{name}=\"");
+    match tag.find(&key) {
+        Some(at) => {
+            let start = at + key.len();
+            let end = start + tag[start..].find('"').unwrap_or(0);
+            format!("{}{escaped}{}", &tag[..start], &tag[end..])
+        }
+        None => format!("{} {name}=\"{escaped}\"", tag.trim_end_matches('>').trim_end_matches('/').trim_end()) + if tag.ends_with("/>") { " />" } else { ">" },
+    }
+}
+
+/// Applies stored select labels, input values and slider positions to a settings page.
+pub fn patch_controls<'a>(html: &'a str, values: &HashMap<String, String>) -> Cow<'a, str> {
+    if values.is_empty() {
+        return Cow::Borrowed(html);
+    }
+    let mut out = String::with_capacity(html.len());
+    let mut rest = html;
+    let mut seen: HashMap<String, usize> = HashMap::new();
+    let typed = TYPED.lock().unwrap().clone();
+    let mut value_of = |key: &str| typed.iter().find(|(k, _)| k == key).map(|(_, v)| v.clone()).or_else(|| values.get(key).cloned());
+    loop {
+        let select_at = rest.find("data-slot=\"select-trigger\"");
+        let input_at = rest.find("<input");
+        let next = match (select_at, input_at) {
+            (None, None) => break,
+            (Some(a), None) => (a, true),
+            (None, Some(b)) => (b, false),
+            (Some(a), Some(b)) => if a < b { (a, true) } else { (b, false) },
+        };
+        let (pos, is_select) = next;
+        if is_select {
+            let Some(tag_start) = rest[..pos].rfind("<button") else { out.push_str(&rest[..pos + 1]); rest = &rest[pos + 1..]; continue };
+            let tag_end = pos + rest[pos..].find('>').unwrap_or(0) + 1;
+            let tag = &rest[tag_start..tag_end];
+            let aria = attr_in(tag, "aria-label").unwrap_or_default().to_string();
+            let n = { let c = seen.entry(aria.clone()).or_insert(0); let n = *c; *c += 1; n };
+            let key = control_key(&aria, n);
+            let chosen = value_of(&key).and_then(|v| settings_spec::select_spec(&aria).and_then(|s| s.options.iter().find(|o| o.0 == v).map(|o| o.1)));
+            if let (Some(label), Some(v_at)) = (chosen, rest[tag_end..].find("data-slot=\"select-value\"")) {
+                let v_at = tag_end + v_at;
+                let open_end = v_at + rest[v_at..].find('>').unwrap_or(0) + 1;
+                let close = open_end + rest[open_end..].find("</span").unwrap_or(0);
+                out.push_str(&rest[..open_end]);
+                out.push_str(label);
+                rest = &rest[close..];
+            } else {
+                out.push_str(&rest[..tag_end]);
+                rest = &rest[tag_end..];
+            }
+        } else {
+            let tag_end = pos + rest[pos..].find('>').unwrap_or(rest.len() - pos - 1) + 1;
+            let tag = &rest[pos..tag_end];
+            let skip = tag.contains("aria-hidden=\"true\"") || attr_in(tag, "type") == Some("checkbox");
+            let label = attr_in(tag, "aria-label").or_else(|| attr_in(tag, "id")).unwrap_or_default().to_string();
+            if skip || label.is_empty() {
+                out.push_str(&rest[..tag_end]);
+                rest = &rest[tag_end..];
+                continue;
+            }
+            let n = { let c = seen.entry(label.clone()).or_insert(0); let n = *c; *c += 1; n };
+            let key = control_key(&label, n);
+            out.push_str(&rest[..pos]);
+            match value_of(&key) {
+                Some(v) => {
+                    let mut t = replace_attr(tag, "value", &v);
+                    if attr_in(tag, "type") == Some("range") {
+                        let num = |name: &str, d: f64| attr_in(tag, name).and_then(|x| x.parse::<f64>().ok()).unwrap_or(d);
+                        let (min, max) = (num("min", 0.0), num("max", 100.0));
+                        let pct = if max > min { ((v.parse::<f64>().unwrap_or(min) - min) / (max - min) * 100.0).clamp(0.0, 100.0) } else { 0.0 };
+                        if let Some(sp) = t.find("--settings-slider-progress:") {
+                            let end = sp + t[sp..].find(';').unwrap_or(t.len() - sp);
+                            t = format!("{}--settings-slider-progress: {pct}%{}", &t[..sp], &t[end..]);
+                        }
+                    }
+                    out.push_str(&t);
+                }
+                None => out.push_str(tag),
+            }
+            rest = &rest[tag_end..];
+        }
+    }
+    out.push_str(rest);
+    Cow::Owned(out)
+}
+
+#[cfg(test)]
+mod control_tests {
+    use super::*;
+
+    #[test]
+    fn patches_select_label_and_input_value() {
+        let html = r#"<button role="combobox" data-slot="select-trigger" aria-label="Chat width"><span data-slot="select-value" class="x">Comfortable</span><span></span></button><input aria-label="Branch prefix" value="t3" />"#;
+        let mut v = HashMap::new();
+        v.insert("Chat width".to_string(), "wide".to_string());
+        v.insert("Branch prefix".to_string(), "me".to_string());
+        let out = patch_controls(html, &v);
+        assert!(out.contains(">Wide</span"), "{out}");
+        assert!(out.contains(r#"value="me""#), "{out}");
+    }
+}
