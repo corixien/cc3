@@ -432,8 +432,61 @@ impl Store {
         });
     }
 
+    /// Enables or disables a provider instance (`providerInstanceMutation` upsert).
+    pub fn set_provider_enabled(self: &Arc<Self>, display_name: &str, enabled: bool) {
+        let Some(client) = self.client.lock().unwrap().clone() else { return };
+        let config = self.config.lock().unwrap().clone();
+        let Some(provider) = config["providers"].as_array().and_then(|p| p.iter().find(|p| p["displayName"] == display_name)).cloned() else { return };
+        let instance_id = provider["instanceId"].as_str().unwrap_or_default().to_string();
+        let driver = provider["driver"].as_str().unwrap_or(&instance_id).to_string();
+        let mut instance = config["settings"]["providerInstances"][&instance_id].clone();
+        if !instance.is_object() {
+            instance = serde_json::json!({"driver": driver});
+        }
+        instance["enabled"] = enabled.into();
+        self.provider_mutation(client, instance_id, instance);
+    }
+
+    /// Edits one text field of a provider instance (display name or a driver setting).
+    pub fn set_provider_field(self: &Arc<Self>, control_id: &str, value: &str) {
+        let Some(client) = self.client.lock().unwrap().clone() else { return };
+        // control id: provider-instance-<instance>-<field>
+        let rest = control_id.trim_start_matches("provider-instance-");
+        let Some((instance_id, field)) = rest.rsplit_once('-') else { return };
+        let config = self.config.lock().unwrap().clone();
+        let driver = config["providers"].as_array().and_then(|p| p.iter().find(|p| p["instanceId"] == instance_id)).and_then(|p| p["driver"].as_str()).unwrap_or(instance_id).to_string();
+        let mut instance = config["settings"]["providerInstances"][instance_id].clone();
+        if !instance.is_object() {
+            instance = serde_json::json!({"driver": driver});
+        }
+        match field {
+            "name" => instance["displayName"] = value.into(),
+            other => {
+                if !instance["config"].is_object() {
+                    instance["config"] = serde_json::json!({});
+                }
+                instance["config"][other] = value.into();
+            }
+        }
+        self.provider_mutation(client, instance_id.to_string(), instance);
+    }
+
+    fn provider_mutation(self: &Arc<Self>, client: Arc<RpcClient>, instance_id: String, instance: serde_json::Value) {
+        let store = self.clone();
+        let payload = serde_json::json!({"patch": {}, "providerInstanceMutation": {"operation": "upsert", "instanceId": instance_id, "instance": instance}});
+        std::thread::spawn(move || {
+            if let Err(e) = client.call("server.updateSettings", payload, std::time::Duration::from_secs(30)) {
+                store.notify("error", "Provider setting not saved", &format!("{e:?}").chars().take(160).collect::<String>());
+            }
+        });
+    }
+
     /// Writes one server-owned setting (`server.updateSettings`) on a background thread.
     pub fn update_server_setting(self: &Arc<Self>, key: &str, value: serde_json::Value) {
+        if let Some(control) = key.strip_prefix("provider:") {
+            self.set_provider_field(control, value.as_str().unwrap_or_default());
+            return;
+        }
         let Some(client) = self.client.lock().unwrap().clone() else { return };
         let payload = serde_json::json!({ "patch": { key: value } });
         std::thread::spawn(move || {

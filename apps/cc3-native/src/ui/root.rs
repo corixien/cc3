@@ -123,6 +123,8 @@ pub fn AppRoot(store: StoreHandle, #[props(default)] frame: bool) -> Element {
                         let settings = store.config.lock().unwrap()["settings"].clone();
                         crate::ui::settings::sync_from_server(&settings);
                         crate::ui::settings::sync_values_from_server(&settings);
+                        let providers = store.config.lock().unwrap()["providers"].clone();
+                        crate::ui::settings::sync_providers(&providers);
                         let live = crate::ui::settings::Live {
                             projects: store.shell.lock().unwrap().projects.iter().map(|p| (p.id.clone(), p.title.clone(), p.workspace_root.clone())).collect(),
                             archived: store.archived.lock().unwrap().clone(),
@@ -291,6 +293,9 @@ pub fn AppRoot(store: StoreHandle, #[props(default)] frame: bool) -> Element {
                         } else if let Some(rest) = action.strip_prefix("switch:") {
                             if let Some((value, label)) = rest.split_once(':') {
                                 crate::ui::settings::set_switch(label, value == "true", |key, on| store.update_server_setting(key, serde_json::json!(on)));
+                                if let Some(name) = label.strip_prefix("Enable ") {
+                                    store.set_provider_enabled(name, value == "true");
+                                }
                             }
                         } else if action == "close" {
                             page.set(None);

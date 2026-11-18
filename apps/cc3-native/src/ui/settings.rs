@@ -54,6 +54,17 @@ pub fn sync_from_server(settings: &serde_json::Value) {
     }
 }
 
+/// Provider switches ("Enable Codex") follow the providers the server reports.
+pub fn sync_providers(providers: &serde_json::Value) {
+    for p in providers.as_array().into_iter().flatten() {
+        let (Some(name), Some(enabled)) = (p["displayName"].as_str(), p["enabled"].as_bool()) else { continue };
+        let label = format!("Enable {name}");
+        if SWITCHES.read().get(&label) != Some(&enabled) {
+            SWITCHES.write().insert(label, enabled);
+        }
+    }
+}
+
 /// Sets a switch, persists it and forwards server-owned settings.
 pub fn set_switch(label: &str, value: bool, send: impl FnOnce(&str, bool)) {
     let mut map = SWITCHES.write();
@@ -147,6 +158,10 @@ pub fn set_value(key: &str, value: &str, send: impl FnOnce(&str, serde_json::Val
         save_values(&map);
     }
     let base = key.split('#').next().unwrap_or(key);
+    if key.starts_with("provider-instance-") {
+        send(&format!("provider:{key}"), serde_json::Value::from(value));
+        return;
+    }
     if let Some(server_key) = settings_spec::select_spec(base).and_then(|s| s.server).or_else(|| settings_spec::TEXTS.iter().find(|t| t.0 == base).map(|t| t.1)) {
         let numeric = settings_spec::TEXTS.iter().any(|t| t.0 == base && t.2);
         let json = if numeric {

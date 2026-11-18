@@ -78,4 +78,15 @@ fn main() {
     let _ = client.call("orchestration.dispatchCommand", json!({"type": "thread.archive", "commandId": "probe-arch", "threadId": "probe-t1"}), Duration::from_secs(20));
     let r = client.call("orchestration.getArchivedShellSnapshot", json!({}), Duration::from_secs(20));
     println!("archived: {}", format!("{r:?}").chars().take(900).collect::<String>());
+    println!("providerInstances: {}", config["settings"]["providerInstances"].to_string().chars().take(900).collect::<String>());
+    store.set_provider_enabled("Claude", false);
+    store.set_provider_field("provider-instance-codex-name", "Codex Renamed");
+    std::thread::sleep(Duration::from_secs(3));
+    let config = store.config.lock().unwrap().clone();
+    println!("claude enabled after toggle: {:?} codex name: {:?}", config["providers"].as_array().and_then(|p| p.iter().find(|p| p["instanceId"] == "claudeAgent")).map(|p| p["enabled"].clone()), config["providers"].as_array().and_then(|p| p.iter().find(|p| p["instanceId"] == "codex")).map(|p| p["displayName"].clone()));
+    let r = client.call("server.updateSettings", json!({"patch": {}, "providerInstanceMutation": {"operation": "upsert", "instanceId": "claudeAgent", "instance": {"driver": "claudeAgent", "enabled": false}}}), Duration::from_secs(20));
+    println!("direct update: {}", format!("{r:?}").chars().take(500).collect::<String>());
+    println!("names: {:?}", store.config.lock().unwrap()["providers"].as_array().map(|p| p.iter().map(|p| format!("{}={}/{}", p["instanceId"], p["displayName"], p["enabled"])).collect::<Vec<_>>()));
+    let g = client.call("server.getSettings", json!({}), Duration::from_secs(20));
+    if let Ok(v) = g { println!("instances: {}", v["providerInstances"]); }
 }
