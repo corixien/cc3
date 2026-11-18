@@ -12,6 +12,7 @@ import { exposeClerkBridge } from "@clerk/electron/preload";
 import { contextBridge, ipcRenderer, webFrame, webUtils } from "electron";
 
 import * as IpcChannels from "./ipc/channels.ts";
+import { installCc3WindowChrome } from "./cc3WindowChrome.ts";
 import { mergeLegacyLocalStorage } from "./legacyLocalStorageMerge.ts";
 
 const SNAP_SHOT_EVENT_TYPES = new Set([
@@ -45,6 +46,8 @@ try {
 
 // oxlint-disable-next-line t3code/no-global-process-runtime -- Electron exposes the client platform in its sandboxed preload process.
 const clientPlatform = process.platform;
+
+if (clientPlatform === "linux") installCc3WindowChrome();
 
 if (clientPlatform === "darwin") {
   // Native buttons ignore Chromium zoom; reserve native points even after reload.

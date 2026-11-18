@@ -55,7 +55,7 @@ function inhibitorCommand(
         command: "systemd-inhibit",
         args: [
           "--what=idle:sleep",
-          "--who=T3 Code",
+          "--who=CC3",
           "--why=Agents are working",
           "--mode=block",
           "tail",

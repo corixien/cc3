@@ -52,7 +52,7 @@ async function prebuildAndroid(input = { manifest: MANIFEST, mainActivity: MAIN_
   NodeFS.writeFileSync(activityPath, input.mainActivity);
 
   const config = withAndroidTabletOrientation({
-    name: "T3 Code",
+    name: "CC3",
     slug: "t3code",
     orientation: "portrait",
   });

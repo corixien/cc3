@@ -94,7 +94,10 @@ function terminalFontFamily(family?: string): string {
   // the whole canvas font string invalid and the assignment silently no-ops.
   const custom = family === undefined ? "" : quoteTerminalFontFamilies(family);
   if (custom.length === 0) return DEFAULT_TERMINAL_FONT_FAMILY;
-  if (!isMonospaceFamily(custom)) return DEFAULT_TERMINAL_FONT_FAMILY;
+  // CC3: the interface font Lexend Deca is allowed in the terminal although it is proportional.
+  if (!custom.includes("Lexend Deca") && !isMonospaceFamily(custom)) {
+    return DEFAULT_TERMINAL_FONT_FAMILY;
+  }
   return uncheckedTerminalFontFamily(custom);
 }
 

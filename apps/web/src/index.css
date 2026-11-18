@@ -168,9 +168,17 @@ html[data-mobile-composer-route-transition="true"]::view-transition-old(t3-mobil
 /* The font tokens are declared outside the inline theme so utilities reference
    the variables and Settings -> Appearance can override them at runtime. The
    default stacks are mirrored in `appearanceFonts.ts`. */
+@font-face {
+  font-family: "Lexend Deca";
+  src: url("/fonts/LexendDeca.ttf") format("truetype");
+  font-weight: 100 900;
+  font-style: normal;
+  font-display: swap;
+}
+
 @theme {
   --font-sans:
-    -apple-system, BlinkMacSystemFont, "Inter Variable", "Segoe UI", system-ui, sans-serif;
+    "Lexend Deca", -apple-system, BlinkMacSystemFont, "Inter Variable", "Segoe UI", system-ui, sans-serif;
   --font-mono:
     ui-monospace, "SF Mono", "SFMono-Regular", Menlo, Consolas, "Liberation Mono", monospace;
 }
@@ -678,7 +686,7 @@ html[data-mobile-composer-route-transition="true"]::view-transition-old(t3-mobil
     background-color: color-mix(in oklab, var(--primary) 45%, transparent);
   }
   :root {
-    /* Keep the original T3 Code artwork palettes as the defaults. Built-in
+    /* Keep the original CC3 artwork palettes as the defaults. Built-in
        themes override them with their own pigments in the components layer. */
     --stage-art-top: oklch(0.782169 0.123386 240.226);
     --stage-art-mid: oklch(0.616111 0.195824 259.735);

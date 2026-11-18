@@ -11,11 +11,14 @@ import {
 } from "@t3tools/contracts";
 
 export const DEFAULT_SANS_FONT_STACK =
-  '-apple-system, BlinkMacSystemFont, "Inter Variable", "Segoe UI", system-ui, sans-serif';
+  '"Lexend Deca", -apple-system, BlinkMacSystemFont, "Inter Variable", "Segoe UI", system-ui, sans-serif';
 
 // Some engines map `ui-monospace` to a proportional font, so prefer concrete names.
 export const DEFAULT_CODE_FONT_STACK =
   '"SF Mono", "SFMono-Regular", Menlo, Consolas, "Liberation Mono", monospace';
+
+/** Terminals default to the interface font; an explicit font setting still wins. */
+const DEFAULT_TERMINAL_FONT_STACK = '"Lexend Deca", "Liberation Mono", monospace';
 
 export const TYPOGRAPHY_ADVANCED_STORAGE_KEY = "t3code:typography-advanced";
 
@@ -24,8 +27,8 @@ export function resolveTerminalFontPreference(input: {
   readonly code: string;
   readonly terminal: string;
 }): string {
-  if (input.advanced) return input.terminal;
-  return input.code;
+  const chosen = input.advanced ? input.terminal : input.code;
+  return chosen.trim() === "" ? DEFAULT_TERMINAL_FONT_STACK : chosen;
 }
 
 export function resolveTerminalFontSizePreference(input: {

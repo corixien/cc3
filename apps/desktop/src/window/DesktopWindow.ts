@@ -97,7 +97,7 @@ const DEVELOPMENT_RETRYABLE_LOAD_ERROR_CODES = new Set([-2, -7, -9, -102, -105, 
 
 type WindowTitleBarOptions = Pick<
   Electron.BrowserWindowConstructorOptions,
-  "titleBarOverlay" | "titleBarStyle" | "trafficLightPosition"
+  "titleBarOverlay" | "titleBarStyle" | "trafficLightPosition" | "frame" | "transparent" | "backgroundColor"
 >;
 
 type DesktopWindowRuntimeServices =
@@ -333,6 +333,11 @@ function getWindowTitleBarOptions(
     };
   }
 
+  if (platform === "linux") {
+    // CC3 draws its own caption buttons and rounded outline (cc3WindowChrome.ts).
+    return { frame: false, transparent: true, backgroundColor: "#00000000" };
+  }
+
   return {
     titleBarStyle: "hidden",
     titleBarOverlay: {
@@ -354,7 +359,9 @@ function syncWindowAppearance(
       return;
     }
 
-    window.setBackgroundColor(getInitialWindowBackgroundColor(shouldUseDarkColors));
+    if (platform !== "linux") {
+      window.setBackgroundColor(getInitialWindowBackgroundColor(shouldUseDarkColors));
+    }
     const { titleBarOverlay } = getWindowTitleBarOptions(shouldUseDarkColors, platform);
     if (hasTitleBarOverlay && typeof titleBarOverlay === "object") {
       window.setTitleBarOverlay(titleBarOverlay);
