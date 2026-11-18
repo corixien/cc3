@@ -4,8 +4,8 @@ Referenz: Chromium-Goldens in `apps/web/test/golden/__screenshots__`, Messung `c
 
 ## A. Settings an Server binden (`ui/settings.rs`, `store.rs`)
 
-- [ ] General, Appearance (Theme, Schrift, Zeitformat), Chat, Diffs, Browser, Voice, Beta, Labs: Werte aus Server-Settings, Schalter/Inputs/Selects schreiben per RPC zurueck
-- [ ] Providers (Status, Modelle, Login), Connections, Devices, Access, Secrets
+- [x] (Selects, Slider, Texte, Stepper, Schalter editierbar + persistiert; Server-Keys: backgroundActivityProfile, branchNamingMode, branchNamePrefix, addProjectBaseDirectory, defaultRuntimeMode, defaultThreadEnvMode, pullRequestMergeMethod, sidebarAutoSettleAfterDays, 18 Schalter) General, Appearance (Theme, Schrift, Zeitformat), Chat, Diffs, Browser, Voice, Beta, Labs: Werte aus Server-Settings, Schalter/Inputs/Selects schreiben per RPC zurueck
+- [x] Providers (aktivieren, umbenennen, Felder per providerInstanceMutation; Login/Status offen) (Status, Modelle, Login), Connections, Devices, Access, Secrets
 - [ ] Keybindings (Liste, Editieren, Aufnahme)
 - [ ] Projects, Threads, Archived (Wiederherstellen), Worktrees, Storage, Maintenance, Diagnostics, Scheduled tasks, Source control, Integrations, About, Licenses
 

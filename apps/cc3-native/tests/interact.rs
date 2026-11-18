@@ -686,3 +686,23 @@ fn projects_and_archived_pages_list_live_data() {
     h.click(x, y);
     assert!(h.text_contains("Old thread") && h.text_contains("Restore"), "archived listed");
 }
+
+#[test]
+fn typing_into_a_settings_input_is_saved_on_enter() {
+    let _home = home_lock();
+    let rt = runtime();
+    let _guard = rt.enter();
+    let home = std::env::temp_dir().join(format!("cc3-interact-txt-{}", std::process::id()));
+    std::fs::create_dir_all(&home).unwrap();
+    unsafe { std::env::set_var("CC3_HOME", &home) };
+    let mut h = Harness::new(fixture_store());
+    h.key(Key::Character(",".into()), Code::Comma, Modifiers::CONTROL);
+    let (x, y) = h.center_of("data-settings-section", "/settings/worktrees").expect("nav");
+    h.click(x, y);
+    let (x, y) = h.center_of("aria-label", "Branch prefix").expect("input");
+    h.click(x, y);
+    h.type_text("zz");
+    h.key(Key::Named(keyboard_types::NamedKey::Enter), Code::Enter, Modifiers::empty());
+    let saved = std::fs::read_to_string(home.join("native-ui-values.json")).unwrap_or_default();
+    assert!(saved.contains("Branch prefix") && saved.contains("zz"), "saved: {saved}");
+}
