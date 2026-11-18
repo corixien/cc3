@@ -7,6 +7,9 @@ import {
   VcsProcessSpawnError,
 } from "@t3tools/contracts";
 import { foldLatinDiacritics, newProjectFolderName } from "@t3tools/shared/path";
+// CC3: "without a project" opens the user's home directory, like running `claude` in a fresh terminal.
+// oxlint-disable-next-line t3code/no-node-builtin-imports -- the home directory is a host fact.
+import * as NodeOS from "node:os";
 import * as Cause from "effect/Cause";
 import * as Context from "effect/Context";
 import * as SecureRandom from "effect/crypto/SecureRandom";
@@ -309,7 +312,7 @@ const make = Effect.gen(function* () {
     function* () {
       const probedRoot = yield* scratchProbe.pipe(Effect.flatMap(Effect.fromResult));
       yield* makeScratchFolder(probedRoot);
-      const workspaceRoot = yield* scratchProjectRoot(probedRoot);
+      const workspaceRoot = NodeOS.homedir();
       const id = yield* random
         .uuidV4()
         .pipe(Effect.mapError((cause) => new ScratchProjectError({ workspaceRoot, cause })));
@@ -317,7 +320,7 @@ const make = Effect.gen(function* () {
         .bootstrap({
           commandId: CommandId.make(`scratch-project:${id}`),
           projectId: ProjectId.make(id),
-          title: "No project",
+          title: "Home",
           workspaceRoot,
         })
         .pipe(
@@ -337,7 +340,7 @@ const make = Effect.gen(function* () {
           .update({
             commandId: CommandId.make(`scratch-project-icon:${id}`),
             projectId: bootstrapped.project.id,
-            projectIcon: { kind: "lucide", name: "message-square-dashed", color: "gray" },
+            projectIcon: { kind: "lucide", name: "house", color: "gray" },
           })
           .pipe(Effect.mapError((cause) => new ScratchProjectError({ workspaceRoot, cause })));
       }

@@ -130,7 +130,7 @@ import {
   useThreadActions,
 } from "../hooks/useThreadActions";
 import { useHandleNewThread } from "../hooks/useHandleNewThread";
-import { useNewChatInHome } from "../hooks/useNewChatInHome";
+import { useScratchProject } from "../hooks/useScratchProject";
 import { useOrderWhileOpen } from "../hooks/useOrderWhileOpen";
 import { useProjectPin } from "../hooks/useProjectGroupUpdate";
 import { useSidebarProjectGroups } from "../hooks/useSidebarProjectGroups";
@@ -992,7 +992,8 @@ export default function Sidebar({ routeReveal }: { routeReveal: SidebarRouteReve
   const boringSidebarEnabled = useClientSettings((settings) => settings.boringSidebarEnabled);
   const folderRowsMultiline = useClientSettings((settings) => settings.boringSidebarMultilineRows);
   const newThreadContext = useHandleNewThread();
-const newChatInHome = useNewChatInHome();
+const { scratchEnvironmentId, startScratchThread } = useScratchProject();
+const homeChatEnvironmentId = scratchEnvironmentId(newThreadContext.defaultProjectRef?.environmentId ?? null);
   // Row callbacks capture only the handler; the rest of the context changes with the route.
   const { handleNewThread } = newThreadContext;
   const primaryEnvironmentId = usePrimaryEnvironmentId();
@@ -2948,10 +2949,10 @@ const newChatInHome = useNewChatInHome();
   const showJumpHints = useThreadJumpHintsVisible(keybindings, routeThreadRef);
 
   const handleNewThreadClick = (event?: ReactMouseEvent) => {
-    // CC3: "+" always starts a chat in the home directory.
-    if (newChatInHome) {
+    // CC3: "+" always starts a chat in the home directory (the server's "without a project").
+    if (homeChatEnvironmentId !== null) {
       if (isMobile) setOpenMobile(false);
-      void newChatInHome();
+      void startScratchThread(homeChatEnvironmentId);
       return;
     }
     if (
@@ -3204,7 +3205,7 @@ const newChatInHome = useNewChatInHome();
               }
               onNewProject={openAddProjectCommandPalette}
               onNewThread={handleNewThreadClick}
-              newThreadDisabled={newChatInHome === null && projects.length === 0}
+              newThreadDisabled={homeChatEnvironmentId === null && projects.length === 0}
               newThreadShortcutLabel={newThreadShortcutLabel}
               newThreadInProjectShortcutLabel={newThreadInProjectShortcutLabel}
               showNewThreadInProjectHint={

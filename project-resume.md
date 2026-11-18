@@ -15,11 +15,20 @@ CC3 = fork of upstream t3code (pingdotgg/t3code, Electron + web + Node server + 
 - Linux window: frameless + transparent, rounded 14px with 1px outline, own minimize/maximize/close buttons top right, Window Controls Overlay polyfill. Files: `apps/desktop/src/cc3WindowChrome.ts` (preload), `cc3WindowControls.ts` (main IPC), small hooks in `preload.ts`, `main.ts`, `window/DesktopWindow.ts`.
 - Font: Lexend Deca for the interface and terminal default (`apps/web/public/fonts`, `index.css`, `appearanceFonts.ts`, `terminal/ghostty/surface.ts`). Code keeps a monospace font.
 
+- Sidebar: `apps/web/src/components/Cc3Sidebar.tsx` replaces the project-grouped upstream sidebar (mounted in `AppSidebarLayout.tsx`): flat chat list, title + working/needs-input marker, user folders (localStorage `cc3:sidebar-folders`), drag or context menu to sort, no settle UI. Upstream `Sidebar.tsx` is untouched but unused.
+- "Without a project" / "+" = Home: `ManagedProjectFolders.ensureScratchProject` opens the user's home directory as project "Home".
+- Composer status strip: `components/chat/ComposerStatusStrip.tsx` (context, repo/branch, directory, usage used-%). Usage UI shows share used, not left.
+- Right panel: single view with dropdown switcher (`CC3_SINGLE_VIEW` in `RightPanelTabs.tsx`). Stage artwork disabled in `SidebarStageBackdrop.tsx`.
+
 ## Rules
 See CLAUDE.md: work on the branch the user names; stay mergeable with upstream; never lose CC3 changes on merge.
 
 ## Current state
 Initial CC3 port pushed to main. Not yet run as a built app: window chrome (frameless/transparent on Linux) is untested visually. Typecheck of touched files and DesktopWindow/appearanceFonts tests pass.
+
+## Open
+- Permission ("Full access") chip is still in the composer controls, not in the status strip.
+- Browser tests of RightPanelTabs/UsageLimitsPooled still expect tabs / "left".
 
 ## Next
 - Launch `pnpm dev:desktop` and check window buttons, outline, resize, drag, fonts.

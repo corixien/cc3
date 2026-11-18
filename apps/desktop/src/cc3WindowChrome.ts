@@ -1,7 +1,7 @@
 // CC3: renderer half of the custom Linux window controls. The frameless, transparent window gets
 // a rounded 1px outline, caption buttons at the top right and a Window Controls Overlay polyfill
 // so the web UI lays out its titlebar exactly as it does with native controls.
-import { contextBridge, ipcRenderer, webFrame } from "electron";
+import { ipcRenderer, webFrame } from "electron";
 
 import type { Cc3WindowOp, Cc3WindowState } from "./cc3WindowControls.ts";
 
@@ -85,9 +85,6 @@ function installChrome(): void {
 }
 
 export function installCc3WindowChrome(): void {
-  // oxlint-disable-next-line t3code/no-global-process-runtime -- the sandboxed preload reads the user's home for new chats.
-  const homeDir = process.env.HOME ?? "";
-  if (homeDir) contextBridge.exposeInMainWorld("cc3HomeDir", homeDir);
   // The overlay API lives in the page's world, so the polyfill runs there before app scripts.
   void webFrame.executeJavaScript(`(() => {
     const target = new EventTarget();

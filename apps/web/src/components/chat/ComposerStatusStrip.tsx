@@ -7,7 +7,10 @@ import type {
 } from "@t3tools/contracts";
 import type { ContextWindowSnapshot } from "@t3tools/client-runtime/state/context-window";
 import { collectProviderUsageLimits, remainingPercent } from "@t3tools/shared/usageLimits";
+import { useNavigate } from "@tanstack/react-router";
 import { FolderIcon, GaugeIcon, GitBranchIcon } from "lucide-react";
+
+import { openCommandPalette } from "../../commandPaletteBus";
 
 import { useNowMinute } from "../../hooks/useNowMinute";
 import { formatContextWindowTokens } from "../../lib/contextWindow";
@@ -30,6 +33,7 @@ export function ComposerStatusStrip(props: {
   readonly repository: string | null;
   readonly directory: string | null;
 }) {
+  const navigate = useNavigate();
   const nowMinute = useNowMinute();
   const now = Date.parse(`${nowMinute}:00Z`);
   const report =
@@ -74,13 +78,23 @@ export function ComposerStatusStrip(props: {
         <span className="truncate">{props.repository}</span>
       ) : null}
       {props.directory ? (
-        <span className="inline-flex min-w-0 items-center gap-1">
+        <button
+          type="button"
+          title="Change directory"
+          onClick={() => openCommandPalette({ open: "new-thread-in" })}
+          className="inline-flex min-w-0 cursor-pointer items-center gap-1 hover:text-foreground"
+        >
           <FolderIcon aria-hidden />
           <span className="truncate">{shortenPath(props.directory)}</span>
-        </span>
+        </button>
       ) : null}
       {windows.length > 0 ? (
-        <span className="ms-auto inline-flex items-center gap-3">
+        <button
+          type="button"
+          title="Open usage"
+          onClick={() => void navigate({ to: "/usage" })}
+          className="ms-auto inline-flex cursor-pointer items-center gap-3 hover:text-foreground"
+        >
           {windows.map((window) => {
             const used = 100 - remainingPercent(window);
             return (
@@ -89,7 +103,7 @@ export function ComposerStatusStrip(props: {
               </span>
             );
           })}
-        </span>
+        </button>
       ) : null}
     </div>
   );
