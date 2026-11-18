@@ -81,6 +81,7 @@ import {
   Menu,
   MenuItem,
   MenuPopup,
+  MenuSeparator,
   MenuShortcut,
   MenuSub,
   MenuSubPopup,
@@ -224,6 +225,8 @@ type TabContextMenuAction =
   | "close-to-right"
   | "close-all";
 
+/** CC3: the panel shows one view at a time, switched from a dropdown instead of a tab strip. */
+const CC3_SINGLE_VIEW = true as boolean;
 const TAB_SCROLL_EDGE_TOLERANCE = 1;
 const TAB_DRAG_MODIFIERS = [restrictToHorizontalAxis, restrictToFirstScrollableAncestor];
 
@@ -1102,6 +1105,9 @@ export function RightPanelTabs(props: RightPanelTabsProps) {
   const gt = useGT();
   const messages = useMessages();
   const focusedSurface = props.surfaces.find((surface) => surface.id === props.activeSurfaceId);
+  const focusedFavicon = focusedSurface
+    ? previewFaviconOf(focusedSurface, props.previewSessions, props.desktopByTabId)
+    : null;
   const ownsDesktopTitleBar = isElectron && props.mode === "inline";
   const browserProfiles = useBrowserDefaults().profiles;
   const { resolvedTheme } = useTheme();
@@ -1438,6 +1444,113 @@ export function RightPanelTabs(props: RightPanelTabsProps) {
         )}
         data-right-panel-tabbar
       >
+        {/* CC3: one view at a time; the dropdown switches between the open views. */}
+        <div
+          className={cn(
+            "flex min-w-0 flex-1 items-center gap-1",
+            ownsDesktopTitleBar && "[-webkit-app-region:no-drag]",
+          )}
+          data-right-panel-switcher
+        >
+          <Menu>
+            <MenuTrigger
+              render={
+                <Button
+                  aria-label={gt("Switch panel view")}
+                  className="min-w-0 max-w-full justify-start gap-1.5"
+                  size="xs"
+                  variant="ghost"
+                />
+              }
+            >
+              {focusedSurface ? (
+                <>
+                  <SurfaceIcon
+                    surface={focusedSurface}
+                    previewUrl={focusedFavicon?.url ?? null}
+                    previewCapturedUrl={focusedFavicon?.capturedUrl ?? null}
+                    theme={resolvedTheme}
+                    environmentId={props.environmentId}
+                    pullRequestStatusSeed={props.pullRequestStatusSeeds?.[focusedSurface.id]}
+                  />
+                  <span className="min-w-0 truncate">
+                    {surfaceTitle(
+                      focusedSurface,
+                      props.previewSessions,
+                      props.terminalLabelsById,
+                      messages,
+                    )}
+                  </span>
+                </>
+              ) : (
+                <span className="text-muted-foreground">{gt("Choose a view")}</span>
+              )}
+              <ChevronDown className="size-3.5 shrink-0" />
+            </MenuTrigger>
+            <MenuPopup align="start" side="bottom" sideOffset={6} className="min-w-56">
+              {props.surfaces.map((surface) => {
+                const favicon = previewFaviconOf(
+                  surface,
+                  props.previewSessions,
+                  props.desktopByTabId,
+                );
+                return (
+                  <MenuItem
+                    key={surface.id}
+                    onClick={() => onActivateTab(surface)}
+                    className={surface.id === props.activeSurfaceId ? "bg-accent/60" : undefined}
+                  >
+                    <SurfaceIcon
+                      surface={surface}
+                      previewUrl={favicon.url}
+                      previewCapturedUrl={favicon.capturedUrl}
+                      theme={resolvedTheme}
+                      environmentId={props.environmentId}
+                      pullRequestStatusSeed={props.pullRequestStatusSeeds?.[surface.id]}
+                    />
+                    <span className="min-w-0 flex-1 truncate">
+                      {surfaceTitle(
+                        surface,
+                        props.previewSessions,
+                        props.terminalLabelsById,
+                        messages,
+                      )}
+                    </span>
+                    <button
+                      type="button"
+                      aria-label={gt("Close view")}
+                      className="ms-2 rounded-sm px-1 text-muted-foreground hover:bg-accent hover:text-foreground"
+                      onClick={(event) => {
+                        event.stopPropagation();
+                        onCloseTab(surface);
+                      }}
+                    >
+                      ×
+                    </button>
+                  </MenuItem>
+                );
+              })}
+              {props.surfaces.length > 0 ? <MenuSeparator /> : null}
+              {addSurfaceActions.map((action) => {
+                const Icon = action.icon;
+                return (
+                  <SurfaceMenuItem
+                    key={action.label}
+                    available={action.available}
+                    disabledReason={action.disabledReason}
+                    shortcut={action.shortcut}
+                    onClick={action.onClick}
+                  >
+                    <Icon />
+                    {messages(action.label)}
+                  </SurfaceMenuItem>
+                );
+              })}
+            </MenuPopup>
+          </Menu>
+        </div>
+        {!CC3_SINGLE_VIEW ? (
+          <>
         <ScrollArea
           radius="none"
           ref={attachTabList}
@@ -1618,6 +1731,8 @@ export function RightPanelTabs(props: RightPanelTabsProps) {
               </TooltipPopup>
             </Tooltip>
           </div>
+        ) : null}
+          </>
         ) : null}
         {props.layoutControls}
         {ownsDesktopTitleBar && !props.layoutControls ? (

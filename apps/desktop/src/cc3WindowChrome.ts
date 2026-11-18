@@ -1,7 +1,7 @@
 // CC3: renderer half of the custom Linux window controls. The frameless, transparent window gets
 // a rounded 1px outline, caption buttons at the top right and a Window Controls Overlay polyfill
 // so the web UI lays out its titlebar exactly as it does with native controls.
-import { ipcRenderer, webFrame } from "electron";
+import { contextBridge, ipcRenderer, webFrame } from "electron";
 
 import type { Cc3WindowOp, Cc3WindowState } from "./cc3WindowControls.ts";
 
@@ -28,8 +28,11 @@ const CSS = `
     --workspace-controls-right: calc(${CONTROLS_WIDTH}px + 0.75rem);
     --workspace-native-controls-inset: calc(${CONTROLS_WIDTH}px + 0.75rem);
   }
-  html { clip-path: inset(0 round ${RADIUS}px); }
-  html.cc3-square { clip-path: none; }
+  /* A near-transparent html background stops body's background from propagating to the canvas,
+     which would paint the window corners; body is rounded and clipped instead. */
+  html { background-color: rgba(0, 0, 0, 0.004) !important; }
+  body { border-radius: ${RADIUS}px; overflow: hidden; clip-path: inset(0 round ${RADIUS}px); }
+  html.cc3-square body { border-radius: 0; clip-path: none; }
   html::after { content: ""; position: fixed; inset: 0; border: 1px solid #252525;
     border-radius: ${RADIUS}px; pointer-events: none; z-index: 2147483646; }
   html.cc3-square::after { display: none; }
@@ -82,6 +85,9 @@ function installChrome(): void {
 }
 
 export function installCc3WindowChrome(): void {
+  // oxlint-disable-next-line t3code/no-global-process-runtime -- the sandboxed preload reads the user's home for new chats.
+  const homeDir = process.env.HOME ?? "";
+  if (homeDir) contextBridge.exposeInMainWorld("cc3HomeDir", homeDir);
   // The overlay API lives in the page's world, so the polyfill runs there before app scripts.
   void webFrame.executeJavaScript(`(() => {
     const target = new EventTarget();

@@ -39,7 +39,7 @@ export interface ThreadDetailsUsageInput {
 
 type UsageTone = "error" | "warning" | null;
 
-/** The selected provider's limit windows. Each row reads as room left. */
+/** The selected provider's limit windows. Each row reads as share used. */
 export function ThreadDetailsUsage({
   providerInstanceId,
   providers,
@@ -161,20 +161,20 @@ function LimitRow({
   const gt = useGT();
   const m = useMessages();
   const timestampFormat = usePrimarySettings((settings) => settings.timestampFormat);
-  const left = remainingPercent(window);
+  const used = 100 - remainingPercent(window);
   const pace = paceOf(window, now);
   const resetsAt = window.resetsAt ? Date.parse(window.resetsAt) : Number.NaN;
   return (
     <UsageRow
       label={window.label}
-      fill={left}
-      tone={left <= 10 ? "error" : left <= 20 ? "warning" : null}
-      value={`${left}%`}
-      ariaValue={gt("{left}% left", { left })}
+      fill={used}
+      tone={used >= 90 ? "error" : used >= 80 ? "warning" : null}
+      value={`${used}%`}
+      ariaValue={`${used}% used`}
       tooltip={
         <>
           <span className="text-foreground">
-            {gt("{label}: {left}% left", { label: window.label, left })}
+            {window.label}: {used}% used
           </span>
           {window.resetsAt && resetsAt > now ? (
             <span className="text-muted-foreground">

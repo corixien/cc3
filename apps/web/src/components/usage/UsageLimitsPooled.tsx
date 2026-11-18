@@ -150,8 +150,9 @@ function SegmentPopover({
   const timestampFormat = usePrimarySettings((settings) => settings.timestampFormat);
   const gt = useGT();
   const m = useMessages();
-  const remaining = remainingPercent(window);
+  const used = 100 - remainingPercent(window);
   const timeLeft = paceRemainingPercent(window, now);
+  const elapsed = timeLeft === null ? null : 100 - timeLeft;
   const resetsIn = formatResetsIn(window, now, m, "in");
   const where =
     account.environments.length > 0
@@ -197,15 +198,15 @@ function SegmentPopover({
         ) : null}
       </div>
       <div className="flex flex-col gap-1 border-t border-border/60 pt-2.5">
-        <Row label={gt("Left", { $context: "remaining usage" })}>{remaining}%</Row>
+        <Row label={gt("Used", { $context: "consumed usage" })}>{used}%</Row>
         {window.resetsAt ? (
           <Row label={gt("Resets", { $context: "when the usage window resets" })}>
             {formatUpcomingTimestamp(window.resetsAt, timestampFormat, now, undefined, m)}
             {resetsIn ? ` · ${resetsIn}` : ""}
           </Row>
         ) : null}
-        {timeLeft !== null ? (
-          <Row label={gt("Even pace")}>{gt("{timeLeft}% left by now", { timeLeft })}</Row>
+        {elapsed !== null ? (
+          <Row label={gt("Even pace")}>{gt("{elapsed}% by now", { elapsed })}</Row>
         ) : null}
         {reset && reset.restoresPercent > 0 ? (
           <Row label={gt("Restores", { $context: "a reset credit restores part of the pool" })}>
@@ -366,22 +367,23 @@ function SegmentTriggers({
 }) {
   const popover = use(SegmentPopoverContext) ?? undefined;
   const payload: SegmentPayload = { account, window, reset, redeem };
-  const remaining = remainingPercent(window);
+  const used = 100 - remainingPercent(window);
   const timeLeft = paceRemainingPercent(window, now);
-  const [segmentRef, paceMark] = usePaceMark(timeLeft);
+  const elapsed = timeLeft === null ? null : 100 - timeLeft;
+  const [segmentRef, paceMark] = usePaceMark(elapsed);
   const m = useMessages();
   const resetsIn = formatResetsIn(window, now, m);
   const refillIn = formatResetsIn(window, now, m, "refill");
   const credits = account.limits.resetCredits?.availableCount ?? 0;
   const gt = useGT();
   const segmentLabel = [
-    gt("{name}: {remaining}% left", {
+    gt("{name}: {used}% used", {
       name:
         account.displayName ?? (account.email ? accountInitials(account.email) : account.driver),
-      remaining,
+      used,
     }),
     resetsIn,
-    timeLeft === null ? null : gt("{timeLeft}% of the window left", { timeLeft }),
+    elapsed === null ? null : gt("{elapsed}% of the window elapsed", { elapsed }),
     credits
       ? gt(
           "{count, plural, one {{count} reset credit banked} other {{count} reset credits banked}}",
@@ -413,14 +415,15 @@ function SegmentTriggers({
             <div
               aria-hidden
               className="absolute inset-y-0 left-0 rounded-md opacity-35"
-              style={{ width: `${remaining}%`, backgroundColor: color }}
+              style={{ width: `${used}%`, backgroundColor: color }}
             />
-            {remaining < 100 && reset && refillPercent > 0 ? (
+            {used > 0 && reset && refillPercent > 0 ? (
               <div
                 aria-hidden
-                className="absolute inset-y-0 right-0 opacity-20"
+                className="absolute inset-y-0 opacity-20"
                 style={{
-                  width: `${Math.min(100 - remaining, refillPercent)}%`,
+                  left: `${Math.max(0, used - refillPercent)}%`,
+                  width: `${Math.min(used, refillPercent)}%`,
                   backgroundImage: `repeating-linear-gradient(135deg, ${color} 0 1px, transparent 1px 5px)`,
                 }}
               />
@@ -449,9 +452,7 @@ function SegmentTriggers({
           ) : null}
           {/* A single-account bar repeats the headline percentage. */}
           {showAccountName ? (
-            <span className="shrink-0 font-semibold text-foreground tabular-nums">
-              {remaining}%
-            </span>
+            <span className="shrink-0 font-semibold text-foreground tabular-nums">{used}%</span>
           ) : null}
           {resetsIn || credits ? (
             <span className="ms-auto flex min-w-0 items-center gap-1.5 overflow-hidden rounded-sm bg-background/85 px-1.5 py-0.5 text-2xs whitespace-nowrap text-foreground tabular-nums">
@@ -491,7 +492,7 @@ function LegendRow({
 }) {
   const popover = use(SegmentPopoverContext) ?? undefined;
   const { account, window } = payload;
-  const remaining = remainingPercent(window);
+  const used = 100 - remainingPercent(window);
   const m = useMessages();
   const resetsIn = formatResetsIn(window, now, m, "refill");
   const credits = account.limits.resetCredits?.availableCount ?? 0;
@@ -514,7 +515,7 @@ function LegendRow({
         <span className="relative">{index}</span>
       </span>
       <AccountName account={account} className="min-w-0 truncate font-medium text-foreground" />
-      <span className="shrink-0 font-semibold text-foreground tabular-nums">{remaining}%</span>
+      <span className="shrink-0 font-semibold text-foreground tabular-nums">{used}%</span>
       <span className="ms-auto flex shrink-0 items-center gap-1.5 text-2xs text-muted-foreground tabular-nums">
         {resetsIn ?? ""}
         {credits ? (
@@ -611,11 +612,11 @@ function PoolWindowCard({
         ) : null}
         <span className="flex items-baseline gap-2">
           <span className="text-3xl font-semibold text-foreground tabular-nums">
-            {pool.remainingPercent}%
+            {100 - pool.remainingPercent}%
           </span>
           <span className="inline-flex items-center gap-2 text-sm text-muted-foreground">
             <span>
-              <T context="remaining usage percentage">left</T>
+              <T context="consumed usage percentage">used</T>
             </span>
             {pool.pace ? <PaceIcon pace={pool.pace} /> : null}
           </span>

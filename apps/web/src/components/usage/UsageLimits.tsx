@@ -133,31 +133,20 @@ function WindowBar({
   const timestampFormat = usePrimarySettings((settings) => settings.timestampFormat);
   const gt = useGT();
   const m = useMessages();
-  const remaining = remainingPercent(window);
+  const used = 100 - remainingPercent(window);
   const timeLeft = paceRemainingPercent(window, now);
-  const [barRef, paceMark] = usePaceMark(timeLeft);
+  const elapsed = timeLeft === null ? null : 100 - timeLeft;
+  const [barRef, paceMark] = usePaceMark(elapsed);
   const resetsIn = formatResetsIn(window, now, m);
   const resetsAt = window.resetsAt
     ? formatUpcomingTimestamp(window.resetsAt, timestampFormat, now, undefined, m)
     : null;
   const label = window.label;
   const summary =
-    timeLeft === null
-      ? resetsIn
-        ? gt("{label}: {remaining}% left, {resetsIn}", { label, remaining, resetsIn })
-        : gt("{label}: {remaining}% left", { label, remaining })
-      : resetsIn
-        ? gt("{label}: {remaining}% left, {timeLeft}% of the window left, {resetsIn}", {
-            label,
-            remaining,
-            timeLeft,
-            resetsIn,
-          })
-        : gt("{label}: {remaining}% left, {timeLeft}% of the window left", {
-            label,
-            remaining,
-            timeLeft,
-          });
+    (elapsed === null
+      ? gt("{label}: {used}% used", { label, used })
+      : gt("{label}: {used}% used, {elapsed}% of the window elapsed", { label, used, elapsed })) +
+    (resetsIn ? `, ${resetsIn}` : "");
 
   return (
     <Tooltip>
@@ -175,10 +164,10 @@ function WindowBar({
         {/* Clip both layers so the gap exposes even a translucent composer surface. */}
         <div className="absolute inset-0" style={paceMark?.gap}>
           <div className="absolute inset-x-0 inset-y-1.5 rounded-full bg-muted" />
-          {remaining > 0 ? (
+          {used > 0 ? (
             <div
               className="absolute inset-y-1.5 left-0 rounded-full"
-              style={{ width: `${remaining}%`, backgroundColor: color }}
+              style={{ width: `${used}%`, backgroundColor: color }}
             />
           ) : null}
         </div>
@@ -193,9 +182,9 @@ function WindowBar({
       <TooltipPopup side="top">
         <div className="flex flex-col gap-0.5">
           <span className="text-foreground">
-            {timeLeft !== null
-              ? gt("{remaining}% left · {timeLeft}% of the window left", { remaining, timeLeft })
-              : gt("{remaining}% left", { remaining })}
+            {elapsed !== null
+              ? gt("{used}% used · {elapsed}% of the window elapsed", { used, elapsed })
+              : gt("{used}% used", { used })}
           </span>
           {timeLeft !== null ? (
             <span className="text-muted-foreground">
@@ -247,7 +236,7 @@ export function LimitWindows({
             <span className="flex min-w-0 items-center gap-2 text-xs">
               <span className="truncate text-muted-foreground">{window.label}</span>
               <span className="ms-auto shrink-0 font-medium text-foreground tabular-nums">
-                {gt("{remaining}% left", { remaining: remainingPercent(window) })}
+                {gt("{used}% used", { used: 100 - remainingPercent(window) })}
               </span>
             </span>
             <WindowBar color={color} window={window} now={now} />

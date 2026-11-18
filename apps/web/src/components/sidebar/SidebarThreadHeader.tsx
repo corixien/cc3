@@ -1,5 +1,5 @@
 import { useGT } from "gt-react";
-import { FolderPlusIcon, SearchIcon, SquarePenIcon, XIcon } from "lucide-react";
+import { FolderPlusIcon, PlusIcon, SearchIcon, XIcon } from "lucide-react";
 import {
   type ComponentProps,
   type KeyboardEvent as ReactKeyboardEvent,
@@ -128,7 +128,7 @@ export function SidebarThreadHeader({
           disabled={newThreadDisabled}
           onClick={onNewThread}
         >
-          <SquarePenIcon />
+          <PlusIcon />
         </SidebarHeaderIconButton>
       </div>
     </div>

@@ -25,6 +25,8 @@ interface ImportMeta {
 
 declare global {
   interface Window {
+    /** CC3: the user's home directory, exposed by the Electron preload on Linux. */
+    cc3HomeDir?: string;
     desktopBridge?: DesktopBridge;
     /** Dev builds only, from DevReplayHost. Agents call these from the browser console. */
     t3dev?: {

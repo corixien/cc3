@@ -201,6 +201,7 @@ import { LinkPullRequestDialogHost } from "./pullRequest/LinkPullRequestDialog";
 import { GuestPendingMessages } from "./chat/GuestShareControls";
 import { useDeviceState } from "~/state/device";
 import { BranchToolbar, type BranchToolbarHandle } from "./BranchToolbar";
+import { ComposerStatusStrip } from "./chat/ComposerStatusStrip";
 import { ComposerContextPermissions } from "./ComposerContextPermissions";
 import { makeWorkspaceFileDropHandlers } from "./chat/workspaceFileDrop";
 import { isEditableFocused } from "../lib/editableFocus";
@@ -3829,6 +3830,17 @@ export default function ChatView(props: ChatViewProps) {
                             data-terminal-open={terminalUiState.terminalOpen ? "true" : undefined}
                             className="relative z-0"
                           >
+                            {!embedded && (
+                              <ComposerStatusStrip
+                                contextWindow={activeContextWindow}
+                                providerInstanceId={activeProviderInstanceId}
+                                providers={providerStatuses}
+                                sources={serverConfig?.usageLimitSources ?? EMPTY_USAGE_LIMIT_SOURCES}
+                                branch={activeThreadBranch ?? null}
+                                repository={activeProject?.title ?? null}
+                                directory={activeThread.worktreePath ?? activeProject?.workspaceRoot ?? null}
+                              />
+                            )}
                             {showComposerContextStrip && (
                               <div className="pointer-events-auto">
                                 <BranchToolbar
