@@ -27,7 +27,7 @@ See CLAUDE.md: work on the branch the user names; stay mergeable with upstream; 
 Initial CC3 port pushed to main. Not yet run as a built app: window chrome (frameless/transparent on Linux) is untested visually. Typecheck of touched files and DesktopWindow/appearanceFonts tests pass.
 
 ## Open
-- Permission ("Full access") chip is still in the composer controls, not in the status strip.
+- Status strip and the permission chip (BranchToolbar) share one row under the composer (ChatView).
 - Browser tests of RightPanelTabs/UsageLimitsPooled still expect tabs / "left".
 
 ## Next

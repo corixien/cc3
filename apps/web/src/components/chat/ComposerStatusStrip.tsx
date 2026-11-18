@@ -25,6 +25,7 @@ function shortenPath(path: string): string {
 }
 
 export function ComposerStatusStrip(props: {
+  readonly className?: string;
   readonly contextWindow: ContextWindowSnapshot | null;
   readonly providerInstanceId: ProviderInstanceId | null;
   readonly providers: readonly ServerProvider[];
@@ -56,7 +57,10 @@ export function ComposerStatusStrip(props: {
   return (
     <div
       data-composer-status-strip="true"
-      className="mx-auto flex w-full min-w-0 max-w-(--chat-content-max-width) flex-wrap items-center gap-x-3 gap-y-0.5 px-3 pt-1 pb-1.5 text-muted-foreground text-xs tabular-nums [&_svg]:size-3.5 [&_svg]:shrink-0"
+      className={cn(
+        "flex min-w-0 flex-wrap items-center gap-x-3 gap-y-0.5 px-3 pt-1 pb-1.5 text-muted-foreground text-xs tabular-nums [&_svg]:size-3.5 [&_svg]:shrink-0",
+        props.className,
+      )}
     >
       {context ? (
         <span className={cn("inline-flex items-center gap-1", toneOf(contextUsed ?? 0))}>

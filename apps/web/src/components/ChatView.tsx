@@ -3830,8 +3830,10 @@ export default function ChatView(props: ChatViewProps) {
                             data-terminal-open={terminalUiState.terminalOpen ? "true" : undefined}
                             className="relative z-0"
                           >
+                            <div className="mx-auto flex w-full max-w-(--chat-content-max-width) flex-wrap items-center">
                             {!embedded && (
                               <ComposerStatusStrip
+                                className="min-w-0 flex-1"
                                 contextWindow={activeContextWindow}
                                 providerInstanceId={activeProviderInstanceId}
                                 providers={providerStatuses}
@@ -3842,7 +3844,7 @@ export default function ChatView(props: ChatViewProps) {
                               />
                             )}
                             {showComposerContextStrip && (
-                              <div className="pointer-events-auto">
+                              <div className="pointer-events-auto ms-auto min-w-0 max-w-full shrink-0">
                                 <BranchToolbar
                                   forceNewWorktree={multipleModelSelections !== null}
                                   ref={branchToolbarRef}
@@ -3899,6 +3901,7 @@ export default function ChatView(props: ChatViewProps) {
                                 />
                               </div>
                             )}
+                            </div>
                           </div>
                         </div>
                       </ComposerSurface.Shell>
