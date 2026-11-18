@@ -75,4 +75,7 @@ fn main() {
     let r = client.call("vcs.listRefs", json!({"cwd": root.to_string_lossy(), "refKind": "local"}), Duration::from_secs(20));
     println!("refs: {}", format!("{r:?}").chars().take(700).collect::<String>());
     println!("editors: {}", config["availableEditors"]);
+    let _ = client.call("orchestration.dispatchCommand", json!({"type": "thread.archive", "commandId": "probe-arch", "threadId": "probe-t1"}), Duration::from_secs(20));
+    let r = client.call("orchestration.getArchivedShellSnapshot", json!({}), Duration::from_secs(20));
+    println!("archived: {}", format!("{r:?}").chars().take(900).collect::<String>());
 }

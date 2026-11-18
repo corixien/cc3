@@ -313,3 +313,62 @@ mod control_tests {
         assert!(out.contains(r#"value="me""#), "{out}");
     }
 }
+
+// ---------------------------------------------------------------------------------------------
+// Pages that list live data (projects, archived threads)
+
+#[derive(Clone, Default, PartialEq)]
+pub struct Live {
+    /// (id, title, workspace root)
+    pub projects: Vec<(String, String, String)>,
+    /// (id, title, project title)
+    pub archived: Vec<(String, String, String)>,
+}
+
+pub static LIVE: GlobalSignal<Live> = Signal::global(Live::default);
+
+fn esc(text: &str) -> String {
+    text.replace('&', "&amp;").replace('<', "&lt;").replace('>', "&gt;").replace('"', "&quot;")
+}
+
+/// Fills the projects and archived-threads pages from live data.
+pub fn patch_dynamic(html: &str, live: &Live) -> String {
+    let mut out = html.to_string();
+    // Projects: the golden shows one project row; repeat it per project.
+    if let Some(at) = out.find("/workspace/render") {
+        if let (Some(start), Some(end)) = (out[..at].rfind("<button"), out[at..].find("</button>").map(|e| at + e + "</button>".len())) {
+            let template = out[start..end].to_string();
+            let rows: String = live
+                .projects
+                .iter()
+                .map(|(_, title, root)| template.replace("/workspace/render", &esc(root)).replace(">render<", &format!(">{}<", esc(title))))
+                .collect();
+            out.replace_range(start..end, &rows);
+        }
+    }
+    // Archived threads: replace the loading line and list the threads.
+    if out.contains("Loading archived threads") {
+        let heading = if live.archived.is_empty() { "No archived threads" } else { "Archived threads" };
+        out = out.replace("Loading archived threads", heading);
+        if !live.archived.is_empty() {
+            let rows: String = live
+                .archived
+                .iter()
+                .map(|(id, title, project)| {
+                    format!(
+                        "<div class=\"flex items-center gap-3 border-t px-3 py-3 sm:px-4\"><span class=\"min-w-0 flex-1\"><span class=\"block truncate text-sm font-medium\">{}</span><span class=\"block truncate text-xs text-muted-foreground\">{}</span></span><button type=\"button\" data-cc3-action=\"restore:{}\" class=\"inline-flex h-7 cursor-pointer items-center rounded-lg border border-input px-3 text-sm\">Restore</button></div>",
+                        esc(title),
+                        esc(project),
+                        esc(id)
+                    )
+                })
+                .collect();
+            let block = format!("<div class=\"mx-3 mt-3 rounded-xl border border-border/60 bg-card/40\">{rows}</div>");
+            match out.rfind("<span data-type=\"inside\"") {
+                Some(at) => out.insert_str(at, &block),
+                None => out.push_str(&block),
+            }
+        }
+    }
+    out
+}

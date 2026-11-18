@@ -16,6 +16,8 @@ pub struct Store {
     selected_model: Mutex<Option<serde_json::Value>>,
     /// Latest `review.getDiffPreview` result for the open thread's workspace, or an error text.
     pub diff: Mutex<Option<Result<serde_json::Value, String>>>,
+    /// Archived threads (id, title, project title), loaded when the archived page opens.
+    pub archived: Mutex<Vec<(String, String, String)>>,
     /// Notifications shown as toasts: (id, kind, title, description, created).
     pub toasts: Mutex<Vec<(u64, String, String, String, std::time::Instant)>>,
     /// The terminal drawer's screen, fed by `terminal.attach`.
@@ -177,6 +179,7 @@ impl Store {
             "pin" => "thread.pin",
             "unpin" => "thread.unpin",
             "archive" => "thread.archive",
+            "unarchive" => "thread.unarchive",
             "delete" => "thread.delete",
             _ => return,
         };
@@ -337,6 +340,20 @@ impl Store {
         let command = serde_json::json!({"type": "thread.user-input.dismiss", "commandId": format!("cc3-cmd-d-{seed:x}"), "threadId": thread_id, "requestId": request_id});
         std::thread::spawn(move || {
             let _ = client.call("orchestration.dispatchCommand", command, std::time::Duration::from_secs(30));
+        });
+    }
+
+    /// Loads the archived threads in the background.
+    pub fn refresh_archived(self: &Arc<Self>) {
+        let Some(client) = self.client.lock().unwrap().clone() else { return };
+        let store = self.clone();
+        std::thread::spawn(move || {
+            if let Ok(snapshot) = client.call("orchestration.getArchivedShellSnapshot", serde_json::json!({}), std::time::Duration::from_secs(20)) {
+                let project = |id: &str| snapshot["projects"].as_array().and_then(|p| p.iter().find(|p| p["id"] == id)).and_then(|p| p["title"].as_str()).unwrap_or_default().to_string();
+                let list = snapshot["threads"].as_array().map(|t| t.iter().map(|t| (t["id"].as_str().unwrap_or_default().to_string(), t["title"].as_str().unwrap_or_default().to_string(), project(t["projectId"].as_str().unwrap_or_default()))).collect()).unwrap_or_default();
+                *store.archived.lock().unwrap() = list;
+                store.bump();
+            }
         });
     }
 

@@ -123,6 +123,13 @@ pub fn AppRoot(store: StoreHandle, #[props(default)] frame: bool) -> Element {
                         let settings = store.config.lock().unwrap()["settings"].clone();
                         crate::ui::settings::sync_from_server(&settings);
                         crate::ui::settings::sync_values_from_server(&settings);
+                        let live = crate::ui::settings::Live {
+                            projects: store.shell.lock().unwrap().projects.iter().map(|p| (p.id.clone(), p.title.clone(), p.workspace_root.clone())).collect(),
+                            archived: store.archived.lock().unwrap().clone(),
+                        };
+                        if *crate::ui::settings::LIVE.read() != live {
+                            *crate::ui::settings::LIVE.write() = live;
+                        }
                         rows.set(rows_from_store(store, selected()));
                         settled.set(settled_rows_from_store(store, selected()));
                         let mut view = if draft() { crate::model::ThreadView::default() } else { store.thread_view().unwrap_or_default() };
@@ -188,9 +195,15 @@ pub fn AppRoot(store: StoreHandle, #[props(default)] frame: bool) -> Element {
                             page.set(Some(name.to_string()));
                         } else if let Some(section) = action.strip_prefix("section:") {
                             let name = format!("settings-{}", section.trim_start_matches("/settings/"));
+                            if name == "settings-archived" {
+                                store.refresh_archived();
+                            }
                             if crate::ui::fragments::page(&name).is_some() {
                                 page.set(Some(name));
                             }
+                        } else if let Some(id) = action.strip_prefix("restore:") {
+                            store.thread_action(id, "unarchive");
+                            store.refresh_archived();
                         } else if action == "flush" {
                             crate::ui::settings::flush_typed(|k, v| store.update_server_setting(k, v));
                         } else if let Some(rest) = action.strip_prefix("select:") {

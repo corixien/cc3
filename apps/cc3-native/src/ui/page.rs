@@ -110,6 +110,7 @@ pub fn action_at(doc: &blitz_dom::BaseDocument, x: f32, y: f32) -> Option<String
 pub fn Fragment(html: &'static str, onaction: EventHandler<String>, #[props(default)] overlay: bool) -> Element {
     let mut handle = use_signal(|| None::<std::rc::Rc<MountedData>>);
     let mut patched = crate::ui::settings::patch_switches(html, &crate::ui::settings::SWITCHES.read()).into_owned();
+    patched = crate::ui::settings::patch_dynamic(&patched, &crate::ui::settings::LIVE.read());
     patched = crate::ui::settings::patch_controls(&patched, &crate::ui::settings::VALUES.read()).into_owned();
     // The welcome page's Start button adds the first project.
     if patched.contains("Welcome to T3 Code") {

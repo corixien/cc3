@@ -666,3 +666,23 @@ fn settings_select_range_and_text_controls_change_values() {
     let saved = std::fs::read_to_string(home.join("native-ui-values.json")).unwrap();
     assert!(saved.contains("\"Chat width\": \"full\"") && saved.contains("Contrast"), "values persisted: {saved}");
 }
+
+#[test]
+fn projects_and_archived_pages_list_live_data() {
+    let _home = home_lock();
+    let rt = runtime();
+    let _guard = rt.enter();
+    let store = fixture_store();
+    store.shell.lock().unwrap().apply(&serde_json::json!({"kind": "project.updated", "project": {"id": "p2", "title": "Second project", "workspaceRoot": "/home/me/second"}}));
+    *store.archived.lock().unwrap() = vec![("t9".into(), "Old thread".into(), "render".into())];
+    let mut h = Harness::new(store);
+    rt.block_on(tokio::time::sleep(std::time::Duration::from_millis(250)));
+    h.settle();
+    h.key(Key::Character(",".into()), Code::Comma, Modifiers::CONTROL);
+    let (x, y) = h.center_of("data-settings-section", "/settings/projects").expect("nav");
+    h.click(x, y);
+    assert!(h.text_contains("Second project") && h.text_contains("/home/me/second"), "projects listed");
+    let (x, y) = h.center_of("data-settings-section", "/settings/archived").expect("nav");
+    h.click(x, y);
+    assert!(h.text_contains("Old thread") && h.text_contains("Restore"), "archived listed");
+}
