@@ -5,7 +5,6 @@ import { T, useGT, useMessages } from "gt-react";
 import { shortcutLabelForCommand } from "../keybindings";
 import { useManagedPolicy } from "../state/managedPolicy";
 import { primaryServerKeybindingsAtom } from "../state/server";
-import { ComposerControl } from "./chat/ComposerControl";
 import { ComposerPermissionsSection } from "./chat/ComposerFooterControls";
 import { useComposerMenuProps } from "./chat/composerEventScope";
 import {
@@ -13,7 +12,6 @@ import {
   resolveRuntimeModeOptions,
   runtimeModeConfig,
 } from "./chat/runtimeModeConfig";
-import { ComposerContextLabel } from "./ComposerContextLabel";
 import { Menu, MenuPopup, MenuTrigger } from "./ui/menu";
 import { Tooltip, TooltipPopup, TooltipTrigger } from "./ui/tooltip";
 
@@ -44,18 +42,18 @@ export function ComposerContextPermissions(props: {
           render={
             <MenuTrigger
               render={
-                <ComposerControl
-                  size="xs"
-                  className="min-w-0 shrink-0 transition-colors duration-150 hover:text-foreground"
+                <button
+                  type="button"
                   aria-label={gt("Permissions: {label}", { label })}
                   data-composer-context-control
+                  className="inline-flex min-w-0 shrink-0 cursor-pointer items-center gap-1 rounded-sm text-xs transition-colors duration-150 hover:text-foreground data-popup-open:text-foreground"
                 />
               }
             />
           }
         >
-          <Icon aria-hidden="true" className="size-3" />
-          <ComposerContextLabel>{label}</ComposerContextLabel>
+          <Icon aria-hidden="true" className="size-3.5 shrink-0" />
+          <span className="truncate">{label}</span>
         </TooltipTrigger>
         <TooltipPopup>
           <T>Permissions</T>
