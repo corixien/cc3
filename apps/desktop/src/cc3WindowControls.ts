@@ -1,7 +1,7 @@
 // CC3: main-process half of the custom Linux window controls (see cc3WindowChrome.ts).
 import { BrowserWindow, ipcMain } from "electron";
 
-export const CC3_WINDOW_CHANNEL = "cc3:window";
+const CC3_WINDOW_CHANNEL = "cc3:window";
 export type Cc3WindowOp = "state" | "minimize" | "toggle-maximize" | "close";
 export interface Cc3WindowState {
   readonly maximized: boolean;

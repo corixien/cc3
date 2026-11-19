@@ -39,3 +39,8 @@ Initial CC3 port pushed to main. Not yet run as a built app: window chrome (fram
 - Launch `pnpm dev:desktop` and check window buttons, outline, resize, drag, fonts.
 - Check Android build still resolves after iOS module removal (`apps/mobile`).
 - Update workflows/docs that still mention T3 Code or removed platforms.
+
+## Notes (2026-11-19, stability)
+- Start menu entry "CC3" runs `~/.local/bin/cc3`: production build (`pnpm build:desktop` when sources are newer than `apps/server/dist/client/index.html`, then `pnpm start:desktop`), data via `T3CODE_HOME=~/.t3/cc3` (userdata symlinked to `~/.t3/dev`). Dev mode (`pnpm dev:desktop`) opens DevTools and relaunches Electron on every rebuild; use only for development, and stop leftover watchers.
+- React Compiler bails out of a component when a closure reads a variable declared later (e.g. in ChatView). Then `useIncrementalTimelineEntries` loops ("Too many re-renders"). Check with a compiler logger on touched components.
+- Installed app name is plain "CC3" (no "(Beta)").

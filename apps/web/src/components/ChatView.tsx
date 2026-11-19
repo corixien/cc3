@@ -657,26 +657,6 @@ export default function ChatView(props: ChatViewProps) {
   const composerTerminalContextsRef = useRef<TerminalContextDraft[]>([]);
   const branchToolbarRef = useRef<BranchToolbarHandle>(null);
   const openFolderChat = useOpenFolderChat(environmentId);
-  // CC3: slash commands that open a CC3 screen (see cc3LocalSlashCommands.ts).
-  const runLocalSlashCommand = useStableCallback((name: string) => {
-    const command = cc3LocalSlashCommand(name);
-    if (!command) return;
-    switch (command.action.kind) {
-      case "details": {
-        if (!activeThreadRef) return;
-        const panel = useRightPanelStore.getState();
-        panel.setThreadPanelOpen(activeThreadRef, "inline", true);
-        panel.setThreadPanelOpen(activeThreadRef, "popover", true);
-        return;
-      }
-      case "route":
-        void navigate({ to: command.action.to as never });
-        return;
-      case "palette":
-        openCommandPalette({});
-        return;
-    }
-  });
   const citeAssistantText = (
     citation: AssistantCitation,
     sourceAnchor: AssistantCitationSourceAnchor,
@@ -1058,6 +1038,26 @@ export default function ChatView(props: ChatViewProps) {
     return labels;
   })();
   const activeThreadRef = useActiveThreadRef(activeThread);
+  // CC3: slash commands that open a CC3 screen (see cc3LocalSlashCommands.ts).
+  const runLocalSlashCommand = useStableCallback((name: string) => {
+    const command = cc3LocalSlashCommand(name);
+    if (!command) return;
+    switch (command.action.kind) {
+      case "details": {
+        if (!activeThreadRef) return;
+        const panel = useRightPanelStore.getState();
+        panel.setThreadPanelOpen(activeThreadRef, "inline", true);
+        panel.setThreadPanelOpen(activeThreadRef, "popover", true);
+        return;
+      }
+      case "route":
+        void navigate({ to: command.action.to as never });
+        return;
+      case "palette":
+        openCommandPalette({});
+        return;
+    }
+  });
   const activeThreadKey = activeThreadRef ? scopedThreadKey(activeThreadRef) : null;
   const activeEnvironmentServerBrowser = useEnvironmentSupportsServerBrowser(
     activeThreadRef?.environmentId ?? null,

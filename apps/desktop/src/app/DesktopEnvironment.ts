@@ -106,7 +106,8 @@ export function resolveDesktopAppBranding(input: {
   return {
     baseName: APP_BASE_NAME,
     stageLabel,
-    displayName: `${APP_BASE_NAME} (${stageLabel})`,
+    // CC3: the installed app is plain "CC3"; only dev/nightly builds carry a suffix.
+    displayName: stageLabel === "Beta" ? APP_BASE_NAME : `${APP_BASE_NAME} (${stageLabel})`,
   };
 }
 
