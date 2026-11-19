@@ -7,6 +7,8 @@ import {
 import type { ComposerCommandItem } from "./ComposerCommandMenu";
 import { scoreProviderSkill } from "../../providerSkillSearch";
 
+import { isCc3LocalSlashName } from "../../cc3LocalSlashCommands";
+
 type SlashSearchItem = Extract<
   ComposerCommandItem,
   { type: "slash-command" | "provider-slash-command" | "skill" }
@@ -26,7 +28,8 @@ export function slashCommandItemsForPromptPosition(
       (item.type === "slash-command" &&
         item.command !== "side" &&
         item.command !== "btw" &&
-        item.command !== "clear"),
+        item.command !== "clear" &&
+        !isCc3LocalSlashName(item.command)),
   );
 }
 

@@ -1,6 +1,7 @@
 import { msg } from "gt-react";
 import { thrownErrorMessage } from "@t3tools/client-runtime/errors";
 import { m } from "~/i18n/messages";
+import { parseCc3LocalSlash } from "../../cc3LocalSlashCommands";
 import { isClearComposerCommand, parseSideChatCommand } from "@t3tools/shared/composerTrigger";
 import { armFreshSession, disarmFreshSession, readFreshSessionArm } from "./freshSessionArms";
 import {
@@ -218,6 +219,8 @@ interface ComposerSendInput {
   readonly usageLimitsKey: string | null;
   readonly usageLimitsOffered: boolean;
   readonly openUsageLimits: UsageLimitsPanel["open"];
+  /** CC3: runs a slash command CC3 answers itself; true when it handled the prompt. */
+  readonly runLocalSlashCommand?: ((name: string) => void) | undefined;
   readonly clearUsageLimitsFor: UsageLimitsPanel["clearFor"];
   readonly needsLoadBalancing: boolean;
   readonly loadBalancing: DraftEnvironmentRouting["loadBalancing"];
@@ -315,6 +318,7 @@ export function useComposerSend(input: ComposerSendInput) {
     usageLimitsKey,
     usageLimitsOffered,
     openUsageLimits,
+    runLocalSlashCommand,
     clearUsageLimitsFor,
     needsLoadBalancing,
     loadBalancing,
@@ -406,6 +410,20 @@ export function useComposerSend(input: ComposerSendInput) {
         setComposerDraftPrompt(composerDraftTarget, "");
         composerRef.current?.resetCursorState();
       }
+      return;
+    }
+
+    const localSlash = parseCc3LocalSlash(promptRef.current);
+    if (
+      localSlash !== null &&
+      runLocalSlashCommand !== undefined &&
+      !directAnnotation &&
+      !draftHasNonPromptContent(composerDraftTarget)
+    ) {
+      promptRef.current = "";
+      setComposerDraftPrompt(composerDraftTarget, "");
+      composerRef.current?.resetCursorState();
+      runLocalSlashCommand(localSlash.name);
       return;
     }
 

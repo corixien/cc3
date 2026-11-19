@@ -203,6 +203,8 @@ import { useDeviceState } from "~/state/device";
 import { BranchToolbar, type BranchToolbarHandle } from "./BranchToolbar";
 import { ComposerStatusStrip } from "./chat/ComposerStatusStrip";
 import { useOpenFolderChat } from "../hooks/useOpenFolderChat";
+import { cc3LocalSlashCommand } from "../cc3LocalSlashCommands";
+import { openCommandPalette } from "../commandPaletteBus";
 import { ComposerContextPermissions } from "./ComposerContextPermissions";
 import { makeWorkspaceFileDropHandlers } from "./chat/workspaceFileDrop";
 import { isEditableFocused } from "../lib/editableFocus";
@@ -655,6 +657,26 @@ export default function ChatView(props: ChatViewProps) {
   const composerTerminalContextsRef = useRef<TerminalContextDraft[]>([]);
   const branchToolbarRef = useRef<BranchToolbarHandle>(null);
   const openFolderChat = useOpenFolderChat(environmentId);
+  // CC3: slash commands that open a CC3 screen (see cc3LocalSlashCommands.ts).
+  const runLocalSlashCommand = useStableCallback((name: string) => {
+    const command = cc3LocalSlashCommand(name);
+    if (!command) return;
+    switch (command.action.kind) {
+      case "details": {
+        if (!activeThreadRef) return;
+        const panel = useRightPanelStore.getState();
+        panel.setThreadPanelOpen(activeThreadRef, "inline", true);
+        panel.setThreadPanelOpen(activeThreadRef, "popover", true);
+        return;
+      }
+      case "route":
+        void navigate({ to: command.action.to as never });
+        return;
+      case "palette":
+        openCommandPalette({});
+        return;
+    }
+  });
   const citeAssistantText = (
     citation: AssistantCitation,
     sourceAnchor: AssistantCitationSourceAnchor,
@@ -3002,6 +3024,7 @@ export default function ChatView(props: ChatViewProps) {
     usageLimitsKey,
     usageLimitsOffered,
     openUsageLimits,
+    runLocalSlashCommand,
     clearUsageLimitsFor,
     needsLoadBalancing,
     loadBalancing,
@@ -3742,6 +3765,7 @@ export default function ChatView(props: ChatViewProps) {
                                 onFreshSession={
                                   freshSessionCommandAvailable ? armFreshSessionStable : undefined
                                 }
+                                onLocalSlashCommand={runLocalSlashCommand}
                                 onUsageLimitsCommand={
                                   usageLimitsOffered &&
                                   usageLimitsKey !== null &&

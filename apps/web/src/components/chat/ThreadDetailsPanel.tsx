@@ -170,17 +170,15 @@ export function ThreadDetailsPanel(props: ThreadDetailsPanelProps) {
     >
       {(density) => {
         // Section flags follow the rows that will render, so no empty section steals the divider rule.
+        // CC3: the card shows the overview, scripts and usage; the machine, "open in" and version
+        // control rows are gone (the status strip and the repository menu cover them).
         const show = {
-          environment: density === "full" && visible.environment,
-          openIn: density !== "essential" && visible.openIn && props.showOpenInPicker,
+          environment: false,
+          openIn: false,
           scripts: visible.scripts && props.activeProjectScripts !== undefined,
-          branch: offersGit && props.isGitRepo && visible.branch,
-          // Without a branch selector, linked pull requests still need somewhere to show.
-          pullRequests: !(offersGit && props.isGitRepo) && visible.branch,
-          git:
-            offersGit &&
-            props.activeProjectName !== undefined &&
-            (visible.gitActions || (visible.changes && props.isGitRepo)),
+          branch: false,
+          pullRequests: false,
+          git: false,
         };
         return (
           <>

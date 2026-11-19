@@ -334,6 +334,17 @@ export function claudeProviderTurnTokenUsage(
 
 type ClaudeMessageUsage = Parameters<typeof claudeProviderTurnTokenUsage>[0];
 
+/** CC3: optional extras of a turn's token usage, read from the live session. */
+type ClaudeContextInsights = {
+  readonly contextCategories?: ReadonlyArray<{
+    readonly id?: string;
+    readonly name: string;
+    readonly tokens: number;
+    readonly kind: "used" | "free" | "buffer" | "deferred";
+  }>;
+  readonly mcpServers?: ReadonlyArray<{ readonly name: string; readonly status: string }>;
+};
+
 // message_delta usage is per-message cumulative; null or absent fields retain message_start values and zeros replace them.
 function mergeClaudeStreamUsage(
   current: ClaudeMessageUsage,
@@ -681,6 +692,11 @@ export interface ClaudeAgentSdkQuerySession {
   ) => Effect.Effect<boolean, ClaudeAgentSdkQueryRunnerError>;
   readonly mcpServerStatus: Effect.Effect<
     ReadonlyArray<ClaudeMcpServerStatus>,
+    ClaudeAgentSdkQueryRunnerError
+  >;
+  /** CC3: the context window by category, from the SDK's own estimate. */
+  readonly contextUsageSummary: Effect.Effect<
+    Awaited<ReturnType<ClaudeQuery["getContextUsage"]>>,
     ClaudeAgentSdkQueryRunnerError
   >;
   readonly readMcpResource: (input: {
@@ -1854,6 +1870,10 @@ export const layerQueryRunner: Layer.Layer<
         mcpServerStatus: Effect.tryPromise({
           try: () => queryRuntime.mcpServerStatus(),
           catch: (cause) => queryRunnerError(cause, "mcpServerStatus"),
+        }),
+        contextUsageSummary: Effect.tryPromise({
+          try: () => queryRuntime.getContextUsage({ detail: "summary" }),
+          catch: (cause) => queryRunnerError(cause, "getContextUsage"),
         }),
         readMcpResource: ({ server, uri }) =>
           Effect.tryPromise({
@@ -6334,11 +6354,53 @@ export const makeClaudeAdapterV2 = Effect.fn("makeClaudeAdapterV2")(function* (
           });
         });
 
+        // CC3: asks the live session for its context breakdown and MCP servers once per turn. Both are
+        // best effort: a slow or failing call leaves them out and never delays the result.
+        const readContextInsights = Effect.fnUntraced(function* () {
+          const liveQuery = yield* Ref.get(queryContext);
+          if (liveQuery === null) return {} as ClaudeContextInsights;
+          const [usage, servers] = yield* Effect.all(
+            [
+              // Sessions built without these (older runners, test doubles) just skip the extras.
+              (liveQuery.query.contextUsageSummary ?? Effect.fail(undefined)).pipe(
+                Effect.timeout("4 seconds"),
+                Effect.option,
+              ),
+              (liveQuery.query.mcpServerStatus ?? Effect.fail(undefined)).pipe(
+                Effect.timeout("4 seconds"),
+                Effect.option,
+              ),
+            ],
+            { concurrency: 2 },
+          );
+          return {
+            ...(usage._tag === "Some"
+              ? {
+                  contextCategories: usage.value.categories.map((category) => ({
+                    ...(category.id === undefined ? {} : { id: category.id }),
+                    name: category.name,
+                    tokens: Math.max(0, Math.round(category.tokens)),
+                    kind: category.kind,
+                  })),
+                }
+              : {}),
+            ...(servers._tag === "Some"
+              ? {
+                  mcpServers: servers.value.map((server) => ({
+                    name: server.name,
+                    status: server.status,
+                  })),
+                }
+              : {}),
+          } satisfies ClaudeContextInsights;
+        });
+
         // Usage without input is a placeholder, not a context measurement.
         const emitContextUsage = Effect.fnUntraced(function* (
           context: ActiveClaudeTurnContext,
           usage: ClaudeMessageUsage | number,
           requestStarted = false,
+          insights: ClaudeContextInsights = {},
         ) {
           const now = yield* DateTime.now;
           // Only message_start marks the request start; an assistant snapshot
@@ -6364,6 +6426,7 @@ export const makeClaudeAdapterV2 = Effect.fn("makeClaudeAdapterV2")(function* (
             if (claudeMessageInputTokens(usage) <= 0) return;
             context.compactionTokens = undefined;
           }
+          Object.assign(tokenUsage, insights);
           yield* emitProviderEvent({
             type: "provider_turn.updated",
             driver: CLAUDE_PROVIDER,
@@ -11832,7 +11895,7 @@ export const makeClaudeAdapterV2 = Effect.fn("makeClaudeAdapterV2")(function* (
           if (message.type === "result") {
             const contextUsage = context.streamUsage?.usage ?? context.compactionTokens;
             if (resultsReportingNewContextWindow.has(message) && contextUsage !== undefined) {
-              yield* emitContextUsage(context, contextUsage);
+              yield* emitContextUsage(context, contextUsage, false, yield* readContextInsights());
             }
             const completedAt = yield* DateTime.now;
             const interrupted = (yield* Ref.get(interruptedTurns)).has(context.providerTurnId);

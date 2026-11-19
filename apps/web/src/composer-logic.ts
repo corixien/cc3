@@ -25,8 +25,10 @@ import {
   type ShortcutMatchContext,
 } from "./keybindings";
 
+import type { Cc3LocalSlashName } from "./cc3LocalSlashCommands";
+
 export type ComposerTriggerKind = "path" | "pull-request" | "slash-command" | "skill";
-export type ComposerSlashCommand = "model" | "side" | "btw" | "clear";
+export type ComposerSlashCommand = "model" | "side" | "btw" | "clear" | Cc3LocalSlashName;
 export type ComposerSubmissionIntent = "foreground" | "background" | "alternate";
 
 export interface ComposerTrigger {

@@ -238,6 +238,21 @@ export const OrchestrationV2ProviderTurnTokenUsage = Schema.Struct({
   promptCacheTtlMs: Schema.optional(PositiveInt),
   autoCompactThreshold: Schema.optional(PositiveInt),
   promptCacheExpiresAt: Schema.optional(Schema.String),
+  /** CC3: Claude's context breakdown by category (system prompt, tools, messages, free space...). */
+  contextCategories: Schema.optional(
+    Schema.Array(
+      Schema.Struct({
+        id: Schema.optional(Schema.String),
+        name: Schema.String,
+        tokens: NonNegativeInt,
+        kind: Schema.Literals(["used", "free", "buffer", "deferred"]),
+      }),
+    ),
+  ),
+  /** CC3: the session's MCP servers (connectors) and their connection status. */
+  mcpServers: Schema.optional(
+    Schema.Array(Schema.Struct({ name: Schema.String, status: Schema.String })),
+  ),
   updatedAt: Schema.String,
 });
 export type OrchestrationV2ProviderTurnTokenUsage =

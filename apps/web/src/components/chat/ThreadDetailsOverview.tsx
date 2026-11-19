@@ -5,7 +5,7 @@ import type { ContextWindowSnapshot } from "@t3tools/client-runtime/state/contex
 import type { EnvironmentId, OrchestrationV2PendingBackgroundTask } from "@t3tools/contracts";
 import { useNavigate } from "@tanstack/react-router";
 import { useGT } from "gt-react";
-import { CpuIcon, FolderIcon, GaugeIcon, GitBranchIcon } from "lucide-react";
+import { CpuIcon, FolderIcon, GaugeIcon, GitBranchIcon, PlugIcon } from "lucide-react";
 import type { ReactNode } from "react";
 
 import { openCommandPalette } from "../../commandPaletteBus";
@@ -64,6 +64,14 @@ export function ThreadDetailsOverview(props: ThreadDetailsOverviewInput) {
   const buffer = max !== null && threshold !== null && threshold < max ? max - threshold : null;
   const free = max !== null ? Math.max(0, max - used - (buffer ?? 0)) : null;
   const pct = (tokens: number) => (max !== null ? (tokens / max) * 100 : undefined);
+  const categories =
+    context?.contextCategories && context.contextCategories.length > 0
+      ? [...context.contextCategories].toSorted((a, b) => {
+          const order = { used: 0, buffer: 1, free: 2, deferred: 3 } as const;
+          return order[a.kind] - order[b.kind] || b.tokens - a.tokens;
+        })
+      : null;
+  const servers = context?.mcpServers ?? [];
   const home = (path: string) => path.replace(/^\/home\/[^/]+/, "~");
 
   return (
@@ -137,13 +145,32 @@ export function ThreadDetailsOverview(props: ThreadDetailsOverviewInput) {
                 </span>
               ) : null}
             </button>
-            <Stat
-              label={gt("Used")}
-              value={formatContextWindowTokens(used)}
-              {...(pct(used) !== undefined ? { percent: pct(used)! } : {})}
-              onClick={openUsage}
-            />
-            {buffer !== null ? (
+            {categories
+              ? categories.map((category) => (
+                  <Stat
+                    key={`${category.id ?? category.name}`}
+                    label={category.name}
+                    value={
+                      category.kind === "deferred"
+                        ? "\u2014"
+                        : formatContextWindowTokens(category.tokens)
+                    }
+                    {...(category.kind !== "deferred" && pct(category.tokens) !== undefined
+                      ? { percent: pct(category.tokens)! }
+                      : {})}
+                    onClick={openUsage}
+                  />
+                ))
+              : null}
+            {categories ? null : (
+              <Stat
+                label={gt("Used")}
+                value={formatContextWindowTokens(used)}
+                {...(pct(used) !== undefined ? { percent: pct(used)! } : {})}
+                onClick={openUsage}
+              />
+            )}
+            {categories ? null : buffer !== null ? (
               <Stat
                 label={gt("Autocompact buffer")}
                 value={formatContextWindowTokens(buffer)}
@@ -151,7 +178,7 @@ export function ThreadDetailsOverview(props: ThreadDetailsOverviewInput) {
                 onClick={openUsage}
               />
             ) : null}
-            {free !== null ? (
+            {categories ? null : free !== null ? (
               <Stat
                 label={gt("Free space")}
                 value={formatContextWindowTokens(free)}
@@ -159,6 +186,40 @@ export function ThreadDetailsOverview(props: ThreadDetailsOverviewInput) {
                 onClick={openUsage}
               />
             ) : null}
+          </div>
+        </ThreadDetailsSection>
+      ) : null}
+
+      {servers.length > 0 ? (
+        <ThreadDetailsSection
+          headingId="cc3-details-connectors-heading"
+          title={gt("Connectors")}
+          showHeading
+        >
+          <div className="flex flex-col">
+            {servers.map((server) => (
+              <Row
+                key={server.name}
+                icon={<PlugIcon />}
+                title={server.status}
+                onClick={() => void navigate({ to: "/settings/integrations" })}
+              >
+                <span className="min-w-0 truncate">{server.name}</span>
+                <span
+                  aria-label={server.status}
+                  className={cn(
+                    "ms-auto size-2 shrink-0 rounded-full",
+                    server.status === "connected"
+                      ? "bg-success"
+                      : server.status === "failed"
+                        ? "bg-destructive"
+                        : server.status === "needs-auth"
+                          ? "bg-warning"
+                          : "bg-muted-foreground/50",
+                  )}
+                />
+              </Row>
+            ))}
           </div>
         </ThreadDetailsSection>
       ) : null}

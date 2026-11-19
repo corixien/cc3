@@ -27,6 +27,7 @@ import {
 import { formatProviderSkillDisplayName } from "@t3tools/shared/inlineSkills";
 
 import type { ComposerTrigger } from "../../composer-logic";
+import { CC3_LOCAL_SLASH_COMMANDS, isCc3LocalSlashName } from "../../cc3LocalSlashCommands";
 import type { DraftId } from "../../composerDraftStore";
 import { basenameOfPath } from "../../pierre-icons";
 import {
@@ -288,6 +289,13 @@ export function useComposerMenuItems({
               },
             ] as const)
           : []),
+        ...CC3_LOCAL_SLASH_COMMANDS.map((command) => ({
+          id: `slash:${command.name}`,
+          type: "slash-command" as const,
+          command: command.name,
+          label: `/${command.name}`,
+          description: command.description,
+        })),
       ] satisfies ReadonlyArray<Extract<ComposerCommandItem, { type: "slash-command" }>>;
       const slashMenuSkills = getProviderSkillsForSlashMenu(
         selectedProviderSkills,
@@ -320,7 +328,8 @@ export function useComposerMenuItems({
       const visibleProviderSlashCommandItems = providerSlashCommandItems.filter(
         (item) =>
           (item.command.name !== "compact" || compactSlashCommandAvailable) &&
-          (item.command.name !== "clear" || !freshSessionAvailable),
+          (item.command.name !== "clear" || !freshSessionAvailable) &&
+          !isCc3LocalSlashName(item.command.name),
       );
       const slashCommandItems = slashCommandItemsForPromptPosition(
         [...builtInSlashCommandItems, ...visibleProviderSlashCommandItems, ...skillItems],

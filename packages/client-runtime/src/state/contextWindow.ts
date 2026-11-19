@@ -36,6 +36,8 @@ type NullableContextWindowUsage = {
 };
 
 export type ContextWindowSnapshot = NullableContextWindowUsage & {
+  readonly contextCategories?: OrchestrationV2ProviderTurnTokenUsage["contextCategories"];
+  readonly mcpServers?: OrchestrationV2ProviderTurnTokenUsage["mcpServers"];
   readonly remainingTokens: number | null;
   readonly usedPercentage: number | null;
   readonly remainingPercentage: number | null;
@@ -112,6 +114,8 @@ export function deriveLatestContextWindowSnapshot(
       compactsAutomatically: true,
       autoCompactThreshold: liveUsage.autoCompactThreshold ?? null,
       cost: null,
+      ...(liveUsage.contextCategories ? { contextCategories: liveUsage.contextCategories } : {}),
+      ...(liveUsage.mcpServers ? { mcpServers: liveUsage.mcpServers } : {}),
       updatedAt: liveUsage.updatedAt,
     };
   }
