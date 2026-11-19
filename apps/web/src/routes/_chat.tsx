@@ -1,5 +1,6 @@
 import { Outlet, createFileRoute, redirect } from "@tanstack/react-router";
 
+import { SplitChatPane } from "../components/SplitChatPane";
 import { ThreadRouteView } from "../components/ThreadRouteView";
 import { GlobalVoiceInputIndicator } from "../components/chat/GlobalVoiceInputIndicator";
 import { isAppModalPage } from "../components/sidebar/mainAppLocation";
@@ -24,6 +25,9 @@ function ChatRouteLayout() {
       ) : (
         <Outlet />
       )}
+      {!modalOpen && shownTarget?.kind === "server" ? (
+        <SplitChatPane routeThread={shownTarget.threadRef} />
+      ) : null}
       {modalOpen ? <Outlet /> : null}
       <GlobalVoiceInputIndicator hidden={modalOpen} />
     </>

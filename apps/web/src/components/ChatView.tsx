@@ -3638,6 +3638,12 @@ export default function ChatView(props: ChatViewProps) {
                     }
                   >
                     <ChildThreadApprovals threadRef={activeThreadRef} />
+                    {/* CC3: notices are standalone cards above the composer, never joined to it. */}
+                    {!isDraftHeroState && composerBannerItems.length > 0 ? (
+                      <div className="mb-2 flex flex-col gap-2">
+                        <ComposerBannerStack items={composerBannerItems} detached />
+                      </div>
+                    ) : null}
                     <div className="relative">
                       <ComposerSurface.Shell contextRow={!embedded}>
                         <ComposerSurface.Host
@@ -3727,11 +3733,7 @@ export default function ChatView(props: ChatViewProps) {
                                               : projectCloneSendBlockReason
                                 }
                                 isPreparingWorktree={isPreparingWorktree && !sendQueuesBehindSetup}
-                                bannerItems={
-                                  isDraftHeroState || composerBannerItems.length === 0
-                                    ? EMPTY_COMPOSER_BANNER_ITEMS
-                                    : composerBannerItems
-                                }
+                                bannerItems={EMPTY_COMPOSER_BANNER_ITEMS}
                                 resumeCompactionTokens={resumeCompactionTokens}
                                 keepFullHistory={keepFullHistory}
                                 onToggleKeepFullHistory={toggleKeepFullHistoryStable}

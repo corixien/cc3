@@ -1084,8 +1084,8 @@ function OpenCommandPaletteDialog(props: {
         kind: "action",
         value: `action:add-project:${environmentId}:local`,
         searchTerms: ["local", "folder", "directory", "browse"],
-        title: gt("Local folder"),
-        description: gt("Browse a folder on disk"),
+        title: gt("On this computer"),
+        description: gt("The repository is already here; choose its folder"),
         icon: <FolderPlusIcon className={ITEM_ICON_CLASS} />,
         keepOpen: true,
         run: async () => {
@@ -1099,7 +1099,7 @@ function OpenCommandPaletteDialog(props: {
         kind: "action",
         value: `action:add-project:${environmentId}:new`,
         searchTerms: ["new project", "create", "empty", "repository", "git init"],
-        title: gt("New project"),
+        title: gt("New Repository"),
         description: gt("Start a new Git repository from a name"),
         icon: <FolderGit2Icon className={ITEM_ICON_CLASS} />,
         keepOpen: true,
@@ -1116,7 +1116,7 @@ function OpenCommandPaletteDialog(props: {
 
     for (const source of orderedSources) {
       const label = addProjectRemoteSourceLabel(source, messages);
-      const title = source === "url" ? gt("Git URL") : gt("{source} repository", { source: label });
+      const title = source === "url" ? gt("Git URL") : gt("Clone from {source}", { source: label });
       const description =
         source === "url"
           ? gt("Clone from a remote URL")
@@ -1181,7 +1181,33 @@ function OpenCommandPaletteDialog(props: {
       });
     }
 
-    return [{ value: `sources:${environmentId}`, label: gt("Sources"), items: sourceItems }];
+    // CC3: two entry points. New Repository starts from a name; Connect Repository attaches an
+    // existing one, either already on disk (browse) or cloned first (GitHub, other hosts, URL).
+    const newItem = sourceItems.find((item) => item.value.endsWith(":new"));
+    const connectItems = sourceItems.filter((item) => item !== newItem);
+    const connect: CommandPaletteSubmenuItem = {
+      kind: "submenu",
+      value: `action:add-project:${environmentId}:connect`,
+      searchTerms: ["connect", "existing", "repository", "clone", "github", "folder", "url"],
+      title: gt("Connect Repository"),
+      description: gt("Attach an existing repository, on this computer or cloned from GitHub"),
+      icon: <FolderGit2Icon className={ITEM_ICON_CLASS} />,
+      addonIcon: <FolderGit2Icon className={ADDON_ICON_CLASS} />,
+      groups: [
+        {
+          value: `connect:${environmentId}`,
+          label: gt("Connect Repository"),
+          items: connectItems,
+        },
+      ],
+    };
+    return [
+      {
+        value: `sources:${environmentId}`,
+        label: gt("Repository"),
+        items: newItem ? [newItem, connect] : [connect],
+      },
+    ];
   };
 
   const startAddProjectSourceSelection = (environmentId: EnvironmentId): void => {

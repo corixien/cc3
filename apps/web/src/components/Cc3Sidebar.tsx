@@ -9,7 +9,14 @@ import { settlePromise } from "@t3tools/client-runtime/state/runtime";
 import { useNavigate, useParams } from "@tanstack/react-router";
 import * as Schema from "effect/Schema";
 import { useGT } from "gt-react";
-import { ChevronDownIcon, ChevronRightIcon, PlusIcon, SearchIcon, XIcon } from "lucide-react";
+import {
+  ArrowUpDownIcon,
+  ChevronDownIcon,
+  ChevronRightIcon,
+  PlusIcon,
+  SearchIcon,
+  XIcon,
+} from "lucide-react";
 import { useMemo, useRef, useState } from "react";
 
 import { isElectron } from "~/env";
@@ -23,21 +30,34 @@ import { buildThreadRouteParams } from "../threadRoutes";
 import { SidebarChromeFooter, SidebarChromeHeader } from "./sidebar/SidebarChrome";
 import {
   Menu,
+  MenuCheckboxItem,
+  MenuGroup,
+  MenuGroupLabel,
   MenuItem,
   MenuPopup,
+  MenuRadioGroup,
+  MenuRadioItem,
   MenuSeparator,
   MenuSub,
   MenuSubPopup,
   MenuSubTrigger,
+  MenuTrigger,
 } from "./ui/menu";
 import { SidebarContent } from "./ui/sidebar";
 import { Spinner } from "./ui/spinner";
 
+const SortMode = Schema.Literals(["recent", "alpha", "manual"]);
+type SortMode = typeof SortMode.Type;
 const FolderState = Schema.Struct({
   folders: Schema.Array(
     Schema.Struct({ id: Schema.String, name: Schema.String, collapsed: Schema.Boolean }),
   ),
   assignments: Schema.Record(Schema.String, Schema.String),
+  /** Chat keys in the user's own order (used by manual sorting). */
+  order: Schema.optionalKey(Schema.Array(Schema.String)),
+  sort: Schema.optionalKey(SortMode),
+  /** Keep groups in the user's own order while chats inside them sort by `sort`. */
+  groupsManual: Schema.optionalKey(Schema.Boolean),
 });
 type FolderState = typeof FolderState.Type;
 const EMPTY_FOLDERS: FolderState = { folders: [], assignments: {} };
@@ -67,6 +87,33 @@ function StatusMark({ status }: { status: ChatStatus }) {
   return null;
 }
 
+function sortThreads(
+  threads: readonly EnvironmentThreadShell[],
+  mode: SortMode,
+  order: readonly string[],
+): EnvironmentThreadShell[] {
+  const byRecent = (a: EnvironmentThreadShell, b: EnvironmentThreadShell) =>
+    activityOf(b) - activityOf(a);
+  if (mode === "alpha") {
+    return threads.toSorted(
+      (a, b) =>
+        a.title.localeCompare(b.title, undefined, { sensitivity: "base" }) || byRecent(a, b),
+    );
+  }
+  if (mode === "manual") {
+    const index = new Map(order.map((key, position) => [key, position]));
+    return threads.toSorted((a, b) => {
+      const left = index.get(threadKey(a));
+      const right = index.get(threadKey(b));
+      if (left !== undefined && right !== undefined) return left - right;
+      if (left !== undefined) return -1;
+      if (right !== undefined) return 1;
+      return byRecent(a, b);
+    });
+  }
+  return threads.toSorted(byRecent);
+}
+
 export default function Cc3Sidebar() {
   const gt = useGT();
   const navigate = useNavigate();
@@ -76,7 +123,7 @@ export default function Cc3Sidebar() {
   const { scratchEnvironmentId, startScratchThread } = useScratchProject();
   const [state, setState] = useLocalStorage(STORAGE_KEY, EMPTY_FOLDERS, FolderState);
   const [editing, setEditing] = useState<string | null>(null);
-  const dragKey = useRef<string | null>(null);
+  const drag = useRef<{ kind: "chat" | "folder"; id: string } | null>(null);
   const [query, setQuery] = useState("");
   // The right-click menu is drawn with the app's own menu so it matches the rest of CC3.
   const [menu, setMenu] = useState<
@@ -85,12 +132,15 @@ export default function Cc3Sidebar() {
     | null
   >(null);
 
-  const threads = useMemo(
+  const sort = state.sort ?? "recent";
+  const order = state.order ?? [];
+  const groupsManual = state.groupsManual === true || sort === "manual";
+
+  const visible = useMemo(
     () =>
       shells
         .filter((thread) => thread.archivedAt === null && thread.deletedAt === null)
-        .filter((thread) => thread.title.toLowerCase().includes(query.trim().toLowerCase()))
-        .toSorted((a, b) => activityOf(b) - activityOf(a)),
+        .filter((thread) => thread.title.toLowerCase().includes(query.trim().toLowerCase())),
     [shells, query],
   );
   const folderIds = new Set(state.folders.map((folder) => folder.id));
@@ -98,7 +148,25 @@ export default function Cc3Sidebar() {
     const id = state.assignments[threadKey(thread)];
     return id !== undefined && folderIds.has(id) ? id : null;
   };
-  const loose = threads.filter((thread) => folderOf(thread) === null);
+  const loose = sortThreads(
+    visible.filter((thread) => folderOf(thread) === null),
+    sort,
+    order,
+  );
+  const folderThreads = (id: string) =>
+    sortThreads(
+      visible.filter((thread) => folderOf(thread) === id),
+      sort,
+      order,
+    );
+  const folders = groupsManual
+    ? state.folders
+    : state.folders.toSorted((a, b) => {
+        if (sort === "alpha")
+          return a.name.localeCompare(b.name, undefined, { sensitivity: "base" });
+        const latest = (id: string) => Math.max(0, ...folderThreads(id).map(activityOf));
+        return latest(b.id) - latest(a.id);
+      });
 
   const assign = (key: string, folderId: string | null) =>
     setState((current) => {
@@ -110,6 +178,7 @@ export default function Cc3Sidebar() {
   const addFolder = (threadToAssign?: EnvironmentThreadShell) => {
     const id = crypto.randomUUID();
     setState((current) => ({
+      ...current,
       folders: [...current.folders, { id, name: gt("New folder"), collapsed: false }],
       assignments: threadToAssign
         ? { ...current.assignments, [threadKey(threadToAssign)]: id }
@@ -126,11 +195,50 @@ export default function Cc3Sidebar() {
     }));
   const removeFolder = (id: string) =>
     setState((current) => ({
+      ...current,
       folders: current.folders.filter((folder) => folder.id !== id),
       assignments: Object.fromEntries(
         Object.entries(current.assignments).filter(([, folderId]) => folderId !== id),
       ),
     }));
+  /** Dropping a chat on another chat puts it before that chat, in that chat's group. */
+  const dropChatOn = (target: EnvironmentThreadShell) => {
+    const dragged = drag.current;
+    drag.current = null;
+    if (dragged?.kind !== "chat" || dragged.id === threadKey(target)) return;
+    setState((current) => {
+      const assignments = { ...current.assignments };
+      const targetFolder = assignments[threadKey(target)];
+      if (targetFolder === undefined) delete assignments[dragged.id];
+      else assignments[dragged.id] = targetFolder;
+      // The current on-screen order becomes the manual order, then the dragged chat moves.
+      const all = [...folderIds, null].flatMap((id) =>
+        (id === null ? loose : folderThreads(id)).map(threadKey),
+      );
+      const next = all.filter((key) => key !== dragged.id);
+      next.splice(Math.max(0, next.indexOf(threadKey(target))), 0, dragged.id);
+      return { ...current, assignments, order: next, sort: "manual" };
+    });
+  };
+  const dropFolderOn = (targetId: string) => {
+    const dragged = drag.current;
+    drag.current = null;
+    if (dragged?.kind !== "folder" || dragged.id === targetId) return;
+    setState((current) => {
+      const ordered = folders.filter((folder) => folder.id !== dragged.id);
+      const moving = current.folders.find((folder) => folder.id === dragged.id);
+      if (!moving) return current;
+      ordered.splice(
+        Math.max(
+          0,
+          ordered.findIndex((folder) => folder.id === targetId),
+        ),
+        0,
+        moving,
+      );
+      return { ...current, folders: ordered, groupsManual: true };
+    });
+  };
 
   const open = (thread: EnvironmentThreadShell) =>
     void navigate({
@@ -166,15 +274,20 @@ export default function Cc3Sidebar() {
         <button
           type="button"
           draggable
-          onDragStart={() => (dragKey.current = threadKey(thread))}
+          onDragStart={() => (drag.current = { kind: "chat", id: threadKey(thread) })}
+          onDragOver={(event) => event.preventDefault()}
+          onDrop={(event) => {
+            event.stopPropagation();
+            dropChatOn(thread);
+          }}
           onClick={() => open(thread)}
           onContextMenu={(event) => {
             event.preventDefault();
             setMenu({ x: event.clientX, y: event.clientY, kind: "thread", thread });
           }}
           className={cn(
-            "flex h-8 w-full items-center gap-2 rounded-md px-2.5 text-left text-sm text-sidebar-foreground hover:bg-sidebar-row-hover",
-            selected && "bg-sidebar-row-selected",
+            "flex h-7 w-full items-center gap-2 rounded-md px-2.5 text-left text-[13px] text-sidebar-foreground/90 transition-colors hover:bg-sidebar-row-hover hover:text-sidebar-foreground",
+            selected && "bg-sidebar-row-selected text-sidebar-foreground",
           )}
         >
           <span className="min-w-0 flex-1 truncate">{thread.title}</span>
@@ -187,8 +300,8 @@ export default function Cc3Sidebar() {
   return (
     <>
       <SidebarChromeHeader isElectron={isElectron} />
-      <SidebarContent className="min-h-0 gap-1 px-2 pt-2">
-        <div className="flex items-center gap-1 pb-1">
+      <SidebarContent className="min-h-0 gap-0 px-2 pt-2">
+        <div className="flex items-center gap-1 pb-3">
           <div className="flex h-8 min-w-0 flex-1 items-center gap-2 rounded-md px-2 text-sm text-sidebar-muted-foreground hover:bg-sidebar-row-hover focus-within:bg-sidebar-row-hover">
             <SearchIcon className="size-4 shrink-0" />
             <input
@@ -204,30 +317,80 @@ export default function Cc3Sidebar() {
               </button>
             ) : null}
           </div>
+          <Menu>
+            <MenuTrigger
+              render={
+                <button
+                  type="button"
+                  aria-label={gt("Sort chats")}
+                  title={gt("Sort chats")}
+                  className="flex size-8 shrink-0 items-center justify-center rounded-md text-sidebar-muted-foreground transition-colors hover:bg-sidebar-row-hover hover:text-sidebar-foreground"
+                />
+              }
+            >
+              <ArrowUpDownIcon className="size-4" />
+            </MenuTrigger>
+            <MenuPopup align="end" side="bottom" className="min-w-52">
+              <MenuGroup>
+                <MenuGroupLabel>{gt("Sort chats")}</MenuGroupLabel>
+                <MenuRadioGroup
+                  value={sort}
+                  onValueChange={(value) =>
+                    setState((current) => ({ ...current, sort: value as SortMode }))
+                  }
+                >
+                  <MenuRadioItem value="recent">{gt("Recently active")}</MenuRadioItem>
+                  <MenuRadioItem value="alpha">{gt("Alphabetical")}</MenuRadioItem>
+                  <MenuRadioItem value="manual">{gt("Manual (drag to reorder)")}</MenuRadioItem>
+                </MenuRadioGroup>
+              </MenuGroup>
+              <MenuSeparator />
+              <MenuCheckboxItem
+                checked={groupsManual}
+                disabled={sort === "manual"}
+                onCheckedChange={(checked) =>
+                  setState((current) => ({ ...current, groupsManual: checked }))
+                }
+              >
+                {gt("Groups in my own order")}
+              </MenuCheckboxItem>
+            </MenuPopup>
+          </Menu>
           <button
             type="button"
             aria-label={gt("New chat")}
             title={gt("New chat")}
             onClick={newChat}
             disabled={homeEnvironmentId === null}
-            className="flex size-8 shrink-0 items-center justify-center rounded-md text-sidebar-muted-foreground hover:bg-sidebar-row-hover hover:text-sidebar-foreground disabled:opacity-50"
+            className="flex size-8 shrink-0 items-center justify-center rounded-md text-sidebar-muted-foreground transition-colors hover:bg-sidebar-row-hover hover:text-sidebar-foreground disabled:opacity-50"
           >
             <PlusIcon className="size-4" />
           </button>
         </div>
-        {state.folders.map((folder) => {
-          const inFolder = threads.filter((thread) => folderOf(thread) === folder.id);
+        {folders.map((folder) => {
+          const inFolder = folderThreads(folder.id);
           const working = inFolder.some((thread) => statusOf(thread) !== null);
           return (
             <section
               key={folder.id}
+              className="mb-4"
               onDragOver={(event) => event.preventDefault()}
               onDrop={() => {
-                if (dragKey.current) assign(dragKey.current, folder.id);
-                dragKey.current = null;
+                const dragged = drag.current;
+                if (dragged?.kind === "chat") assign(dragged.id, folder.id);
+                drag.current = null;
               }}
             >
               <div
+                draggable={editing !== folder.id}
+                onDragStart={() => (drag.current = { kind: "folder", id: folder.id })}
+                onDragOver={(event) => event.preventDefault()}
+                onDrop={(event) => {
+                  if (drag.current?.kind === "folder") {
+                    event.stopPropagation();
+                    dropFolderOn(folder.id);
+                  }
+                }}
                 onContextMenu={(event) => {
                   event.preventDefault();
                   setMenu({
@@ -237,52 +400,56 @@ export default function Cc3Sidebar() {
                     folderId: folder.id,
                   });
                 }}
-                className="flex h-7 items-center gap-1 rounded-md px-1.5 text-xs font-medium text-sidebar-muted-foreground hover:bg-sidebar-row-hover"
+                className="mb-1 flex h-8 items-center gap-1 rounded-md px-2.5 text-[15px] font-medium text-sidebar-foreground hover:bg-sidebar-row-hover"
               >
-                <button
-                  type="button"
-                  aria-label={folder.collapsed ? gt("Expand folder") : gt("Collapse folder")}
-                  onClick={() => patchFolder(folder.id, { collapsed: !folder.collapsed })}
-                  className="flex min-w-0 flex-1 items-center gap-1 text-left"
-                >
-                  {folder.collapsed ? (
-                    <ChevronRightIcon className="size-3.5 shrink-0" />
-                  ) : (
-                    <ChevronDownIcon className="size-3.5 shrink-0" />
-                  )}
-                  {editing === folder.id ? (
-                    <input
-                      autoFocus
-                      defaultValue={folder.name}
-                      onClick={(event) => event.stopPropagation()}
-                      onBlur={(event) => {
-                        const name = event.currentTarget.value.trim();
-                        if (name) patchFolder(folder.id, { name });
-                        setEditing(null);
-                      }}
-                      onKeyDown={(event) => {
-                        if (event.key === "Enter") event.currentTarget.blur();
-                        if (event.key === "Escape") setEditing(null);
-                      }}
-                      className="min-w-0 flex-1 rounded bg-transparent px-1 outline-1 outline-ring"
-                    />
-                  ) : (
+                {editing === folder.id ? (
+                  <input
+                    autoFocus
+                    defaultValue={folder.name}
+                    onBlur={(event) => {
+                      const name = event.currentTarget.value.trim();
+                      if (name) patchFolder(folder.id, { name });
+                      setEditing(null);
+                    }}
+                    onKeyDown={(event) => {
+                      if (event.key === "Enter") event.currentTarget.blur();
+                      if (event.key === "Escape") setEditing(null);
+                    }}
+                    className="min-w-0 flex-1 rounded bg-transparent px-1 outline-1 outline-ring"
+                  />
+                ) : (
+                  <button
+                    type="button"
+                    aria-label={folder.collapsed ? gt("Expand folder") : gt("Collapse folder")}
+                    onClick={() => patchFolder(folder.id, { collapsed: !folder.collapsed })}
+                    className="flex min-w-0 items-center gap-1.5 text-left"
+                  >
                     <span className="truncate">{folder.name}</span>
-                  )}
-                </button>
-                {folder.collapsed && working ? <StatusMark status="working" /> : null}
-                <span className="tabular-nums">{inFolder.length}</span>
+                    {folder.collapsed ? (
+                      <ChevronRightIcon className="size-3.5 shrink-0 text-sidebar-muted-foreground" />
+                    ) : (
+                      <ChevronDownIcon className="size-3.5 shrink-0 text-sidebar-muted-foreground" />
+                    )}
+                  </button>
+                )}
+                <span className="ms-auto flex items-center gap-1.5 text-xs font-normal text-sidebar-muted-foreground tabular-nums">
+                  {folder.collapsed && working ? <StatusMark status="working" /> : null}
+                  {inFolder.length}
+                </span>
               </div>
-              {folder.collapsed ? null : <ul className="flex flex-col">{inFolder.map(row)}</ul>}
+              {folder.collapsed ? null : (
+                <ul className="flex flex-col gap-px">{inFolder.map(row)}</ul>
+              )}
             </section>
           );
         })}
         <ul
-          className="flex flex-col"
+          className="flex flex-col gap-px"
           onDragOver={(event) => event.preventDefault()}
           onDrop={() => {
-            if (dragKey.current) assign(dragKey.current, null);
-            dragKey.current = null;
+            const dragged = drag.current;
+            if (dragged?.kind === "chat") assign(dragged.id, null);
+            drag.current = null;
           }}
         >
           {loose.map(row)}

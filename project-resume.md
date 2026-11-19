@@ -20,6 +20,11 @@ CC3 = fork of upstream t3code (pingdotgg/t3code, Electron + web + Node server + 
 - Composer status strip: `components/chat/ComposerStatusStrip.tsx` (context, repo/branch, directory, usage used-%). Usage UI shows share used, not left.
 - Right panel: single view with dropdown switcher (`CC3_SINGLE_VIEW` in `RightPanelTabs.tsx`). Stage artwork disabled in `SidebarStageBackdrop.tsx`.
 
+- Split view: `splitViewStore.ts` + `components/SplitChatPane.tsx` (rendered by `routes/_chat.tsx`); opened from the right panel dropdown "Split view". Pane header: swap, remove left chat, close.
+- Sidebar sorting (recent / alphabetical / manual, groups manual) and drag ordering live in `Cc3Sidebar.tsx`.
+- Add-project palette: "New Repository" and "Connect Repository" (on this computer / clone) in `CommandPalette.tsx`.
+- Composer notices (banners, question panel) are detached cards above the composer (`ChatView.tsx`, `ChatComposer.tsx`).
+
 ## Rules
 See CLAUDE.md: work on the branch the user names; stay mergeable with upstream; never lose CC3 changes on merge.
 

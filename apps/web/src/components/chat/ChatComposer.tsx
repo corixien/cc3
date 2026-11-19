@@ -3475,33 +3475,33 @@ export const ChatComposer = memo(function ChatComposer(props: ChatComposerProps)
       data-chat-composer-form="true"
       {...threadContextDropTargetProps()}
     >
+      {showComposerTopDrawer ? (
+        <div className="mb-2">
+          <ComposerBanner.Root detached data-chat-composer-top-drawer="true" variant="info">
+            {pendingUserInputs.length > 0 ? (
+              <ComposerPendingUserInputPanel
+                pendingUserInputs={pendingUserInputs}
+                cwd={gitCwd ?? undefined}
+                threadRef={routeThreadRef}
+                disabled={!canOperateThread}
+                respondingRequestIds={
+                  activePendingIsResponding && activePendingUserInput
+                    ? [...respondingRequestIds, activePendingUserInput.requestId]
+                    : respondingRequestIds
+                }
+                answers={activePendingDraftAnswers}
+                questionIndex={activePendingQuestionIndex}
+                onToggleOption={onSelectActivePendingUserInputOption}
+                onAdvance={onAdvanceActivePendingUserInput}
+                onDismiss={onDismissActivePendingUserInput}
+              />
+            ) : null}
+          </ComposerBanner.Root>
+        </div>
+      ) : null}
       <ComposerBanner.Dock>
         <ComposerBanner.Column>
           <ComposerBannerStack items={shelfItems} />
-          {showComposerTopDrawer ? (
-            <ComposerBanner.Attachment>
-              <ComposerBanner.Root data-chat-composer-top-drawer="true" variant="info">
-                {pendingUserInputs.length > 0 ? (
-                  <ComposerPendingUserInputPanel
-                    pendingUserInputs={pendingUserInputs}
-                    cwd={gitCwd ?? undefined}
-                    threadRef={routeThreadRef}
-                    disabled={!canOperateThread}
-                    respondingRequestIds={
-                      activePendingIsResponding && activePendingUserInput
-                        ? [...respondingRequestIds, activePendingUserInput.requestId]
-                        : respondingRequestIds
-                    }
-                    answers={activePendingDraftAnswers}
-                    questionIndex={activePendingQuestionIndex}
-                    onToggleOption={onSelectActivePendingUserInputOption}
-                    onAdvance={onAdvanceActivePendingUserInput}
-                    onDismiss={onDismissActivePendingUserInput}
-                  />
-                ) : null}
-              </ComposerBanner.Root>
-            </ComposerBanner.Attachment>
-          ) : null}
         </ComposerBanner.Column>
         <ComposerStashBadge
           count={stashQueue.length}
