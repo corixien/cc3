@@ -4020,6 +4020,18 @@ export default function ChatView(props: ChatViewProps) {
                   onAddProjectScript={saveProjectScriptStable}
                   onUpdateProjectScript={updateProjectScriptStable}
                   onDeleteProjectScript={deleteProjectScriptStable}
+                  overview={{
+                    repository:
+                      activeProject?.repositoryIdentity?.displayName ??
+                      (activeProject?.repositoryIdentity?.owner &&
+                      activeProject.repositoryIdentity.name
+                        ? `${activeProject.repositoryIdentity.owner}/${activeProject.repositoryIdentity.name}`
+                        : null),
+                    branch: activeThreadBranch ?? null,
+                    directory: activeThread.worktreePath ?? activeProject?.workspaceRoot ?? null,
+                    onPickDirectory: () => void openFolderChat(),
+                    backgroundTasks: pendingBackgroundTasks,
+                  }}
                   usage={{
                     providerInstanceId: activeProviderInstanceId,
                     providers: providerStatuses,

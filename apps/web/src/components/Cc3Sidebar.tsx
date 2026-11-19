@@ -286,7 +286,7 @@ export default function Cc3Sidebar() {
             setMenu({ x: event.clientX, y: event.clientY, kind: "thread", thread });
           }}
           className={cn(
-            "flex h-7 w-full items-center gap-2 rounded-md px-2.5 text-left text-[13px] text-sidebar-foreground/90 transition-colors hover:bg-sidebar-row-hover hover:text-sidebar-foreground",
+            "flex h-8 w-full items-center gap-2 rounded-md px-2.5 text-left text-sm text-sidebar-foreground/90 transition-colors hover:bg-sidebar-row-hover hover:text-sidebar-foreground",
             selected && "bg-sidebar-row-selected text-sidebar-foreground",
           )}
         >
@@ -400,7 +400,7 @@ export default function Cc3Sidebar() {
                     folderId: folder.id,
                   });
                 }}
-                className="mb-1 flex h-8 items-center gap-1 rounded-md px-2.5 text-[15px] font-medium text-sidebar-foreground hover:bg-sidebar-row-hover"
+                className="mb-1 flex h-8 items-center gap-1 rounded-md px-2.5 text-base font-medium text-sidebar-foreground hover:bg-sidebar-row-hover"
               >
                 {editing === folder.id ? (
                   <input

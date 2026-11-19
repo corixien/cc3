@@ -115,15 +115,23 @@ function readWindowFullscreen(): boolean {
   return windowFullscreenSnapshot;
 }
 
-function readInitialThreadSidebarWidth(): number {
+/** The width the user dragged to, or null while the sidebar follows the window size. */
+function readInitialThreadSidebarWidth(): number | null {
   try {
-    return resolveInitialThreadSidebarWidth(
-      getLocalStorageItem(THREAD_SIDEBAR_WIDTH_STORAGE_KEY, Schema.Finite),
-    );
+    const stored = getLocalStorageItem(THREAD_SIDEBAR_WIDTH_STORAGE_KEY, Schema.Finite);
+    return stored === null ? null : resolveInitialThreadSidebarWidth(stored);
   } catch (error) {
     console.error("Could not read persisted thread sidebar width.", error);
-    return resolveInitialThreadSidebarWidth(null);
+    return null;
   }
+}
+
+/** CC3: without a dragged width the sidebar grows with the window (wider when maximized). */
+function resolveAutoSidebarWidth(viewportWidth: number): number {
+  return Math.min(
+    360,
+    Math.max(resolveInitialThreadSidebarWidth(null), Math.round(viewportWidth * 0.19)),
+  );
 }
 
 function readUsagePageOpen(router: AnyRouter) {
@@ -433,7 +441,7 @@ export function AppSidebarLayout({
   const panelAnimationsSuppressed = usePanelNavigationSuppression(pathname);
   const routePanelAnimationsActive = panelAnimationsActive && !panelAnimationsSuppressed;
   const isMacosDesktop = isElectron && isMacPlatform(navigator.platform);
-  const [sidebarWidth, setSidebarWidth] = useState(readInitialThreadSidebarWidth);
+  const [sidebarWidth, setSidebarWidth] = useState<number | null>(readInitialThreadSidebarWidth);
   // A clamped drag may not change width, so viewport changes need a separate subscription.
   const viewportWidth = useSyncExternalStore(subscribeToViewportWidth, readViewportWidth);
   const [brandWidth, setBrandWidth] = useState(0);
@@ -445,7 +453,7 @@ export function AppSidebarLayout({
     } catch (error) {
       console.error("Could not clear persisted thread sidebar width.", error);
     }
-    setSidebarWidth(resolveInitialThreadSidebarWidth(null));
+    setSidebarWidth(null);
   };
   const isWindowFullscreen = useSyncExternalStore(
     subscribeToWindowFullscreen,
@@ -457,7 +465,7 @@ export function AppSidebarLayout({
       : {}
   ) as CSSProperties;
   const sidebarProviderStyle = {
-    "--sidebar-width": `${clampThreadSidebarWidth(sidebarWidth, sidebarMinimumWidth, sidebarMaximumWidth)}px`,
+    "--sidebar-width": `${clampThreadSidebarWidth(sidebarWidth ?? resolveAutoSidebarWidth(viewportWidth), sidebarMinimumWidth, sidebarMaximumWidth)}px`,
     "--panel-animation-duration": `${panelAnimationDurationMs}ms`,
     ...windowControlsInsetStyle,
   } as CSSProperties;
