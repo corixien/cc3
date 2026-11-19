@@ -8,6 +8,7 @@ import type {
 import type { ContextWindowSnapshot } from "@t3tools/client-runtime/state/context-window";
 import { collectProviderUsageLimits, remainingPercent } from "@t3tools/shared/usageLimits";
 import { useNavigate } from "@tanstack/react-router";
+import type { ReactNode } from "react";
 import { FolderIcon, GaugeIcon, GitBranchIcon } from "lucide-react";
 
 import { openCommandPalette } from "../../commandPaletteBus";
@@ -26,6 +27,7 @@ function shortenPath(path: string): string {
 
 export function ComposerStatusStrip(props: {
   readonly className?: string;
+  readonly trailing?: ReactNode;
   readonly contextWindow: ContextWindowSnapshot | null;
   readonly providerInstanceId: ProviderInstanceId | null;
   readonly providers: readonly ServerProvider[];
@@ -70,16 +72,20 @@ export function ComposerStatusStrip(props: {
             : formatContextWindowTokens(context.usedTokens)}
         </span>
       ) : null}
-      {props.branch ? (
-        <span className="inline-flex min-w-0 items-center gap-1">
-          <GitBranchIcon aria-hidden />
+      {props.branch || props.repository ? (
+        <button
+          type="button"
+          title="Add a project or create a GitHub repository"
+          onClick={() => openCommandPalette({ open: "add-project" })}
+          className="inline-flex min-w-0 cursor-pointer items-center gap-1 hover:text-foreground"
+        >
+          {props.branch ? <GitBranchIcon aria-hidden /> : null}
           <span className="truncate">
-            {props.repository ? `${props.repository} / ` : ""}
+            {props.repository}
+            {props.repository && props.branch ? " / " : ""}
             {props.branch}
           </span>
-        </span>
-      ) : props.repository ? (
-        <span className="truncate">{props.repository}</span>
+        </button>
       ) : null}
       {props.directory ? (
         <button
@@ -108,6 +114,11 @@ export function ComposerStatusStrip(props: {
             );
           })}
         </button>
+      ) : null}
+      {props.trailing ? (
+        <span className={cn("inline-flex", windows.length === 0 && "ms-auto")}>
+          {props.trailing}
+        </span>
       ) : null}
     </div>
   );

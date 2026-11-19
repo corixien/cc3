@@ -3781,9 +3781,7 @@ export default function ChatView(props: ChatViewProps) {
                                   (activeThreadShell ?? activeThread)?.pullRequests
                                 }
                                 onComposerOverlayHeightChange={publishComposerOverlayHeightStable}
-                                permissionsShownInStrip={
-                                  showComposerContextStrip && !isServerThread
-                                }
+                                permissionsShownInStrip={!embedded}
                                 promptRef={promptRef}
                                 composerImagesRef={composerImagesRef}
                                 composerFilesRef={composerFilesRef}
@@ -3841,6 +3839,14 @@ export default function ChatView(props: ChatViewProps) {
                                 branch={activeThreadBranch ?? null}
                                 repository={activeProject?.title ?? null}
                                 directory={activeThread.worktreePath ?? activeProject?.workspaceRoot ?? null}
+                                trailing={
+                                  <ComposerContextPermissions
+                                    environmentId={environmentId}
+                                    runtimeMode={runtimeMode}
+                                    supportedRuntimeModes={activeProviderStatus?.supportedRuntimeModes}
+                                    onRuntimeModeChange={handleRuntimeModeChangeStable}
+                                  />
+                                }
                               />
                             )}
                             {showComposerContextStrip && (
@@ -3884,20 +3890,6 @@ export default function ChatView(props: ChatViewProps) {
                                       : undefined
                                   }
                                   availableEnvironments={logicalProjectEnvironments}
-                                  {...(isServerThread
-                                    ? {}
-                                    : {
-                                        trailing: (
-                                          <ComposerContextPermissions
-                                            environmentId={environmentId}
-                                            runtimeMode={runtimeMode}
-                                            supportedRuntimeModes={
-                                              activeProviderStatus?.supportedRuntimeModes
-                                            }
-                                            onRuntimeModeChange={handleRuntimeModeChangeStable}
-                                          />
-                                        ),
-                                      })}
                                 />
                               </div>
                             )}

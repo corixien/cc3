@@ -5,11 +5,11 @@ import {
   threadRuntimeIsActive,
   type EnvironmentThreadShell,
 } from "@t3tools/client-runtime/state/shell";
-import { isAtomCommandInterrupted, settlePromise } from "@t3tools/client-runtime/state/runtime";
+import { settlePromise } from "@t3tools/client-runtime/state/runtime";
 import { useNavigate, useParams } from "@tanstack/react-router";
 import * as Schema from "effect/Schema";
 import { useGT } from "gt-react";
-import { ChevronDownIcon, ChevronRightIcon, FolderPlusIcon, PlusIcon } from "lucide-react";
+import { ChevronDownIcon, ChevronRightIcon, PlusIcon, SearchIcon, XIcon } from "lucide-react";
 import { useMemo, useRef, useState } from "react";
 
 import { isElectron } from "~/env";
@@ -21,6 +21,15 @@ import { readLocalApi } from "../localApi";
 import { useThreadShells } from "../state/entities";
 import { buildThreadRouteParams } from "../threadRoutes";
 import { SidebarChromeFooter, SidebarChromeHeader } from "./sidebar/SidebarChrome";
+import {
+  Menu,
+  MenuItem,
+  MenuPopup,
+  MenuSeparator,
+  MenuSub,
+  MenuSubPopup,
+  MenuSubTrigger,
+} from "./ui/menu";
 import { SidebarContent } from "./ui/sidebar";
 import { Spinner } from "./ui/spinner";
 
@@ -68,13 +77,21 @@ export default function Cc3Sidebar() {
   const [state, setState] = useLocalStorage(STORAGE_KEY, EMPTY_FOLDERS, FolderState);
   const [editing, setEditing] = useState<string | null>(null);
   const dragKey = useRef<string | null>(null);
+  const [query, setQuery] = useState("");
+  // The right-click menu is drawn with the app's own menu so it matches the rest of CC3.
+  const [menu, setMenu] = useState<
+    | { x: number; y: number; kind: "thread"; thread: EnvironmentThreadShell }
+    | { x: number; y: number; kind: "folder"; folderId: string }
+    | null
+  >(null);
 
   const threads = useMemo(
     () =>
       shells
         .filter((thread) => thread.archivedAt === null && thread.deletedAt === null)
+        .filter((thread) => thread.title.toLowerCase().includes(query.trim().toLowerCase()))
         .toSorted((a, b) => activityOf(b) - activityOf(a)),
-    [shells],
+    [shells, query],
   );
   const folderIds = new Set(state.folders.map((folder) => folder.id));
   const folderOf = (thread: EnvironmentThreadShell) => {
@@ -90,11 +107,13 @@ export default function Cc3Sidebar() {
       else assignments[key] = folderId;
       return { ...current, assignments };
     });
-  const addFolder = () => {
+  const addFolder = (threadToAssign?: EnvironmentThreadShell) => {
     const id = crypto.randomUUID();
     setState((current) => ({
-      ...current,
       folders: [...current.folders, { id, name: gt("New folder"), collapsed: false }],
+      assignments: threadToAssign
+        ? { ...current.assignments, [threadKey(threadToAssign)]: id }
+        : current.assignments,
     }));
     setEditing(id);
   };
@@ -121,68 +140,20 @@ export default function Cc3Sidebar() {
     if (homeEnvironmentId !== null) void startScratchThread(homeEnvironmentId);
   };
 
-  const threadMenu = (thread: EnvironmentThreadShell, position: { x: number; y: number }) => {
-    const api = readLocalApi();
-    if (!api) return;
-    void (async () => {
-      const clicked = await settlePromise(() =>
-        api.contextMenu.show(
-          [
-            {
-              id: "move",
-              label: gt("Move to folder"),
-              children: [
-                { id: "move:none", label: gt("No folder") },
-                ...state.folders.map((folder) => ({
-                  id: `move:${folder.id}`,
-                  label: folder.name,
-                })),
-              ],
-            },
-            { id: "archive", label: gt("Archive") },
-            { id: "delete", label: gt("Delete"), destructive: true },
-          ],
-          position,
-        ),
-      );
-      if (clicked._tag === "Failure" || clicked.value === null) return;
-      const id = String(clicked.value);
-      const ref = scopeThreadRef(thread.environmentId, thread.id);
-      if (id.startsWith("move:")) {
-        const target = id.slice("move:".length);
-        assign(threadKey(thread), target === "none" ? null : target);
-      } else if (id === "archive") {
-        const result = await archiveThread(ref, {});
-        if (result._tag === "Failure" && !isAtomCommandInterrupted(result)) return;
-      } else if (id === "delete") {
-        const confirmed = await settlePromise(() =>
-          api.dialogs.confirm(gt('Delete chat "{title}"?', { title: thread.title }), {
-            variant: "destructive",
-          }),
-        );
-        if (confirmed._tag === "Failure" || !confirmed.value) return;
-        await deleteThread(ref);
-      }
-    })();
+  const archiveChat = async (thread: EnvironmentThreadShell) => {
+    await archiveThread(scopeThreadRef(thread.environmentId, thread.id), {});
   };
-
-  const folderMenu = (folderId: string, position: { x: number; y: number }) => {
+  const deleteChat = async (thread: EnvironmentThreadShell) => {
     const api = readLocalApi();
-    if (!api) return;
-    void (async () => {
-      const clicked = await settlePromise(() =>
-        api.contextMenu.show(
-          [
-            { id: "rename", label: gt("Rename folder") },
-            { id: "delete", label: gt("Delete folder"), destructive: true },
-          ],
-          position,
-        ),
+    if (api) {
+      const confirmed = await settlePromise(() =>
+        api.dialogs.confirm(gt('Delete chat "{title}"?', { title: thread.title }), {
+          variant: "destructive",
+        }),
       );
-      if (clicked._tag === "Failure") return;
-      if (clicked.value === "rename") setEditing(folderId);
-      else if (clicked.value === "delete") removeFolder(folderId);
-    })();
+      if (confirmed._tag === "Failure" || !confirmed.value) return;
+    }
+    await deleteThread(scopeThreadRef(thread.environmentId, thread.id));
   };
 
   const row = (thread: EnvironmentThreadShell) => {
@@ -197,7 +168,7 @@ export default function Cc3Sidebar() {
           onClick={() => open(thread)}
           onContextMenu={(event) => {
             event.preventDefault();
-            threadMenu(thread, { x: event.clientX, y: event.clientY });
+            setMenu({ x: event.clientX, y: event.clientY, kind: "thread", thread });
           }}
           className={cn(
             "flex h-8 w-full items-center gap-2 rounded-md px-2.5 text-left text-sm text-sidebar-foreground hover:bg-sidebar-row-hover",
@@ -216,22 +187,30 @@ export default function Cc3Sidebar() {
       <SidebarChromeHeader isElectron={isElectron} />
       <SidebarContent className="min-h-0 gap-1 px-2 pt-2">
         <div className="flex items-center gap-1 pb-1">
+          <div className="flex h-8 min-w-0 flex-1 items-center gap-2 rounded-md px-2 text-sm text-sidebar-muted-foreground hover:bg-sidebar-row-hover focus-within:bg-sidebar-row-hover">
+            <SearchIcon className="size-4 shrink-0" />
+            <input
+              value={query}
+              onChange={(event) => setQuery(event.currentTarget.value)}
+              placeholder={gt("Search", { $context: "search field placeholder" })}
+              aria-label={gt("Search chats")}
+              className="min-w-0 flex-1 bg-transparent text-sidebar-foreground outline-none placeholder:text-sidebar-muted-foreground"
+            />
+            {query ? (
+              <button type="button" aria-label={gt("Clear search")} onClick={() => setQuery("")}>
+                <XIcon className="size-3.5" />
+              </button>
+            ) : null}
+          </div>
           <button
             type="button"
+            aria-label={gt("New chat")}
+            title={gt("New chat")}
             onClick={newChat}
             disabled={homeEnvironmentId === null}
-            className="flex h-8 flex-1 items-center gap-2 rounded-md px-2.5 text-sm font-medium text-sidebar-foreground hover:bg-sidebar-row-hover disabled:opacity-50"
+            className="flex size-8 shrink-0 items-center justify-center rounded-md text-sidebar-muted-foreground hover:bg-sidebar-row-hover hover:text-sidebar-foreground disabled:opacity-50"
           >
             <PlusIcon className="size-4" />
-            {gt("New chat")}
-          </button>
-          <button
-            type="button"
-            aria-label={gt("New folder")}
-            onClick={addFolder}
-            className="flex size-8 items-center justify-center rounded-md text-sidebar-muted-foreground hover:bg-sidebar-row-hover hover:text-sidebar-foreground"
-          >
-            <FolderPlusIcon className="size-4" />
           </button>
         </div>
         {state.folders.map((folder) => {
@@ -249,7 +228,7 @@ export default function Cc3Sidebar() {
               <div
                 onContextMenu={(event) => {
                   event.preventDefault();
-                  folderMenu(folder.id, { x: event.clientX, y: event.clientY });
+                  setMenu({ x: event.clientX, y: event.clientY, kind: "folder", folderId: folder.id });
                 }}
                 className="flex h-7 items-center gap-1 rounded-md px-1.5 text-xs font-medium text-sidebar-muted-foreground hover:bg-sidebar-row-hover"
               >
@@ -302,6 +281,65 @@ export default function Cc3Sidebar() {
           {loose.map(row)}
         </ul>
       </SidebarContent>
+      <Menu open={menu !== null} onOpenChange={(open) => (open ? undefined : setMenu(null))}>
+        {menu ? (
+          <MenuPopup
+            align="start"
+            side="bottom"
+            sideOffset={0}
+            className="min-w-48"
+            anchor={{
+              getBoundingClientRect: () => new DOMRect(menu.x, menu.y, 0, 0),
+            }}
+          >
+            {menu.kind === "thread" ? (
+              <>
+                <MenuSub>
+                  <MenuSubTrigger>{gt("Move to folder")}</MenuSubTrigger>
+                  <MenuSubPopup>
+                    <MenuItem onClick={() => assign(threadKey(menu.thread), null)}>
+                      {gt("No folder")}
+                    </MenuItem>
+                    {state.folders.map((folder) => (
+                      <MenuItem
+                        key={folder.id}
+                        onClick={() => assign(threadKey(menu.thread), folder.id)}
+                      >
+                        {folder.name}
+                      </MenuItem>
+                    ))}
+                    {state.folders.length > 0 ? <MenuSeparator /> : null}
+                    <MenuItem onClick={() => addFolder(menu.thread)}>
+                      <PlusIcon />
+                      {gt("New folder")}
+                    </MenuItem>
+                  </MenuSubPopup>
+                </MenuSub>
+                <MenuSeparator />
+                <MenuItem onClick={() => void archiveChat(menu.thread)}>{gt("Archive")}</MenuItem>
+                <MenuItem
+                  className="text-destructive-foreground"
+                  onClick={() => void deleteChat(menu.thread)}
+                >
+                  {gt("Delete")}
+                </MenuItem>
+              </>
+            ) : (
+              <>
+                <MenuItem onClick={() => setEditing(menu.folderId)}>
+                  {gt("Rename folder")}
+                </MenuItem>
+                <MenuItem
+                  className="text-destructive-foreground"
+                  onClick={() => removeFolder(menu.folderId)}
+                >
+                  {gt("Delete folder")}
+                </MenuItem>
+              </>
+            )}
+          </MenuPopup>
+        ) : null}
+      </Menu>
       <SidebarChromeFooter />
     </>
   );

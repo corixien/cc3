@@ -46,7 +46,7 @@ export function ComposerContextPermissions(props: {
               render={
                 <ComposerControl
                   size="xs"
-                  className="ms-auto min-w-0 shrink-0"
+                  className="min-w-0 shrink-0 hover:text-foreground"
                   aria-label={gt("Permissions: {label}", { label })}
                   data-composer-context-control
                 />
