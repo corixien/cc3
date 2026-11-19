@@ -202,6 +202,7 @@ import { GuestPendingMessages } from "./chat/GuestShareControls";
 import { useDeviceState } from "~/state/device";
 import { BranchToolbar, type BranchToolbarHandle } from "./BranchToolbar";
 import { ComposerStatusStrip } from "./chat/ComposerStatusStrip";
+import { useOpenFolderChat } from "../hooks/useOpenFolderChat";
 import { ComposerContextPermissions } from "./ComposerContextPermissions";
 import { makeWorkspaceFileDropHandlers } from "./chat/workspaceFileDrop";
 import { isEditableFocused } from "../lib/editableFocus";
@@ -653,6 +654,7 @@ export default function ChatView(props: ChatViewProps) {
   const composerFilesRef = useRef<ComposerFileAttachment[]>([]);
   const composerTerminalContextsRef = useRef<TerminalContextDraft[]>([]);
   const branchToolbarRef = useRef<BranchToolbarHandle>(null);
+  const openFolderChat = useOpenFolderChat(environmentId);
   const citeAssistantText = (
     citation: AssistantCitation,
     sourceAnchor: AssistantCitationSourceAnchor,
@@ -3637,7 +3639,7 @@ export default function ChatView(props: ChatViewProps) {
                   >
                     <ChildThreadApprovals threadRef={activeThreadRef} />
                     <div className="relative">
-                      <ComposerSurface.Shell contextRow={showComposerContextStrip}>
+                      <ComposerSurface.Shell contextRow={!embedded}>
                         <ComposerSurface.Host
                           inert={queuedRunEdit.isSaving}
                           aria-busy={queuedRunEdit.isSaving}
@@ -3829,70 +3831,87 @@ export default function ChatView(props: ChatViewProps) {
                             className="relative z-0"
                           >
                             <div className="mx-auto flex w-full max-w-(--chat-content-max-width) flex-wrap items-center">
-                            {!embedded && (
-                              <ComposerStatusStrip
-                                className="min-w-0 flex-1"
-                                contextWindow={activeContextWindow}
-                                providerInstanceId={activeProviderInstanceId}
-                                providers={providerStatuses}
-                                sources={serverConfig?.usageLimitSources ?? EMPTY_USAGE_LIMIT_SOURCES}
-                                branch={activeThreadBranch ?? null}
-                                repository={activeProject?.title ?? null}
-                                directory={activeThread.worktreePath ?? activeProject?.workspaceRoot ?? null}
-                                trailing={
-                                  <ComposerContextPermissions
-                                    environmentId={environmentId}
-                                    runtimeMode={runtimeMode}
-                                    supportedRuntimeModes={activeProviderStatus?.supportedRuntimeModes}
-                                    onRuntimeModeChange={handleRuntimeModeChangeStable}
-                                  />
-                                }
-                              />
-                            )}
-                            {showComposerContextStrip && (
-                              <div className="pointer-events-auto ms-auto min-w-0 max-w-full shrink-0">
-                                <BranchToolbar
-                                  forceNewWorktree={multipleModelSelections !== null}
-                                  ref={branchToolbarRef}
-                                  environmentId={activeThread.environmentId}
-                                  threadId={activeThread.id}
-                                  projectId={activeThread.projectId}
-                                  worktreePath={activeThread.worktreePath}
-                                  isServerThread={isServerThread}
-                                  showGitControls={isGitRepo}
-                                  {...(routeKind === "draft" && draftId ? { draftId } : {})}
-                                  onEnvModeChange={onEnvModeChangeStable}
-                                  startFromOrigin={startFromOrigin}
-                                  onStartFromOriginChange={onStartFromOriginChange}
-                                  envMode={envMode}
-                                  {...(canOverrideServerThreadEnvMode
-                                    ? {
-                                        activeThreadBranchOverride: activeThreadBranch,
-                                        onActiveThreadBranchOverrideChange:
-                                          setPendingServerThreadBranch,
-                                      }
-                                    : {})}
-                                  envLocked={envLocked}
-                                  onComposerFocusRequest={scheduleComposerFocusStable}
-                                  {...(canCheckoutPullRequestIntoThread
-                                    ? { onCheckoutPullRequestRequest: openPullRequestDialogStable }
-                                    : {})}
-                                  {...(canChangeEnvironment
-                                    ? { onEnvironmentChange: onEnvironmentChangeStable }
-                                    : {})}
-                                  autoEnvironmentLabel={autoEnvironmentLabel}
-                                  onAutoEnvironment={
-                                    draftId &&
-                                    !envLocked &&
-                                    canAutoBalanceEnvironments &&
-                                    loadBalancingSettings.loadBalancingEnabled
-                                      ? onAutoEnvironmentStable
-                                      : undefined
+                              {!embedded && (
+                                <ComposerStatusStrip
+                                  className="min-w-0 flex-1"
+                                  contextWindow={activeContextWindow}
+                                  providerInstanceId={activeProviderInstanceId}
+                                  providers={providerStatuses}
+                                  sources={
+                                    serverConfig?.usageLimitSources ?? EMPTY_USAGE_LIMIT_SOURCES
                                   }
-                                  availableEnvironments={logicalProjectEnvironments}
+                                  branch={activeThreadBranch ?? null}
+                                  repository={
+                                    activeProject?.repositoryIdentity?.displayName ??
+                                    (activeProject?.repositoryIdentity?.owner &&
+                                    activeProject.repositoryIdentity.name
+                                      ? `${activeProject.repositoryIdentity.owner}/${activeProject.repositoryIdentity.name}`
+                                      : null)
+                                  }
+                                  onPickDirectory={() => void openFolderChat()}
+                                  directory={
+                                    activeThread.worktreePath ??
+                                    activeProject?.workspaceRoot ??
+                                    null
+                                  }
+                                  trailing={
+                                    <ComposerContextPermissions
+                                      environmentId={environmentId}
+                                      runtimeMode={runtimeMode}
+                                      supportedRuntimeModes={
+                                        activeProviderStatus?.supportedRuntimeModes
+                                      }
+                                      onRuntimeModeChange={handleRuntimeModeChangeStable}
+                                    />
+                                  }
                                 />
-                              </div>
-                            )}
+                              )}
+                              {showComposerContextStrip && (
+                                <div className="pointer-events-auto ms-auto min-w-0 max-w-full shrink-0">
+                                  <BranchToolbar
+                                    forceNewWorktree={multipleModelSelections !== null}
+                                    ref={branchToolbarRef}
+                                    environmentId={activeThread.environmentId}
+                                    threadId={activeThread.id}
+                                    projectId={activeThread.projectId}
+                                    worktreePath={activeThread.worktreePath}
+                                    isServerThread={isServerThread}
+                                    showGitControls={isGitRepo}
+                                    {...(routeKind === "draft" && draftId ? { draftId } : {})}
+                                    onEnvModeChange={onEnvModeChangeStable}
+                                    startFromOrigin={startFromOrigin}
+                                    onStartFromOriginChange={onStartFromOriginChange}
+                                    envMode={envMode}
+                                    {...(canOverrideServerThreadEnvMode
+                                      ? {
+                                          activeThreadBranchOverride: activeThreadBranch,
+                                          onActiveThreadBranchOverrideChange:
+                                            setPendingServerThreadBranch,
+                                        }
+                                      : {})}
+                                    envLocked={envLocked}
+                                    onComposerFocusRequest={scheduleComposerFocusStable}
+                                    {...(canCheckoutPullRequestIntoThread
+                                      ? {
+                                          onCheckoutPullRequestRequest: openPullRequestDialogStable,
+                                        }
+                                      : {})}
+                                    {...(canChangeEnvironment
+                                      ? { onEnvironmentChange: onEnvironmentChangeStable }
+                                      : {})}
+                                    autoEnvironmentLabel={autoEnvironmentLabel}
+                                    onAutoEnvironment={
+                                      draftId &&
+                                      !envLocked &&
+                                      canAutoBalanceEnvironments &&
+                                      loadBalancingSettings.loadBalancingEnabled
+                                        ? onAutoEnvironmentStable
+                                        : undefined
+                                    }
+                                    availableEnvironments={logicalProjectEnvironments}
+                                  />
+                                </div>
+                              )}
                             </div>
                           </div>
                         </div>

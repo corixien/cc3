@@ -17,6 +17,13 @@ import { useNowMinute } from "../../hooks/useNowMinute";
 import { formatContextWindowTokens } from "../../lib/contextWindow";
 import { cn } from "../../lib/utils";
 
+const STRIP_BUTTON =
+  "inline-flex cursor-pointer items-center gap-1 rounded-sm transition-colors duration-150 hover:text-foreground";
+
+function usageLabel(label: string): string {
+  return /^session$/i.test(label) ? "5h" : label;
+}
+
 function toneOf(used: number): string {
   return used >= 90 ? "text-destructive" : used >= 80 ? "text-warning" : "";
 }
@@ -35,6 +42,7 @@ export function ComposerStatusStrip(props: {
   readonly branch: string | null;
   readonly repository: string | null;
   readonly directory: string | null;
+  readonly onPickDirectory: () => void;
 }) {
   const navigate = useNavigate();
   const nowMinute = useNowMinute();
@@ -65,34 +73,38 @@ export function ComposerStatusStrip(props: {
       )}
     >
       {context ? (
-        <span className={cn("inline-flex items-center gap-1", toneOf(contextUsed ?? 0))}>
+        <span
+          title={
+            maxTokens !== null
+              ? `Context: ${formatContextWindowTokens(context.usedTokens)} / ${formatContextWindowTokens(maxTokens)} tokens`
+              : "Context"
+          }
+          className={cn("inline-flex items-center gap-1", toneOf(contextUsed ?? 0))}
+        >
           <GaugeIcon aria-hidden />
-          {maxTokens !== null
-            ? `${formatContextWindowTokens(context.usedTokens)} / ${formatContextWindowTokens(maxTokens)}${contextUsed !== null ? ` (${contextUsed}%)` : ""}`
-            : formatContextWindowTokens(context.usedTokens)}
+          Context{" "}
+          {contextUsed !== null ? `${contextUsed}%` : formatContextWindowTokens(context.usedTokens)}
         </span>
       ) : null}
-      {props.branch || props.repository ? (
-        <button
-          type="button"
-          title="Add a project or create a GitHub repository"
-          onClick={() => openCommandPalette({ open: "add-project" })}
-          className="inline-flex min-w-0 cursor-pointer items-center gap-1 hover:text-foreground"
-        >
-          {props.branch ? <GitBranchIcon aria-hidden /> : null}
-          <span className="truncate">
-            {props.repository}
-            {props.repository && props.branch ? " / " : ""}
-            {props.branch}
-          </span>
-        </button>
-      ) : null}
+      <button
+        type="button"
+        title="Add a project or create a GitHub repository"
+        onClick={() => openCommandPalette({ open: "add-project" })}
+        className={cn(STRIP_BUTTON, "min-w-0")}
+      >
+        <GitBranchIcon aria-hidden />
+        <span className="truncate">
+          {props.repository
+            ? `${props.repository}${props.branch ? ` / ${props.branch}` : ""}`
+            : "No repo"}
+        </span>
+      </button>
       {props.directory ? (
         <button
           type="button"
-          title="Change directory"
-          onClick={() => openCommandPalette({ open: "new-thread-in" })}
-          className="inline-flex min-w-0 cursor-pointer items-center gap-1 hover:text-foreground"
+          title="Choose a folder (starts a new chat there)"
+          onClick={props.onPickDirectory}
+          className={cn(STRIP_BUTTON, "min-w-0")}
         >
           <FolderIcon aria-hidden />
           <span className="truncate">{shortenPath(props.directory)}</span>
@@ -103,13 +115,13 @@ export function ComposerStatusStrip(props: {
           type="button"
           title="Open usage"
           onClick={() => void navigate({ to: "/usage" })}
-          className="ms-auto inline-flex cursor-pointer items-center gap-3 hover:text-foreground"
+          className={cn(STRIP_BUTTON, "ms-auto gap-3")}
         >
           {windows.map((window) => {
             const used = 100 - remainingPercent(window);
             return (
               <span key={window.id} className={cn("whitespace-nowrap", toneOf(used))}>
-                {window.label} {used}%
+                {usageLabel(window.label)} {used}%
               </span>
             );
           })}

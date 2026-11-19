@@ -120,7 +120,9 @@ export default function Cc3Sidebar() {
   const patchFolder = (id: string, patch: Partial<FolderState["folders"][number]>) =>
     setState((current) => ({
       ...current,
-      folders: current.folders.map((folder) => (folder.id === id ? { ...folder, ...patch } : folder)),
+      folders: current.folders.map((folder) =>
+        folder.id === id ? { ...folder, ...patch } : folder,
+      ),
     }));
   const removeFolder = (id: string) =>
     setState((current) => ({
@@ -228,7 +230,12 @@ export default function Cc3Sidebar() {
               <div
                 onContextMenu={(event) => {
                   event.preventDefault();
-                  setMenu({ x: event.clientX, y: event.clientY, kind: "folder", folderId: folder.id });
+                  setMenu({
+                    x: event.clientX,
+                    y: event.clientY,
+                    kind: "folder",
+                    folderId: folder.id,
+                  });
                 }}
                 className="flex h-7 items-center gap-1 rounded-md px-1.5 text-xs font-medium text-sidebar-muted-foreground hover:bg-sidebar-row-hover"
               >
@@ -326,9 +333,7 @@ export default function Cc3Sidebar() {
               </>
             ) : (
               <>
-                <MenuItem onClick={() => setEditing(menu.folderId)}>
-                  {gt("Rename folder")}
-                </MenuItem>
+                <MenuItem onClick={() => setEditing(menu.folderId)}>{gt("Rename folder")}</MenuItem>
                 <MenuItem
                   className="text-destructive-foreground"
                   onClick={() => removeFolder(menu.folderId)}
