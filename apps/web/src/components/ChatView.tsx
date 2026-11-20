@@ -203,7 +203,8 @@ import { useDeviceState } from "~/state/device";
 import { BranchToolbar, type BranchToolbarHandle } from "./BranchToolbar";
 import { ComposerStatusStrip } from "./chat/ComposerStatusStrip";
 import { useOpenFolderChat } from "../hooks/useOpenFolderChat";
-import { cc3LocalSlashCommand } from "../cc3LocalSlashCommands";
+import { cc3LocalSlashCommand, type Cc3CommandPanelKind } from "../cc3LocalSlashCommands";
+import { Cc3CommandPanel } from "./chat/Cc3CommandPanel";
 import { openCommandPalette } from "../commandPaletteBus";
 import { ComposerContextPermissions } from "./ComposerContextPermissions";
 import { makeWorkspaceFileDropHandlers } from "./chat/workspaceFileDrop";
@@ -1039,17 +1040,15 @@ export default function ChatView(props: ChatViewProps) {
   })();
   const activeThreadRef = useActiveThreadRef(activeThread);
   // CC3: slash commands that open a CC3 screen (see cc3LocalSlashCommands.ts).
+  const [commandPanel, setCommandPanel] = useState<Cc3CommandPanelKind | null>(null);
+  const closeCommandPanel = useStableCallback(() => setCommandPanel(null));
   const runLocalSlashCommand = useStableCallback((name: string) => {
     const command = cc3LocalSlashCommand(name);
     if (!command) return;
     switch (command.action.kind) {
-      case "details": {
-        if (!activeThreadRef) return;
-        const panel = useRightPanelStore.getState();
-        panel.setThreadPanelOpen(activeThreadRef, "inline", true);
-        panel.setThreadPanelOpen(activeThreadRef, "popover", true);
+      case "panel":
+        setCommandPanel(command.action.panel);
         return;
-      }
       case "route":
         void navigate({ to: command.action.to as never });
         return;
@@ -3661,6 +3660,27 @@ export default function ChatView(props: ChatViewProps) {
                     }
                   >
                     <ChildThreadApprovals threadRef={activeThreadRef} />
+                    {!isDraftHeroState && commandPanel !== null ? (
+                      <Cc3CommandPanel
+                        panel={commandPanel}
+                        onClose={closeCommandPanel}
+                        overview={{
+                          environmentId,
+                          repository:
+                            activeProject?.repositoryIdentity?.displayName ??
+                            (activeProject?.repositoryIdentity?.owner &&
+                            activeProject.repositoryIdentity.name
+                              ? `${activeProject.repositoryIdentity.owner}/${activeProject.repositoryIdentity.name}`
+                              : null),
+                          branch: activeThreadBranch ?? null,
+                          directory:
+                            activeThread.worktreePath ?? activeProject?.workspaceRoot ?? null,
+                          onPickDirectory: () => void openFolderChat(),
+                          contextWindow: activeContextWindow,
+                          backgroundTasks: pendingBackgroundTasks,
+                        }}
+                      />
+                    ) : null}
                     {/* CC3: notices are standalone cards above the composer, never joined to it. */}
                     {!isDraftHeroState && composerBannerItems.length > 0 ? (
                       <div className="mb-2 flex flex-col gap-2">
@@ -3942,6 +3962,24 @@ export default function ChatView(props: ChatViewProps) {
                           </div>
                         </div>
                       </ComposerSurface.Shell>
+                      {isDraftHeroState && commandPanel !== null ? (
+                        <div className="absolute inset-x-0 bottom-full">
+                          <Cc3CommandPanel
+                            panel={commandPanel}
+                            onClose={closeCommandPanel}
+                            overview={{
+                              environmentId,
+                              repository: null,
+                              branch: activeThreadBranch ?? null,
+                              directory:
+                                activeThread.worktreePath ?? activeProject?.workspaceRoot ?? null,
+                              onPickDirectory: () => void openFolderChat(),
+                              contextWindow: activeContextWindow,
+                              backgroundTasks: pendingBackgroundTasks,
+                            }}
+                          />
+                        </div>
+                      ) : null}
                       {isDraftHeroState && composerBannerItems.length > 0 ? (
                         // Out of flow, like the headline, so a notice never moves the centered composer.
                         // Short windows pin the composer to the bottom, where an out-of-flow notice

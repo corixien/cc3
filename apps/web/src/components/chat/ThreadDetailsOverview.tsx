@@ -17,7 +17,12 @@ import { ThreadDetailsSection } from "./ThreadDetailsSection";
 const ROW =
   "flex min-h-8 w-full min-w-0 cursor-pointer items-center gap-2.5 rounded-lg px-2.5 text-left text-[13px] font-medium text-foreground/80 transition-colors duration-150 hover:bg-black/[0.035] hover:text-foreground dark:hover:bg-white/[0.08]";
 
-function Row(props: { icon: ReactNode; onClick: () => void; title?: string; children: ReactNode }) {
+export function Row(props: {
+  icon: ReactNode;
+  onClick: () => void;
+  title?: string;
+  children: ReactNode;
+}) {
   return (
     <button type="button" title={props.title} onClick={props.onClick} className={ROW}>
       <span className="shrink-0 text-muted-foreground [&_svg]:size-4">{props.icon}</span>

@@ -2,8 +2,11 @@
 // session. CC3 answers them itself by opening the matching screen, so `/mcp`, `/context`,
 // `/usage` and friends work like they do in Claude Code. Provider commands (`/compact`,
 // `/init`, skills...) keep going to the provider.
+/** Popups drawn above the composer, see Cc3CommandPanel. */
+export type Cc3CommandPanelKind = "connectors" | "overview" | "integrations";
+
 export type Cc3LocalSlashAction =
-  | { readonly kind: "details" }
+  | { readonly kind: "panel"; readonly panel: Cc3CommandPanelKind }
   | { readonly kind: "route"; readonly to: string }
   | { readonly kind: "palette" };
 
@@ -19,17 +22,17 @@ export const CC3_LOCAL_SLASH_COMMANDS = [
   {
     name: "mcp",
     description: "Show connectors (MCP servers) and their status",
-    action: { kind: "details" },
+    action: { kind: "panel", panel: "connectors" },
   },
   {
     name: "context",
     description: "Show how full the context window is",
-    action: { kind: "details" },
+    action: { kind: "panel", panel: "overview" },
   },
   {
     name: "status",
     description: "Show session status: folder, context and connectors",
-    action: { kind: "details" },
+    action: { kind: "panel", panel: "overview" },
   },
   { name: "usage", description: "Show plan usage and limits", action: route("/usage") },
   { name: "cost", description: "Show token usage and cost", action: route("/usage") },
@@ -46,19 +49,24 @@ export const CC3_LOCAL_SLASH_COMMANDS = [
   { name: "theme", description: "Change the theme", action: route("/settings/appearance") },
   { name: "doctor", description: "Run diagnostics", action: route("/settings/diagnostics") },
   {
+    name: "marketplace",
+    description: "Browse and manage plugins and integrations",
+    action: { kind: "panel", panel: "integrations" },
+  },
+  {
     name: "agents",
     description: "Manage agents and integrations",
-    action: route("/settings/integrations"),
+    action: { kind: "panel", panel: "integrations" },
   },
   {
     name: "plugins",
     description: "Manage plugins and integrations",
-    action: route("/settings/integrations"),
+    action: { kind: "panel", panel: "integrations" },
   },
   {
     name: "hooks",
     description: "Manage hooks and integrations",
-    action: route("/settings/integrations"),
+    action: { kind: "panel", panel: "integrations" },
   },
   {
     name: "terminal-setup",
