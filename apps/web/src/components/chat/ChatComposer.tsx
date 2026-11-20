@@ -3490,7 +3490,7 @@ export const ChatComposer = memo(function ChatComposer(props: ChatComposerProps)
       {...threadContextDropTargetProps()}
     >
       {showComposerTopDrawer ? (
-        <div className="mb-2">
+        <div className="mb-3">
           <ComposerBanner.Root detached data-chat-composer-top-drawer="true" variant="info">
             {pendingUserInputs.length > 0 ? (
               <ComposerPendingUserInputPanel

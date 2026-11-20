@@ -25,6 +25,7 @@ import { useScratchProject } from "../hooks/useScratchProject";
 import { useThreadActions } from "../hooks/useThreadActions";
 import { cn } from "../lib/utils";
 import { readLocalApi } from "../localApi";
+import { useSplitViewStore } from "../splitViewStore";
 import { useThreadShells } from "../state/entities";
 import { buildThreadRouteParams } from "../threadRoutes";
 import { SidebarChromeFooter, SidebarChromeHeader } from "./sidebar/SidebarChrome";
@@ -240,11 +241,21 @@ export default function Cc3Sidebar() {
     });
   };
 
-  const open = (thread: EnvironmentThreadShell) =>
+  const splitSecondary = useSplitViewStore((store) => store.secondary);
+  const splitFocus = useSplitViewStore((store) => store.focus);
+  const openInSplit = useSplitViewStore((store) => store.open);
+  const open = (thread: EnvironmentThreadShell) => {
+    // With the right pane focused, picking a chat replaces the right chat.
+    const routed = params.environmentId === thread.environmentId && params.threadId === thread.id;
+    if (splitSecondary !== null && splitFocus === "right" && !routed) {
+      openInSplit(scopeThreadRef(thread.environmentId, thread.id));
+      return;
+    }
     void navigate({
       to: "/$environmentId/$threadId",
       params: buildThreadRouteParams(scopeThreadRef(thread.environmentId, thread.id)),
     });
+  };
   const homeEnvironmentId = scratchEnvironmentId(null);
   const newChat = () => {
     if (homeEnvironmentId !== null) void startScratchThread(homeEnvironmentId);
@@ -468,6 +479,16 @@ export default function Cc3Sidebar() {
           >
             {menu.kind === "thread" ? (
               <>
+                {params.environmentId === menu.thread.environmentId &&
+                params.threadId === menu.thread.id ? null : (
+                  <MenuItem
+                    onClick={() =>
+                      openInSplit(scopeThreadRef(menu.thread.environmentId, menu.thread.id))
+                    }
+                  >
+                    {gt("Open in split view")}
+                  </MenuItem>
+                )}
                 <MenuSub>
                   <MenuSubTrigger>{gt("Move to folder")}</MenuSubTrigger>
                   <MenuSubPopup>

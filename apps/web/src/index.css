@@ -178,7 +178,8 @@ html[data-mobile-composer-route-transition="true"]::view-transition-old(t3-mobil
 
 @theme {
   --font-sans:
-    "Lexend Deca", -apple-system, BlinkMacSystemFont, "Inter Variable", "Segoe UI", system-ui, sans-serif;
+    "Lexend Deca", -apple-system, BlinkMacSystemFont, "Inter Variable", "Segoe UI", system-ui,
+    sans-serif;
   --font-mono:
     ui-monospace, "SF Mono", "SFMono-Regular", Menlo, Consolas, "Liberation Mono", monospace;
 }
@@ -2656,4 +2657,18 @@ code {
 
 .messages-timeline-scroll:focus-visible {
   outline: none;
+}
+
+/* CC3 split view: the left pane (router) and the right pane share the row by ratio; the pane
+   without focus is a little darker. Variables and attributes are set by SplitChatPane. */
+html[data-split-active] main[data-slot="sidebar-inset"] {
+  flex: var(--cc3-split-left, 1) 1 0%;
+  transition: filter 150ms ease;
+}
+html[data-split-active] [data-split-chat-pane] {
+  transition: filter 150ms ease;
+}
+html[data-split-focus="right"] main[data-slot="sidebar-inset"],
+html[data-split-focus="left"] [data-split-chat-pane] {
+  filter: brightness(0.88);
 }

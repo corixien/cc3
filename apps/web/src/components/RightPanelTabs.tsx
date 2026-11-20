@@ -298,8 +298,8 @@ export function surfaceShortcutTargetsTypingContext(
   );
 }
 
-/** CC3: opens any other chat next to the current one, or closes the split. */
-function SplitViewMenu() {
+/** CC3: the chats that can be opened next to the current one, newest first. */
+function SplitViewItems() {
   const gt = useGT();
   const shells = useThreadShells();
   const params = useParams({ strict: false }) as { environmentId?: string; threadId?: string };
@@ -320,26 +320,36 @@ function SplitViewMenu() {
     )
     .slice(0, 30);
   return (
+    <>
+      {secondary ? <MenuItem onClick={close}>{gt("Close split view")}</MenuItem> : null}
+      {secondary ? <MenuSeparator /> : null}
+      {candidates.length === 0 ? (
+        <MenuItem disabled>{gt("No other chats")}</MenuItem>
+      ) : (
+        candidates.map((thread) => (
+          <MenuItem
+            key={`${thread.environmentId}:${thread.id}`}
+            onClick={() => open(scopeThreadRef(thread.environmentId, thread.id))}
+          >
+            <span className="min-w-0 truncate">{thread.title}</span>
+          </MenuItem>
+        ))
+      )}
+    </>
+  );
+}
+
+/** CC3: opens any other chat next to the current one, or closes the split. */
+function SplitViewMenu() {
+  const gt = useGT();
+  return (
     <MenuSub>
       <MenuSubTrigger>
         <Columns2 />
         {gt("Split view")}
       </MenuSubTrigger>
       <MenuSubPopup className="max-h-80 min-w-56 overflow-y-auto">
-        {secondary ? <MenuItem onClick={close}>{gt("Close split view")}</MenuItem> : null}
-        {secondary ? <MenuSeparator /> : null}
-        {candidates.length === 0 ? (
-          <MenuItem disabled>{gt("No other chats")}</MenuItem>
-        ) : (
-          candidates.map((thread) => (
-            <MenuItem
-              key={`${thread.environmentId}:${thread.id}`}
-              onClick={() => open(scopeThreadRef(thread.environmentId, thread.id))}
-            >
-              <span className="min-w-0 truncate">{thread.title}</span>
-            </MenuItem>
-          ))
-        )}
+        <SplitViewItems />
       </MenuSubPopup>
     </MenuSub>
   );
@@ -630,6 +640,22 @@ function RightPanelEmptyState(props: {
               />
             ),
           )}
+          <Menu>
+            <MenuTrigger
+              render={
+                <button
+                  type="button"
+                  className="flex h-8 w-full cursor-pointer items-center gap-2.5 rounded-(--control-radius) px-2.5 text-left text-sm transition-colors hover:bg-accent/60"
+                />
+              }
+            >
+              <Columns2 className="size-4 shrink-0" />
+              <span className="min-w-0 flex-1 truncate">{gt("Split view")}</span>
+            </MenuTrigger>
+            <MenuPopup align="start" side="bottom" sideOffset={6} className="max-h-80 min-w-56">
+              <SplitViewItems />
+            </MenuPopup>
+          </Menu>
         </div>
       </div>
     </div>

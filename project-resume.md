@@ -44,3 +44,12 @@ Initial CC3 port pushed to main. Not yet run as a built app: window chrome (fram
 - Start menu entry "CC3" runs `~/.local/bin/cc3`: production build (`pnpm build:desktop` when sources are newer than `apps/server/dist/client/index.html`, then `pnpm start:desktop`), data via `T3CODE_HOME=~/.t3/cc3` (userdata symlinked to `~/.t3/dev`). Dev mode (`pnpm dev:desktop`) opens DevTools and relaunches Electron on every rebuild; use only for development, and stop leftover watchers.
 - React Compiler bails out of a component when a closure reads a variable declared later (e.g. in ChatView). Then `useIncrementalTimelineEntries` loops ("Too many re-renders"). Check with a compiler logger on touched components.
 - Installed app name is plain "CC3" (no "(Beta)").
+
+## Notes (2026-11-20, UI round 3)
+- Permissions control sits at the far right under the composer (ChatView, after BranchToolbar), not inside ComposerStatusStrip.
+- Draft hero is a cycling greeting only (DraftHeroHeadline); project picker / triage hero removed.
+- /mcp panel gets servers from the live context window, else from the Claude capability probe (`mcpServers` on the provider workspace snapshot, `q.mcpServerStatus()`).
+- Right panel: single view (rightPanelStore.upsertSurface replaces); details card default hidden (DEFAULT_THREAD_PANEL_VISIBILITY.inlineOpen=false, storage v16); empty-state list has "Split view". 22 upstream multi-tab store tests are skipped on purpose.
+- Split view: splitViewStore has focus + ratio; SplitChatPane has draggable divider with hover swap button; CSS in index.css dims the unfocused pane; sidebar click replaces the right chat when right is focused; sidebar context menu has "Open in split view".
+- Settings nav: Projects and Labs pages hidden. `scripts/cc3-upstream-patches.sh` lists upstream fix/security commits for cherry-picking.
+- Open: PRs/issues across all repos of the gh account (needs account-wide API + detail panels without a project); server typecheck has pre-existing test/testkit errors.

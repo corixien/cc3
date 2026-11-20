@@ -4,6 +4,7 @@ import type { ScopedThreadRef } from "@t3tools/contracts";
 import { useNavigate } from "@tanstack/react-router";
 import { useGT } from "gt-react";
 import { ArrowLeftRightIcon, PanelLeftCloseIcon, XIcon } from "lucide-react";
+import { useEffect } from "react";
 
 import { ComposerHandleContext } from "../composerHandleContext";
 import { useQuietThreadShell } from "../state/entities";
@@ -28,9 +29,48 @@ export function SplitChatPane({ routeThread }: { routeThread: ScopedThreadRef | 
   const secondary = useSplitViewStore((state) => state.secondary);
   const close = useSplitViewStore((state) => state.close);
   const open = useSplitViewStore((state) => state.open);
+  const focus = useSplitViewStore((state) => state.focus);
+  const ratio = useSplitViewStore((state) => state.ratio);
+  const setFocus = useSplitViewStore((state) => state.setFocus);
+  const setRatio = useSplitViewStore((state) => state.setRatio);
   const shell = useQuietThreadShell(secondary);
   // Opening the split chat on the left makes the split pointless.
-  if (secondary === null || routeThread === null || sameThread(secondary, routeThread)) return null;
+  const active = secondary !== null && routeThread !== null && !sameThread(secondary, routeThread);
+
+  // The split is styled from the document root: both panes share one flex row whose left pane
+  // belongs to the router, so the ratio, the dimming and the focus are CSS variables there.
+  // oxlint-disable-next-line t3code/no-unreasoned-state-sync -- mirrors split state onto the document root for global CSS
+  useEffect(() => {
+    const root = document.documentElement;
+    if (!active) {
+      delete root.dataset.splitActive;
+      delete root.dataset.splitFocus;
+      return;
+    }
+    root.dataset.splitActive = "";
+    root.dataset.splitFocus = focus;
+    root.style.setProperty("--cc3-split-left", String(ratio));
+    root.style.setProperty("--cc3-split-right", String(1 - ratio));
+    return () => {
+      delete root.dataset.splitActive;
+      delete root.dataset.splitFocus;
+    };
+  }, [active, focus, ratio]);
+
+  // Pressing inside a chat focuses its pane; the sidebar leaves the focus alone.
+  // oxlint-disable-next-line t3code/no-unreasoned-state-sync -- document-level pointer listener
+  useEffect(() => {
+    if (!active) return;
+    const onPointerDown = (event: PointerEvent) => {
+      const target = event.target instanceof Element ? event.target : null;
+      if (target?.closest("[data-split-chat-pane]")) setFocus("right");
+      else if (target?.closest('main[data-slot="sidebar-inset"]')) setFocus("left");
+    };
+    document.addEventListener("pointerdown", onPointerDown, true);
+    return () => document.removeEventListener("pointerdown", onPointerDown, true);
+  }, [active, setFocus]);
+
+  if (!active || secondary === null || routeThread === null) return null;
 
   const openOnLeft = (ref: ScopedThreadRef) =>
     void navigate({ to: "/$environmentId/$threadId", params: buildThreadRouteParams(ref) });
@@ -45,23 +85,71 @@ export function SplitChatPane({ routeThread }: { routeThread: ScopedThreadRef | 
     </Tooltip>
   );
 
+  const swap = () => {
+    open(routeThread);
+    openOnLeft(secondary);
+  };
+  // Dragging the divider changes the share of the two panes.
+  const startResize = (event: React.PointerEvent<HTMLDivElement>) => {
+    event.preventDefault();
+    const pane = event.currentTarget.parentElement;
+    const left = document.querySelector<HTMLElement>('main[data-slot="sidebar-inset"]');
+    if (!pane || !left) return;
+    const handle = event.currentTarget;
+    handle.setPointerCapture(event.pointerId);
+    const move = (moveEvent: PointerEvent) => {
+      const start = left.getBoundingClientRect().left;
+      const end = pane.getBoundingClientRect().right;
+      setRatio((moveEvent.clientX - start) / (end - start));
+    };
+    const stop = () => {
+      handle.removeEventListener("pointermove", move);
+      handle.removeEventListener("pointerup", stop);
+      handle.removeEventListener("pointercancel", stop);
+    };
+    handle.addEventListener("pointermove", move);
+    handle.addEventListener("pointerup", stop);
+    handle.addEventListener("pointercancel", stop);
+  };
+
   return (
     <aside
       data-split-chat-pane
-      className="flex h-dvh min-h-0 min-w-0 flex-1 basis-0 flex-col border-l border-border bg-background"
+      className="relative flex h-dvh min-h-0 min-w-0 flex-col border-l border-border bg-background"
+      style={{ flex: `${1 - ratio} 1 0%` }}
     >
+      <div
+        role="separator"
+        aria-orientation="vertical"
+        aria-label={gt("Resize split view")}
+        data-split-divider
+        onPointerDown={startResize}
+        onDoubleClick={() => setRatio(0.5)}
+        className="group/divider absolute inset-y-0 -left-1.5 z-30 flex w-3 cursor-col-resize touch-none items-center justify-center"
+      >
+        <div className="h-full w-px bg-transparent transition-colors group-hover/divider:bg-primary/60" />
+        <Tooltip>
+          <TooltipTrigger
+            render={
+              <Button
+                variant="outline"
+                size="icon-xs"
+                aria-label={gt("Swap sides")}
+                onPointerDown={(event) => event.stopPropagation()}
+                onClick={swap}
+                className="absolute top-1/2 -translate-y-1/2 rounded-full bg-background opacity-0 shadow-sm transition-opacity group-hover/divider:opacity-100 focus-visible:opacity-100"
+              />
+            }
+          >
+            <ArrowLeftRightIcon />
+          </TooltipTrigger>
+          <TooltipPopup side="bottom">{gt("Swap sides")}</TooltipPopup>
+        </Tooltip>
+      </div>
       <div className="drag-region flex h-[var(--workspace-topbar-height)] min-h-[var(--workspace-topbar-height)] shrink-0 items-center gap-1 pl-3 pr-2 wco:pr-(--workspace-native-controls-inset)">
         <span className="min-w-0 flex-1 truncate text-sm font-medium">
           {shell?.title ?? gt("Chat")}
         </span>
-        {button(
-          gt("Swap sides"),
-          () => {
-            open(routeThread);
-            openOnLeft(secondary);
-          },
-          <ArrowLeftRightIcon />,
-        )}
         {button(
           gt("Remove the left chat (this chat takes the full width)"),
           () => {

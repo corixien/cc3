@@ -17,6 +17,7 @@ import {
 export interface Cc3CommandPanelProps {
   readonly panel: Cc3CommandPanelKind;
   readonly overview: ThreadDetailsOverviewInput;
+  readonly mcpServers: ReadonlyArray<{ readonly name: string; readonly status: string }>;
   readonly onClose: () => void;
 }
 
@@ -38,7 +39,7 @@ export function Cc3CommandPanel(props: Cc3CommandPanelProps) {
     return () => document.removeEventListener("keydown", onKeyDown);
   }, [onClose]);
 
-  const servers = props.overview.contextWindow?.mcpServers ?? [];
+  const servers = props.mcpServers;
   const title =
     props.panel === "connectors"
       ? gt("Connectors")
@@ -47,7 +48,7 @@ export function Cc3CommandPanel(props: Cc3CommandPanelProps) {
         : gt("Plugins and integrations");
 
   return (
-    <div className="mb-2">
+    <div className="mb-3">
       <ComposerBanner.Root detached data-cc3-command-panel="" variant="info">
         <div className="flex max-h-[min(24rem,50dvh)] flex-col gap-1 overflow-y-auto p-2">
           <div className="flex items-center justify-between px-2.5 pt-1 pb-1">
@@ -59,7 +60,7 @@ export function Cc3CommandPanel(props: Cc3CommandPanelProps) {
             <>
               {servers.length === 0 ? (
                 <p className="px-2.5 py-1 text-xs text-muted-foreground">
-                  {gt("No connectors reported yet. They appear after the first reply.")}
+                  {gt("No MCP servers configured.")}
                 </p>
               ) : (
                 servers.map((server) => (

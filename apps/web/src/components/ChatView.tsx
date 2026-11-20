@@ -103,6 +103,7 @@ import {
   threadSteersDuringCompaction,
   threadSupportsProviderHandoff,
 } from "@t3tools/client-runtime/state/thread-workflows";
+import { resolveProviderMcpServersForCwd } from "@t3tools/client-runtime/providerSkills";
 import { compactionBlocksSteering } from "@t3tools/client-runtime/state/composer-dispatch";
 import { resolvePendingHandoff } from "@t3tools/client-runtime/handoff";
 import { HandoffRow } from "./chat/V2LifecycleRow";
@@ -1546,6 +1547,13 @@ export default function ChatView(props: ChatViewProps) {
     activeProviderThread,
   );
   const pendingBackgroundTasks = deriveThreadPendingBackgroundTasks(serverProjection);
+  // CC3: /mcp lists the servers the CLI reports; the live session wins once a turn has run.
+  const commandMcpServers =
+    activeContextWindow?.mcpServers && activeContextWindow.mcpServers.length > 0
+      ? activeContextWindow.mcpServers
+      : activeProviderStatus
+        ? resolveProviderMcpServersForCwd(activeProviderStatus, gitCwd)
+        : [];
   const activeWorkStartedAt =
     deriveActiveWorkStartedAt(activeActivityRun, activeRuntime, localDispatchStartedAt) ??
     runlessWorkStartedAt;
@@ -3642,11 +3650,7 @@ export default function ChatView(props: ChatViewProps) {
                             : undefined
                         }
                       >
-                        <DraftHeroHeadline
-                          draftId={draftId}
-                          activeProjectRef={activeProjectRef}
-                          activeProjectTitle={activeProject?.title ?? null}
-                        />
+                        <DraftHeroHeadline />
                       </div>
                     </div>
                   ) : null}
@@ -3663,6 +3667,7 @@ export default function ChatView(props: ChatViewProps) {
                     {!isDraftHeroState && commandPanel !== null ? (
                       <Cc3CommandPanel
                         panel={commandPanel}
+                        mcpServers={commandMcpServers}
                         onClose={closeCommandPanel}
                         overview={{
                           environmentId,
@@ -3900,20 +3905,10 @@ export default function ChatView(props: ChatViewProps) {
                                     activeProject?.workspaceRoot ??
                                     null
                                   }
-                                  trailing={
-                                    <ComposerContextPermissions
-                                      environmentId={environmentId}
-                                      runtimeMode={runtimeMode}
-                                      supportedRuntimeModes={
-                                        activeProviderStatus?.supportedRuntimeModes
-                                      }
-                                      onRuntimeModeChange={handleRuntimeModeChangeStable}
-                                    />
-                                  }
                                 />
                               )}
                               {showComposerContextStrip && (
-                                <div className="pointer-events-auto ms-auto min-w-0 max-w-full shrink-0">
+                                <div className="pointer-events-auto min-w-0 max-w-full shrink-0">
                                   <BranchToolbar
                                     forceNewWorktree={multipleModelSelections !== null}
                                     ref={branchToolbarRef}
@@ -3958,6 +3953,18 @@ export default function ChatView(props: ChatViewProps) {
                                   />
                                 </div>
                               )}
+                              {!embedded && (
+                                <div className="pointer-events-auto ms-auto shrink-0 px-3 pt-1 pb-1.5 text-muted-foreground text-xs">
+                                  <ComposerContextPermissions
+                                    environmentId={environmentId}
+                                    runtimeMode={runtimeMode}
+                                    supportedRuntimeModes={
+                                      activeProviderStatus?.supportedRuntimeModes
+                                    }
+                                    onRuntimeModeChange={handleRuntimeModeChangeStable}
+                                  />
+                                </div>
+                              )}
                             </div>
                           </div>
                         </div>
@@ -3966,6 +3973,7 @@ export default function ChatView(props: ChatViewProps) {
                         <div className="absolute inset-x-0 bottom-full">
                           <Cc3CommandPanel
                             panel={commandPanel}
+                            mcpServers={commandMcpServers}
                             onClose={closeCommandPanel}
                             overview={{
                               environmentId,

@@ -159,7 +159,7 @@ export const SETTINGS_NAV_GROUPS: ReadonlyArray<{
   },
   {
     heading: msg("Code"),
-    paths: ["/settings/projects", "/settings/source-control", "/settings/worktrees"],
+    paths: ["/settings/source-control", "/settings/worktrees"],
   },
   {
     heading: msg("Connections"),
@@ -172,7 +172,7 @@ export const SETTINGS_NAV_GROUPS: ReadonlyArray<{
   {
     heading: msg("More"),
     headingHidden: true,
-    paths: ["/settings/maintenance", "/settings/labs", "/settings/about", "/settings/archived"],
+    paths: ["/settings/maintenance", "/settings/about", "/settings/archived"],
   },
 ];
 
@@ -1638,6 +1638,12 @@ export function settingsForThisPlatform(
   );
 }
 
+// CC3: pages removed from the settings navigation (no project workflow, no experiments).
+const CC3_HIDDEN_SETTINGS_PAGES: ReadonlySet<SettingsPath> = new Set([
+  "/settings/projects",
+  "/settings/labs",
+]);
+
 export function searchSettings(
   query: string,
   items: ReadonlyArray<SettingsSearchItem> = SETTINGS_SEARCH_ITEMS,
@@ -1648,6 +1654,7 @@ export function searchSettings(
   const queryTokens = normalizedQuery.split(" ");
 
   return settingsForThisPlatform(items)
+    .filter((item) => !CC3_HIDDEN_SETTINGS_PAGES.has(item.to))
     .flatMap((item, index) => {
       const title = normalizeSearchText(decodeMsg(item.title));
       const fields = [

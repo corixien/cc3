@@ -5,6 +5,7 @@ import {
   PROVIDER_WORKSPACE_SNAPSHOT_TTL_MS,
   type ProviderInstanceId,
   type ServerProvider,
+  type ServerProviderMcpServer,
   type ServerProviderSkill,
   type ServerProviderSlashCommand,
 } from "@t3tools/contracts";
@@ -131,6 +132,13 @@ export function resolveProviderSlashCommandsForCwd(
   cwd: string | null | undefined,
 ): ServerProvider["slashCommands"] {
   return resolveProviderWorkspaceSnapshot(provider, cwd)?.slashCommands ?? provider.slashCommands;
+}
+
+export function resolveProviderMcpServersForCwd(
+  provider: ServerProvider,
+  cwd: string | null | undefined,
+): ReadonlyArray<ServerProviderMcpServer> {
+  return resolveProviderWorkspaceSnapshot(provider, cwd)?.mcpServers ?? [];
 }
 
 /** A project's own provider config can add models that only its workspace snapshot lists. */

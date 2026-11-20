@@ -127,11 +127,19 @@ export const ServerProviderSkill = Schema.Struct({
 });
 export type ServerProviderSkill = typeof ServerProviderSkill.Type;
 
+export const ServerProviderMcpServer = Schema.Struct({
+  name: TrimmedNonEmptyString,
+  status: Schema.String,
+});
+export type ServerProviderMcpServer = typeof ServerProviderMcpServer.Type;
+
 export const ServerProviderWorkspaceSnapshot = Schema.Struct({
   cwd: TrimmedNonEmptyString,
   checkedAt: IsoDateTime,
   slashCommands: Schema.Array(ServerProviderSlashCommand),
   slashCommandsPending: Schema.optional(Schema.Boolean),
+  // CC3: MCP servers the CLI reports for this workspace (shown by /mcp before any chat turn).
+  mcpServers: Schema.optional(Schema.Array(ServerProviderMcpServer)),
   skills: Schema.Array(ServerProviderSkill),
   optionDescriptors: Schema.optional(Schema.Array(ProviderOptionDescriptor)),
   // Absent means the provider's machine `models`, which keeps most snapshots small.

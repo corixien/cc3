@@ -319,6 +319,7 @@ export type ClaudeCapabilitiesProbe = {
   /** OAuth applies only to firstParty; Bedrock uses external AWS credentials and omits subscription/token fields. */
   readonly apiProvider: string | undefined;
   readonly slashCommands: ReadonlyArray<ServerProviderSlashCommand>;
+  readonly mcpServers?: ReadonlyArray<{ readonly name: string; readonly status: string }>;
   readonly models?: ReadonlyArray<ClaudeModelInfo>;
   /** Undefined means get_usage failed; absent windows on success mean no subscription windows, as with API keys. */
   readonly usage?: Pick<SDKControlGetUsageResponse, "rate_limits_available" | "rate_limits">;
@@ -478,7 +479,7 @@ function claudeGatewayDiscoveryGraceMs(environment: Readonly<Record<string, unkn
 
 class ClaudeCapabilitiesProbeSdkError extends Schema.TaggedError<ClaudeCapabilitiesProbeSdkError>()(
   "ClaudeCapabilitiesProbeSdkError",
-  { operation: Schema.Literals(["initialize", "usage", "settings"]), cause: Schema.Defect() },
+  { operation: Schema.Literals(["initialize", "usage", "settings", "mcp"]), cause: Schema.Defect() },
 ) {
   override get message(): string {
     return `Claude capability probe ${this.operation} failed.`;
@@ -550,6 +551,10 @@ const probeClaudeCapabilities = (
         // The effort caps are read in parallel under the same deadline; workspace probes skip both.
         const usageCheckedAt = DateTime.formatIso(yield* DateTime.now);
         const { getSettings } = q as ClaudeSettingsQuery;
+        const mcpResult = yield* Effect.tryPromise({
+          try: () => q.mcpServerStatus(),
+          catch: (cause) => new ClaudeCapabilitiesProbeSdkError({ operation: "mcp", cause }),
+        }).pipe(Effect.timeout(DEFAULT_TIMEOUT_MS), Effect.result);
         const [usageResult, settingsResult] = yield* Effect.all(
           [
             includeStatus
@@ -598,6 +603,14 @@ const probeClaudeCapabilities = (
           apiKeySource: account?.apiKeySource,
           apiProvider: account?.apiProvider,
           slashCommands: parseClaudeInitializationCommands(init.commands),
+          ...(Result.isSuccess(mcpResult)
+            ? {
+                mcpServers: mcpResult.success.map((server) => ({
+                  name: server.name,
+                  status: server.status,
+                })),
+              }
+            : {}),
           ...(init.models?.length ? { models: init.models } : {}),
           ...(usage ? { usage, usageCheckedAt } : {}),
           ...(effortCapSources ? { effortCapSources } : {}),
@@ -661,6 +674,7 @@ export const probeClaudeWorkspaceSnapshot = Effect.fn("probeClaudeWorkspaceSnaps
       ...(capabilities?.slashCommands ?? []),
     ]),
     slashCommandsPending: cwdExists && !capabilities,
+    ...(capabilities?.mcpServers ? { mcpServers: capabilities.mcpServers } : {}),
   };
 });
 

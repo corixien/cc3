@@ -99,7 +99,7 @@ export type RightPanelSurface =
   | { id: `side-chat:${string}`; kind: "side-chat"; threadId: ThreadId };
 
 const RIGHT_PANEL_STORAGE_KEY = "t3code:right-panel-state:v2";
-const RIGHT_PANEL_STORAGE_VERSION = 15;
+const RIGHT_PANEL_STORAGE_VERSION = 16;
 
 export const PULL_REQUESTS_PANEL_REF = scopeThreadRef(
   EnvironmentId.make("pull-requests-panel"),
@@ -238,8 +238,9 @@ const EMPTY_THREAD_STATE: ThreadRightPanelState = {
   surfaces: [],
 };
 
+// CC3: the details card starts hidden and opens only from its button.
 const DEFAULT_THREAD_PANEL_VISIBILITY: ThreadPanelVisibility = {
-  inlineOpen: true,
+  inlineOpen: false,
   popoverOpen: false,
 };
 
@@ -372,18 +373,23 @@ const withoutReveal = (surface: RightPanelSurface): RightPanelSurface => {
   return rest;
 };
 
+// CC3: the right panel shows one view at a time; opening another replaces the current one.
+// Background openings (activate = false) never displace what the user is looking at.
 const upsertSurface = (
   current: ThreadRightPanelState,
   surface: RightPanelSurface,
   activate = true,
-): ThreadRightPanelState => ({
-  ...current,
-  isOpen: true,
-  surfaces: current.surfaces.some((entry) => entry.id === surface.id)
-    ? current.surfaces
-    : [...current.surfaces, surface],
-  activeSurfaceId: activate ? surface.id : current.activeSurfaceId,
-});
+): ThreadRightPanelState => {
+  if (current.surfaces.some((entry) => entry.id === surface.id)) {
+    return {
+      ...current,
+      isOpen: true,
+      activeSurfaceId: activate ? surface.id : current.activeSurfaceId,
+    };
+  }
+  if (!activate && current.surfaces.length > 0) return { ...current, isOpen: true };
+  return { ...current, isOpen: true, surfaces: [surface], activeSurfaceId: surface.id };
+};
 
 const updateThreadStateMap = (
   byThreadKey: Record<string, ThreadRightPanelState>,
@@ -414,7 +420,7 @@ const updateThreadPanelVisibilityMap = (
 ): Record<string, ThreadPanelVisibility> => {
   const current = byThreadKey[threadKey] ?? DEFAULT_THREAD_PANEL_VISIBILITY;
   const next = updater(current);
-  if (next.inlineOpen && !next.popoverOpen) {
+  if (!next.inlineOpen && !next.popoverOpen) {
     if (!(threadKey in byThreadKey)) return byThreadKey;
     const { [threadKey]: _removed, ...rest } = byThreadKey;
     return rest;
@@ -448,10 +454,7 @@ const updateThread = (
     threadPanelVisibilityByThreadKey = updateThreadPanelVisibilityMap(
       threadPanelVisibilityByThreadKey,
       threadKey,
-      (visibility) =>
-        visibility.popoverOpen && !visibility.inlineOpen
-          ? { ...visibility, inlineOpen: true }
-          : visibility,
+      (visibility) => visibility,
     );
   }
 
@@ -708,8 +711,8 @@ export function migratePersistedRightPanelState(persistedState: unknown): {
             persistedState.threadPanelVisibilityByThreadKey as Record<string, unknown>,
           ).flatMap(([threadKey, value]) => {
             if (!value || typeof value !== "object" || !("inlineOpen" in value)) return [];
-            return value.inlineOpen === false
-              ? [[threadKey, { inlineOpen: false, popoverOpen: false }]]
+            return value.inlineOpen === true
+              ? [[threadKey, { inlineOpen: true, popoverOpen: false }]]
               : [];
           }),
         )
@@ -1310,7 +1313,7 @@ export const useRightPanelStore = create<RightPanelStoreState>()(
         threadPanelVisibilityByThreadKey: Object.fromEntries(
           Object.entries(state.threadPanelVisibilityByThreadKey).flatMap(
             ([threadKey, visibility]) =>
-              visibility.inlineOpen ? [] : [[threadKey, { inlineOpen: false, popoverOpen: false }]],
+              visibility.inlineOpen ? [[threadKey, { inlineOpen: true, popoverOpen: false }]] : [],
           ),
         ),
       }),
