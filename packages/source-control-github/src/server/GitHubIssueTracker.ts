@@ -209,6 +209,33 @@ export const make = Effect.gen(function* () {
         Effect.map(({ viewer }) => viewer.login),
       ),
 
+    listAccountScopes: (input) =>
+      Effect.gen(function* () {
+        const names: Array<string> = [];
+        for (let page = 1; page <= 5; page++) {
+          const response = yield* api.rest({
+            host: input.host,
+            operation: "listAccountScopes",
+            path: `user/repos?per_page=100&page=${page}&affiliation=owner,collaborator,organization_member&sort=pushed`,
+          });
+          const rows: ReadonlyArray<{ full_name?: unknown; archived?: unknown }> = (() => {
+            try {
+              const parsed: unknown = JSON.parse(response.body);
+              return Array.isArray(parsed) ? parsed : [];
+            } catch {
+              return [];
+            }
+          })();
+          for (const row of rows) {
+            if (typeof row.full_name === "string" && row.archived !== true) {
+              names.push(row.full_name);
+            }
+          }
+          if (rows.length < 100) break;
+        }
+        return names;
+      }).pipe(Effect.mapError(fail("listAccountScopes"))),
+
     listIssues: (input) =>
       repository(input.scope, "listIssues").pipe(
         Effect.flatMap(() =>

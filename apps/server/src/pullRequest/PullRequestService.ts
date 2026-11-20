@@ -555,6 +555,11 @@ function withRateLimitBackoff(
       ? {}
       : { withVerifiedCredential: api.withVerifiedCredential }),
     listChangeRequests: wrap("listChangeRequests", api.listChangeRequests),
+    ...(api.listAccountRepositories === undefined
+      ? {}
+      : {
+          listAccountRepositories: wrap("listAccountRepositories", api.listAccountRepositories),
+        }),
     ...(api.listChangeRequestsAcross === undefined
       ? {}
       : {
@@ -1011,7 +1016,68 @@ export const make = Effect.gen(function* () {
         }
         return { supported, unimplemented, viewerRoots, refinedProjectIdsByHost };
       }),
+      Effect.flatMap((found) => withAccountRepositories(found, filter)),
     );
+
+  // CC3: the lists cover every repository of the signed-in account, not only open projects.
+  // Extra repositories borrow a project for its checkout (the provider needs a working
+  // directory) and are titled by their own name.
+  const accountRepositoryCache = new Map<
+    string,
+    { readonly at: number; readonly repositories: ReadonlyArray<string> }
+  >();
+  const ACCOUNT_REPOSITORY_TTL_MS = 5 * 60_000;
+  const withAccountRepositories = (
+    found: WorkspaceProjects,
+    filter: Pick<PullRequestListInput, "projectId" | "projectIds" | "host">,
+  ): Effect.Effect<WorkspaceProjects> => {
+    if (filter.projectId !== undefined || filter.projectIds !== undefined) {
+      return Effect.succeed(found);
+    }
+    const carrier = found.supported.find(
+      (candidate) => candidate.host === "github.com" && candidate.api.listAccountRepositories,
+    );
+    const list = carrier?.api.listAccountRepositories;
+    if (carrier === undefined || list === undefined) return Effect.succeed(found);
+    const repositories = Effect.flatMap(Clock.currentTimeMillis, (now) => {
+      const cached = accountRepositoryCache.get(carrier.host);
+      if (cached !== undefined && now - cached.at < ACCOUNT_REPOSITORY_TTL_MS) {
+        return Effect.succeed(cached.repositories);
+      }
+      return list({ cwd: carrier.project.workspaceRoot, host: carrier.host }).pipe(
+        Effect.tap((names) =>
+          Effect.sync(() =>
+            accountRepositoryCache.set(carrier.host, { at: now, repositories: names }),
+          ),
+        ),
+      );
+    });
+    return repositories.pipe(
+      Effect.map((names) => {
+        const have = new Set(found.supported.map((candidate) => candidate.cursorKey));
+        const extra: Array<SupportedProject> = names.flatMap((repository) => {
+          const key = listCursorKey(carrier.host, repository);
+          if (have.has(key)) return [];
+          have.add(key);
+          return [
+            {
+              cursorKey: key,
+              project: { ...carrier.project, title: repository },
+              api: carrier.api,
+              repository,
+              host: carrier.host,
+              remote: sourceControlDefinitions.repositoryKeyFromRemote(
+                `https://${carrier.host}/${repository}`,
+              ),
+              repositoryKey: null,
+            },
+          ];
+        });
+        return extra.length === 0 ? found : { ...found, supported: [...found.supported, ...extra] };
+      }),
+      Effect.orElseSucceed(() => found),
+    );
+  };
 
   // Azure derives organization from the checkout; require the matching repository.
   const requireProject = (ref: PullRequestRef): Effect.Effect<SupportedProject, PullRequestError> =>

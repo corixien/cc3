@@ -52,4 +52,4 @@ Initial CC3 port pushed to main. Not yet run as a built app: window chrome (fram
 - Right panel: single view (rightPanelStore.upsertSurface replaces); details card default hidden (DEFAULT_THREAD_PANEL_VISIBILITY.inlineOpen=false, storage v16); empty-state list has "Split view". 22 upstream multi-tab store tests are skipped on purpose.
 - Split view: splitViewStore has focus + ratio; SplitChatPane has draggable divider with hover swap button; CSS in index.css dims the unfocused pane; sidebar click replaces the right chat when right is focused; sidebar context menu has "Open in split view".
 - Settings nav: Projects and Labs pages hidden. `scripts/cc3-upstream-patches.sh` lists upstream fix/security commits for cherry-picking.
-- Open: PRs/issues across all repos of the gh account (needs account-wide API + detail panels without a project); server typecheck has pre-existing test/testkit errors.
+- PR and issue lists cover every repo of the gh account: PullRequestService.withAccountRepositories and IssueService.list add account repos (REST user/repos) borrowing a project as cwd carrier. Read-only for repos without a project.

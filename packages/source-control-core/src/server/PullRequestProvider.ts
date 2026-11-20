@@ -343,6 +343,12 @@ export interface PullRequestProviderApi {
    */
   readonly servesHost?: (host: string) => boolean;
 
+  /** CC3: every repository the signed-in account can read, as `owner/name`. */
+  readonly listAccountRepositories?: (input: {
+    readonly cwd: string;
+    readonly host: string;
+  }) => Effect.Effect<ReadonlyArray<string>, PullRequestProviderError>;
+
   readonly getViewer: (input: {
     readonly cwd: string;
     readonly host?: string;

@@ -518,6 +518,10 @@ export class GitHubPullRequestApi extends Context.Service<
       readonly cwd: string;
       readonly host: string;
     }) => Effect.Effect<string, GitHubPullRequestApiError>;
+    readonly listAccountRepositories: (input: {
+      readonly cwd: string;
+      readonly host: string;
+    }) => Effect.Effect<ReadonlyArray<string>, GitHubPullRequestApiError>;
 
     readonly listPullRequests: (input: {
       readonly cwd: string;
@@ -1874,6 +1878,40 @@ export const make = Effect.gen(function* () {
     getViewerLogin: Effect.fn("GitHubPullRequestApi.getViewerLogin")(function (input) {
       return getRoutingIdentity(input).pipe(Effect.map((identity) => identity.viewer));
     }),
+
+    // CC3: the repositories behind the account-wide pull request and issue lists.
+    listAccountRepositories: Effect.fn("GitHubPullRequestApi.listAccountRepositories")(
+      function* (input) {
+        const names: Array<string> = [];
+        for (let page = 1; page <= 5; page++) {
+          const rows = yield* restRead({
+            cwd: input.cwd,
+            host: input.host,
+            operation: "listAccountRepositories",
+            path: `user/repos?per_page=100&page=${page}&affiliation=owner,collaborator,organization_member&sort=pushed`,
+            decode: (raw) => {
+              try {
+                const parsed: unknown = JSON.parse(raw);
+                return Array.isArray(parsed)
+                  ? Result.succeed(
+                      parsed.flatMap((row: { full_name?: unknown; archived?: unknown }) =>
+                        typeof row.full_name === "string" && row.archived !== true
+                          ? [row.full_name]
+                          : [],
+                      ),
+                    )
+                  : Result.fail(new Error("Unexpected repository list."));
+              } catch (cause) {
+                return Result.fail(cause);
+              }
+            },
+          });
+          names.push(...rows);
+          if (rows.length < 100) break;
+        }
+        return names;
+      },
+    ),
 
     listPullRequests: Effect.fn("GitHubPullRequestApi.listPullRequests")(function (input) {
       const fallbackMaxRows = Math.max(input.limit + 1, PULL_REQUEST_FALLBACK_MAX_ROWS);

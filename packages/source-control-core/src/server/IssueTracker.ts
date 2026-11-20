@@ -112,6 +112,12 @@ export interface IssueTrackerApi {
     readonly host: string;
   }) => Effect.Effect<string, IssueTrackerError>;
 
+  /** CC3: every scope (repository) the signed-in account can read, for account-wide lists. */
+  readonly listAccountScopes?: (input: {
+    readonly cwd: string;
+    readonly host: string;
+  }) => Effect.Effect<ReadonlyArray<string>, IssueTrackerError>;
+
   readonly listIssues: (
     input: IssueScopeTarget &
       IssueInvolvementFilter & {

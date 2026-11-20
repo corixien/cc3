@@ -333,6 +333,25 @@ const make = Effect.gen(function* () {
       const key = listCursorKey(project.host, project.scope);
       if (!scopes.has(key)) scopes.set(key, project);
     }
+    // CC3: lists cover every repository of the signed-in account, not only open projects.
+    if (input.projectId === undefined) {
+      const carrier = [...scopes.values()].find(
+        (project) => project.host === "github.com" && project.api.listAccountScopes,
+      );
+      const names = yield* carrier?.api.listAccountScopes
+        ? carrier.api
+            .listAccountScopes({ cwd: carrier.project.workspaceRoot, host: carrier.host })
+            .pipe(Effect.orElseSucceed((): ReadonlyArray<string> => []))
+        : Effect.succeed<ReadonlyArray<string>>([]);
+      if (carrier !== undefined) {
+        for (const scope of names) {
+          const key = listCursorKey(carrier.host, scope);
+          if (!scopes.has(key)) {
+            scopes.set(key, { ...carrier, scope, project: { ...carrier.project, title: scope } });
+          }
+        }
+      }
+    }
     const continuing = input.cursors;
     const viewers = new Map<string, string>();
     const trackers = new Map<string, IssueTrackerSummary>();

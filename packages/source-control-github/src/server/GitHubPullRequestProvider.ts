@@ -409,6 +409,9 @@ export const make = Effect.gen(function* () {
         .withVerifiedCredential(input, (identity) => use(identity).pipe(Effect.result))
         .pipe(Effect.mapError(fail("routeIdentity")), Effect.flatMap(Effect.fromResult)),
 
+    listAccountRepositories: (input) =>
+      cli.listAccountRepositories(input).pipe(Effect.mapError(fail("listAccountRepositories"))),
+
     getViewer: (input) =>
       cli
         .getViewerLogin({ cwd: input.cwd, host: input.host ?? "github.com" })
