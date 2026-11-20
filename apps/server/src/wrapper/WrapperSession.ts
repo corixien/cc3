@@ -1,3 +1,4 @@
+// @effect-diagnostics globalDate:off globalTimers:off - promise-based PTY session; wrapped in Effect by the profile layer
 // CC3 wrapper: one CLI running as its interactive TUI under a PTY. The session owns the process,
 // the screen copy, input and the transcript tail; provider profiles decide how to start the CLI
 // and how to read its transcript.

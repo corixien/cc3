@@ -1,3 +1,4 @@
+// @effect-diagnostics nodeBuiltinImport:off - synchronous tail over a plain file; wrapped in Effect by the profile layer
 // CC3 wrapper: reads complete JSON lines appended to a CLI transcript file.
 import * as NodeFs from "node:fs";
 

@@ -1,3 +1,4 @@
+// @effect-diagnostics nodeBuiltinImport:off globalTimers:off - tests use real files and timers
 import * as NodeFs from "node:fs";
 import * as NodeOs from "node:os";
 import * as NodePath from "node:path";
