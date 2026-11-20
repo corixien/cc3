@@ -118,7 +118,7 @@ export function ComposerStatusStrip(props: {
           type="button"
           title="Open usage"
           onClick={() => void navigate({ to: "/usage" })}
-          className={cn(STRIP_BUTTON, "ms-auto gap-3")}
+          className={cn(STRIP_BUTTON, "gap-3")}
         >
           {windows.map((window) => {
             const used = 100 - remainingPercent(window);
