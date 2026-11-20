@@ -53,3 +53,8 @@ Initial CC3 port pushed to main. Not yet run as a built app: window chrome (fram
 - Split view: splitViewStore has focus + ratio; SplitChatPane has draggable divider with hover swap button; CSS in index.css dims the unfocused pane; sidebar click replaces the right chat when right is focused; sidebar context menu has "Open in split view".
 - Settings nav: Projects and Labs pages hidden. `scripts/cc3-upstream-patches.sh` lists upstream fix/security commits for cherry-picking.
 - PR and issue lists cover every repo of the gh account: PullRequestService.withAccountRepositories and IssueService.list add account repos (REST user/repos) borrowing a project as cwd carrier. Read-only for repos without a project.
+
+## Wrapper system (2026-11-20)
+Plan: docs/cc3-wrapper-plan.md. Goal: run real CLIs as TUIs under a PTY, structured events from their transcripts, GUI unchanged.
+Done: WP1 wrapper core in apps/server/src/wrapper (PtyKeys, ScreenBuffer, TranscriptTail, WrapperSession, ClaudeTranscript parser, env scrub), unit tests, end-to-end smoke against real Claude Code (trust dialog, ready detection, paste submit, transcript events, turn end).
+Next: WP2 `layerTuiQueryRunner` implementing ClaudeAgentSdkQuerySession (ClaudeAdapterV2.ts ~l.675) from ClaudeTranscriptEvent -> SDKMessage; WP3 approval bridge via hooks; WP4 slash-command popup showing PTY screen; WP5 Codex/OpenCode/Kilo profiles; WP6 per-instance `transport` switch (default sdk).
