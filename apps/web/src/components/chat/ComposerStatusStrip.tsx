@@ -18,7 +18,7 @@ import { formatContextWindowTokens } from "../../lib/contextWindow";
 import { cn } from "../../lib/utils";
 
 const STRIP_BUTTON =
-  "inline-flex cursor-pointer items-center gap-1 rounded-sm transition-colors duration-150 hover:text-foreground";
+  "inline-flex h-6 cursor-pointer items-center gap-1 rounded-md border border-transparent px-1.75 transition-colors duration-150 hover:text-foreground";
 
 function usageLabel(label: string): string {
   return /^session$/i.test(label) ? "5h" : label;
@@ -68,7 +68,7 @@ export function ComposerStatusStrip(props: {
     <div
       data-composer-status-strip="true"
       className={cn(
-        "flex min-w-0 flex-wrap items-center gap-x-3 gap-y-0.5 px-3 pt-1 pb-1.5 text-muted-foreground text-xs tabular-nums [&_svg]:size-3.5 [&_svg]:shrink-0",
+        "flex min-w-0 flex-wrap items-center gap-x-1 px-1.25 text-muted-foreground text-xs tabular-nums [&_svg]:size-3 [&_svg]:shrink-0",
         props.className,
       )}
     >
@@ -79,7 +79,10 @@ export function ComposerStatusStrip(props: {
               ? `Context: ${formatContextWindowTokens(context.usedTokens)} / ${formatContextWindowTokens(maxTokens)} tokens`
               : "Context"
           }
-          className={cn("inline-flex items-center gap-1", toneOf(contextUsed ?? 0))}
+          className={cn(
+            "inline-flex h-6 items-center gap-1 border border-transparent px-1.75",
+            toneOf(contextUsed ?? 0),
+          )}
         >
           <GaugeIcon aria-hidden />
           Context{" "}

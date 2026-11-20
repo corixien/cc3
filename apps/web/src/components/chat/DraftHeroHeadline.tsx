@@ -24,7 +24,7 @@ export function DraftHeroHeadline() {
   return (
     <h1
       key={index}
-      className="fade-in animate-in w-full text-center font-normal text-2xl text-foreground tracking-tight duration-700 sm:text-3xl"
+      className="fade-in animate-in w-full text-center font-normal text-3xl text-foreground tracking-tight duration-700 sm:text-5xl"
     >
       {GREETINGS[index]}
     </h1>

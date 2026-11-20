@@ -477,9 +477,50 @@ function claudeGatewayDiscoveryGraceMs(environment: Readonly<Record<string, unkn
   return Number.isFinite(configured) && configured > 0 ? configured : 3_000;
 }
 
+const MCP_LIST_TIMEOUT_MS = 30_000;
+
+/** Parses `claude mcp list` lines such as `name: target - ✔ Connected`. */
+function parseClaudeCliMcpList(output: string): Array<{ name: string; status: string }> {
+  const servers: Array<{ name: string; status: string }> = [];
+  for (const line of output.split("\n")) {
+    const separator = line.indexOf(": ");
+    const statusAt = line.lastIndexOf(" - ");
+    if (separator <= 0 || statusAt <= separator) continue;
+    const label = line.slice(statusAt + 3).toLowerCase();
+    const status =
+      label.includes("connected") && !label.includes("fail")
+        ? "connected"
+        : label.includes("auth")
+          ? "needs-auth"
+          : label.includes("fail")
+            ? "failed"
+            : "pending";
+    servers.push({ name: line.slice(0, separator).trim(), status });
+  }
+  return servers;
+}
+
+function listClaudeCliMcpServers(
+  executablePath: string,
+  cwd: string | undefined,
+  environment: NodeJS.ProcessEnv,
+): Promise<Array<{ name: string; status: string }>> {
+  return new Promise((resolve) => {
+    NodeChildProcess.execFile(
+      executablePath,
+      ["mcp", "list"],
+      { ...(cwd ? { cwd } : {}), env: environment, timeout: MCP_LIST_TIMEOUT_MS - 2_000 },
+      (error, stdout) => resolve(error ? [] : parseClaudeCliMcpList(stdout)),
+    );
+  });
+}
+
 class ClaudeCapabilitiesProbeSdkError extends Schema.TaggedError<ClaudeCapabilitiesProbeSdkError>()(
   "ClaudeCapabilitiesProbeSdkError",
-  { operation: Schema.Literals(["initialize", "usage", "settings", "mcp"]), cause: Schema.Defect() },
+  {
+    operation: Schema.Literals(["initialize", "usage", "settings", "mcp"]),
+    cause: Schema.Defect(),
+  },
 ) {
   override get message(): string {
     return `Claude capability probe ${this.operation} failed.`;
@@ -535,7 +576,7 @@ const probeClaudeCapabilities = (
           }),
         });
         const init = await q.initializationResult();
-        return { q, init, graceMs };
+        return { q, init, graceMs, executablePath, claudeEnvironment };
       },
       catch: (cause) => new ClaudeCapabilitiesProbeSdkError({ operation: "initialize", cause }),
     });
@@ -543,7 +584,7 @@ const probeClaudeCapabilities = (
     Effect.timeout(
       resolveProviderProbeTimeoutMs("claude", CAPABILITIES_PROBE_TIMEOUT_MS, environment),
     ),
-    Effect.flatMap(({ q, init, graceMs }) =>
+    Effect.flatMap(({ q, init, graceMs, executablePath, claudeEnvironment }) =>
       Effect.gen(function* () {
         // Usage has its own deadline so a slow optional request cannot discard initialization.
         // Only the rate limits are read, so skip the local transcript scan that fills
@@ -551,10 +592,16 @@ const probeClaudeCapabilities = (
         // The effort caps are read in parallel under the same deadline; workspace probes skip both.
         const usageCheckedAt = DateTime.formatIso(yield* DateTime.now);
         const { getSettings } = q as ClaudeSettingsQuery;
+        // The probe session runs with a strict, empty MCP config, so the SDK status misses the
+        // claude.ai connectors and plugin servers a real session has. `claude mcp list` reports
+        // exactly what the CLI shows; the SDK status is only the fallback.
         const mcpResult = yield* Effect.tryPromise({
-          try: () => q.mcpServerStatus(),
+          try: async () => {
+            const listed = await listClaudeCliMcpServers(executablePath, cwd, claudeEnvironment);
+            return listed.length > 0 ? listed : await q.mcpServerStatus();
+          },
           catch: (cause) => new ClaudeCapabilitiesProbeSdkError({ operation: "mcp", cause }),
-        }).pipe(Effect.timeout(DEFAULT_TIMEOUT_MS), Effect.result);
+        }).pipe(Effect.timeout(MCP_LIST_TIMEOUT_MS), Effect.result);
         const [usageResult, settingsResult] = yield* Effect.all(
           [
             includeStatus
