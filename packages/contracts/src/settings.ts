@@ -783,6 +783,14 @@ const InstanceIdleCompaction = Schema.Literals(
   INSTANCE_IDLE_COMPACTION_MODES.map((mode) => mode.value),
 );
 
+// CC3: how Claude runs. "sdk" drives the CLI through the Agent SDK; "tui" runs the real interactive
+// CLI under a PTY so every CLI command, plugin and config behaves as in the terminal.
+const CLAUDE_TRANSPORTS = [
+  { value: "sdk", label: "Agent SDK" },
+  { value: "tui", label: "Terminal wrapper (real CLI)" },
+] as const satisfies ReadonlyArray<ProviderSettingsFormOption>;
+const ClaudeTransport = Schema.Literals(CLAUDE_TRANSPORTS.map((transport) => transport.value));
+
 export const ClaudeSettings = makeProviderSettingsSchema(
   {
     enabled: Schema.Boolean.pipe(
@@ -834,6 +842,19 @@ export const ClaudeSettings = makeProviderSettingsSchema(
         },
       }),
     ),
+    transport: ClaudeTransport.pipe(
+      Schema.withDecodingDefault(Effect.succeed("sdk" as const)),
+      Schema.annotateKey({
+        title: "Transport",
+        description:
+          "Terminal wrapper runs the real Claude CLI in a hidden terminal; the chat stays the same. Applies to new sessions.",
+        providerSettingsForm: {
+          control: "select",
+          options: CLAUDE_TRANSPORTS,
+          clearWhenEmpty: "omit",
+        },
+      }),
+    ),
     idleCompaction: InstanceIdleCompaction.pipe(
       Schema.withDecodingDefault(Effect.succeed("default" as const)),
       Schema.annotateKey({
@@ -849,7 +870,14 @@ export const ClaudeSettings = makeProviderSettingsSchema(
     ),
   },
   {
-    order: ["binaryPath", "homePath", "autoCompactWindow", "idleCompaction", "launchArgs"],
+    order: [
+      "binaryPath",
+      "homePath",
+      "transport",
+      "autoCompactWindow",
+      "idleCompaction",
+      "launchArgs",
+    ],
   },
 );
 export type ClaudeSettings = typeof ClaudeSettings.Type;

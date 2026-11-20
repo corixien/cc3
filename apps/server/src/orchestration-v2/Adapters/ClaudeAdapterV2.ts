@@ -2345,7 +2345,14 @@ export function makeClaudeQueryOptions(input: {
     ...(input.settings?.binaryPath
       ? { pathToClaudeCodeExecutable: input.settings.binaryPath }
       : {}),
-    ...(input.environment === undefined ? {} : { env: input.environment }),
+    ...(input.environment === undefined && input.settings?.transport !== "tui"
+      ? {}
+      : {
+          env: {
+            ...input.environment,
+            ...(input.settings?.transport === "tui" ? { CC3_CLAUDE_TRANSPORT: "tui" } : {}),
+          },
+        }),
     ...(input.mcpServers === undefined ? {} : { mcpServers: input.mcpServers }),
     systemPrompt: {
       type: "preset" as const,

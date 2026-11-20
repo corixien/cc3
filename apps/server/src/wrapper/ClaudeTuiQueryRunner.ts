@@ -5,6 +5,7 @@
 // permission prompts reach the GUI through a `PermissionRequest` hook that calls back here.
 import * as NodeChildProcess from "node:child_process";
 import * as NodeFs from "node:fs";
+import * as NodePath from "node:path";
 import * as NodeHttp from "node:http";
 import * as NodeOs from "node:os";
 import * as NodeUtil from "node:util";
@@ -26,8 +27,20 @@ import {
 import { claudeTranscriptPath, parseClaudeTranscriptLine } from "./ClaudeTranscript.ts";
 import { ClaudeTuiMessageMapper, claudeTuiInitMessage } from "./ClaudeTuiMessageMapper.ts";
 import { listClaudeCliMcpServers } from "./claudeMcpList.ts";
-import { isClaudeInputReady, isClaudeTrustPrompt } from "./ScreenBuffer.ts";
-import { KEY_DOWN, KEY_ENTER } from "./ptyKeys.ts";
+import {
+  isClaudeInputReady,
+  isClaudeTrustPrompt,
+  readClaudePermissionMode,
+} from "./ScreenBuffer.ts";
+import { KEY_DOWN, KEY_ENTER, KEY_ESCAPE, KEY_SHIFT_TAB } from "./ptyKeys.ts";
+import { callMcpServer, splitMcpToolName, type McpServerConfig } from "./McpClient.ts";
+import {
+  findClaudeTranscript,
+  forkClaudeTranscript,
+  recordPrompt,
+  subagentLaunchToolUseId,
+  subagentModel,
+} from "./TranscriptFiles.ts";
 import { scrubWrapperEnvironment } from "./wrapperEnvironment.ts";
 import { WrapperSession } from "./WrapperSession.ts";
 import { TranscriptTail } from "./TranscriptTail.ts";
@@ -44,14 +57,43 @@ type Json = Record<string, unknown>;
 const isRecord = (value: unknown): value is Json =>
   typeof value === "object" && value !== null && !Array.isArray(value);
 
-/** Text of a prompt; attachments other than text are not representable in the TUI input box. */
+const ATTACHMENT_EXTENSIONS: Record<string, string> = {
+  "image/png": "png",
+  "image/jpeg": "jpg",
+  "image/gif": "gif",
+  "image/webp": "webp",
+  "application/pdf": "pdf",
+};
+
+/**
+ * Text of a prompt. The TUI input box takes text only, so images and documents are written to
+ * files and mentioned with `@path`, which the CLI attaches the way a typed mention would.
+ */
 function promptText(content: unknown): string {
   if (typeof content === "string") return content;
   if (!Array.isArray(content)) return "";
-  return content
-    .map((block) => (isRecord(block) && block.type === "text" ? String(block.text ?? "") : ""))
-    .filter((text) => text.length > 0)
-    .join("\n");
+  const parts: string[] = [];
+  const mentions: string[] = [];
+  for (const block of content) {
+    if (!isRecord(block)) continue;
+    if (block.type === "text") {
+      const text = String(block.text ?? "");
+      if (text.length > 0) parts.push(text);
+    } else if (
+      (block.type === "image" || block.type === "document") &&
+      isRecord(block.source) &&
+      block.source.type === "base64" &&
+      typeof block.source.data === "string"
+    ) {
+      const extension = ATTACHMENT_EXTENSIONS[String(block.source.media_type)] ?? "bin";
+      const directory = NodePath.join(NodeOs.tmpdir(), "cc3-prompt-attachments");
+      NodeFs.mkdirSync(directory, { recursive: true });
+      const file = NodePath.join(directory, `${crypto.randomUUID()}.${extension}`);
+      NodeFs.writeFileSync(file, Buffer.from(block.source.data, "base64"));
+      mentions.push(`@${file}`);
+    }
+  }
+  return [...parts, ...mentions].join("\n");
 }
 
 function readSettingsObject(settings: unknown): Json {
@@ -217,13 +259,8 @@ class AsyncMessageQueue {
   }
 }
 
-const unsupported = (feature: string) =>
-  Effect.fail(
-    new ClaudeAgentSdkQueryRunnerError({
-      method: feature,
-      cause: new Error(`${feature} is not available while Claude runs as a terminal wrapper.`),
-    }),
-  );
+const claudeConfigDir = (environment: NodeJS.ProcessEnv) =>
+  environment.CLAUDE_CONFIG_DIR ?? `${NodeOs.homedir()}/.claude`;
 
 const layerTuiQueryRunnerWithPty = Layer.effect(
   ClaudeAgentSdkQueryRunner,
@@ -246,7 +283,22 @@ const layerTuiQueryRunnerWithPty = Layer.effect(
       const configDir = environment.CLAUDE_CONFIG_DIR ?? `${NodeOs.homedir()}/.claude`;
 
       const queue = new AsyncMessageQueue();
-      const mapper = new ClaudeTuiMessageMapper(sessionId, () => crypto.randomUUID());
+      const transcriptFile = claudeTranscriptPath({ configDir, cwd, sessionId });
+      const mapper = new ClaudeTuiMessageMapper(
+        sessionId,
+        () => crypto.randomUUID(),
+        (adapterUuid, transcriptUuid) => {
+          try {
+            recordPrompt(
+              findClaudeTranscript(configDir, sessionId) ?? transcriptFile,
+              adapterUuid,
+              transcriptUuid,
+            );
+          } catch {
+            // the fork point falls back to the whole transcript
+          }
+        },
+      );
       let session: WrapperSession | undefined;
       let pump: ReturnType<typeof setInterval> | undefined;
       const drain = () => {
@@ -288,7 +340,7 @@ const layerTuiQueryRunnerWithPty = Layer.effect(
       session = new WrapperSession({
         process: process_,
         transcript: new TranscriptTail({
-          path: claudeTranscriptPath({ configDir, cwd, sessionId }),
+          path: transcriptFile,
           fromEnd: resume,
         }),
         isInputReady: isClaudeInputReady,
@@ -333,15 +385,67 @@ const layerTuiQueryRunnerWithPty = Layer.effect(
         if (live.hasExited) shutdown();
       }, POLL_INTERVAL_MS);
 
+      const sleep = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms));
+      const screenText = () => live.screen.lines.join("\n");
+
+      /** Output a slash command printed on screen only, read once the screen stops changing. */
+      const captureLocalCommand = async (command: string): Promise<string> => {
+        let previous = "";
+        let stableSince = Date.now();
+        const deadline = Date.now() + 20_000;
+        while (Date.now() < deadline) {
+          await sleep(300);
+          const current = screenText();
+          if (current !== previous) {
+            previous = current;
+            stableSince = Date.now();
+          } else if (Date.now() - stableSince >= 1_500) break;
+        }
+        const lines = live.screen.lines;
+        const echo = lines.findLastIndex((line) => line.includes(command));
+        // A dialog replaces the transcript view, so its body starts below the last full-width rule.
+        const rule = lines.findLastIndex((line) => /[▔─━]{40,}/.test(line));
+        const start = echo >= 0 ? echo + 1 : rule + 1;
+        const body: string[] = [];
+        for (const line of lines.slice(start)) {
+          if (/^[\s]*[─━]{8,}/.test(line)) break;
+          if (/^\s*[↑↓]\s*$/.test(line)) continue;
+          body.push(line.replace(/^\s*⎿\s?/, "").replace(/\s+$/, ""));
+        }
+        if (/esc to (cancel|exit|close)|enter to (select|confirm)/i.test(previous.slice(-800))) {
+          live.write(KEY_ESCAPE);
+          await sleep(200);
+          live.write(KEY_ESCAPE);
+        }
+        const text = body.join("\n").trim();
+        return text.length > 0 ? text : "(The command printed nothing.)";
+      };
+
+      /** Slash commands the CLI handles itself never reach the transcript: show their screen output. */
+      const settleSlashCommand = async (command: string, turnEventsBefore: number) => {
+        await sleep(3_000);
+        drain();
+        if (mapper.turnEvents > turnEventsBefore) return;
+        const output = await captureLocalCommand(command);
+        queue.push(mapper.syntheticAssistant(`\`\`\`\n${output}\n\`\`\``));
+        for (const message of mapper.map({ kind: "turn_end", durationMs: undefined }))
+          queue.push(message);
+      };
+
+      let appliedEffort: string | undefined;
+      let appliedFast: unknown;
       const sessionApi: ClaudeAgentSdkQuerySession = {
         messages: Stream.fromAsyncIterable(queue.iterate(), runnerError("messages")),
         offer: (message, onQueued) =>
           Effect.tryPromise({
             try: async () => {
               const text = promptText(message.message.content);
-              if (message.uuid) mapper.expectPrompt(message.uuid);
+              if (message.uuid) mapper.expectPrompt(message.uuid, text);
+              const turnEventsBefore = mapper.turnEvents;
               await live.submit(text);
               onQueued?.();
+              if (text.trimStart().startsWith("/"))
+                void settleSlashCommand(text.trim(), turnEventsBefore);
             },
             catch: runnerError("offer"),
           }),
@@ -350,9 +454,38 @@ const layerTuiQueryRunnerWithPty = Layer.effect(
             try: () => live.submit(`/model ${model}`),
             catch: runnerError("setModel"),
           }),
-        // Flag settings and permission mode apply at launch; the TUI keeps its own live state.
-        applyFlagSettings: () => Effect.void,
-        setPermissionMode: () => Effect.void,
+        applyFlagSettings: (settings) =>
+          Effect.tryPromise({
+            try: async () => {
+              const flags = settings as Record<string, unknown>;
+              if (typeof flags.effortLevel === "string" && flags.effortLevel !== appliedEffort) {
+                appliedEffort = flags.effortLevel;
+                await live.submit(`/effort ${flags.effortLevel}`);
+              }
+              if (
+                "fastMode" in flags &&
+                flags.fastMode !== appliedFast &&
+                flags.fastMode !== null
+              ) {
+                appliedFast = flags.fastMode;
+                await live.submit(`/fast ${flags.fastMode ? "on" : "off"}`);
+              }
+            },
+            catch: runnerError("applyFlagSettings"),
+          }),
+        setPermissionMode: (mode) =>
+          Effect.tryPromise({
+            try: async () => {
+              // Shift+Tab cycles the modes the footer announces; stop when it names the target.
+              for (let step = 0; step < 6; step++) {
+                const current = readClaudePermissionMode(screenText());
+                if (current === mode || current === null) return;
+                live.write(KEY_SHIFT_TAB);
+                await sleep(450);
+              }
+            },
+            catch: runnerError("setPermissionMode"),
+          }),
         renameSession: (title) =>
           Effect.tryPromise({
             try: () => live.submit(`/rename ${title}`),
@@ -368,9 +501,63 @@ const layerTuiQueryRunnerWithPty = Layer.effect(
             })) as never,
           catch: runnerError("mcpServerStatus"),
         }),
-        contextUsageSummary: unsupported("contextUsageSummary"),
-        readMcpResource: () => unsupported("readMcpResource"),
-        callMcpTool: () => unsupported("callMcpTool"),
+        // The CLI reports context only on screen; the last request's input size is the measure.
+        contextUsageSummary: Effect.sync(() => {
+          const used = mapper.contextTokens;
+          const max = /1m/i.test(options.model) ? 1_000_000 : 200_000;
+          return {
+            categories: [
+              { id: "messages", name: "Messages", tokens: used, color: "", kind: "used" },
+              {
+                id: "free_space",
+                name: "Free space",
+                tokens: Math.max(0, max - used),
+                color: "",
+                kind: "free",
+              },
+            ],
+            totalTokens: used,
+            maxTokens: max,
+            rawMaxTokens: max,
+            percentage: (used / max) * 100,
+            gridRows: [],
+            model: options.model,
+            memoryFiles: [],
+            mcpTools: [],
+          } as never;
+        }),
+        readMcpResource: ({ server, uri }) =>
+          Effect.tryPromise({
+            try: async () => {
+              const config = (options.mcpServers as Record<string, McpServerConfig> | undefined)?.[
+                server
+              ];
+              if (!config)
+                throw new Error(`MCP server ${server} is not registered for this session.`);
+              return (await callMcpServer(config, "resources/read", { uri })) as {
+                contents: ReadonlyArray<unknown>;
+              };
+            },
+            catch: runnerError("readMcpResource"),
+          }),
+        callMcpTool: ({ tool, arguments: toolArguments }) =>
+          Effect.tryPromise({
+            try: async () => {
+              const target = splitMcpToolName(tool);
+              const config = target
+                ? (options.mcpServers as Record<string, McpServerConfig> | undefined)?.[
+                    target.server
+                  ]
+                : undefined;
+              if (!target || !config)
+                throw new Error(`MCP tool ${tool} is not reachable from the host.`);
+              return callMcpServer(config, "tools/call", {
+                name: target.tool,
+                arguments: toolArguments,
+              });
+            },
+            catch: runnerError("callMcpTool"),
+          }),
         listPermissionRules: Effect.succeed([]),
         interrupt: Effect.sync(() => live.interrupt()),
         close: Effect.sync(shutdown),
@@ -381,9 +568,33 @@ const layerTuiQueryRunnerWithPty = Layer.effect(
     return ClaudeAgentSdkQueryRunner.of({
       allocateSessionId: random.uuidV4(),
       open,
-      forkSession: () => unsupported("forkSession"),
-      subagentLaunchToolUseId: () => Effect.succeed(null),
-      subagentModel: () => Effect.succeed(null),
+      forkSession: (input) =>
+        Effect.gen(function* () {
+          const newSessionId = yield* random.uuidV4();
+          return yield* Effect.try({
+            try: () =>
+              forkClaudeTranscript({
+                configDir: claudeConfigDir(input.environment),
+                sessionId: input.sessionId,
+                newSessionId,
+                ...(input.options.upToMessageId === undefined
+                  ? {}
+                  : { upTo: input.options.upToMessageId }),
+              }),
+            catch: runnerError("forkSession"),
+          });
+        }),
+      subagentLaunchToolUseId: (input) =>
+        Effect.try({
+          try: () =>
+            subagentLaunchToolUseId(claudeConfigDir(process.env), input.sessionId, input.agentId),
+          catch: runnerError("subagentLaunchToolUseId"),
+        }),
+      subagentModel: (input) =>
+        Effect.try({
+          try: () => subagentModel(claudeConfigDir(process.env), input.sessionId, input.agentId),
+          catch: runnerError("subagentModel"),
+        }),
       assertComplete: Effect.void,
     });
   }),
