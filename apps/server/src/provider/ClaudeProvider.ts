@@ -21,6 +21,7 @@ import * as Result from "effect/Result";
 import * as Schema from "effect/Schema";
 import { ChildProcess, ChildProcessSpawner } from "effect/process";
 import { createModelCapabilities } from "@t3tools/shared/model";
+import { listClaudeCliMcpServers } from "../wrapper/claudeMcpList.ts";
 import { envTrampoline, supportsEnvChdir } from "@t3tools/shared/envTrampoline";
 import * as HostProcess from "@t3tools/shared/HostProcess";
 import * as SpawnWorker from "../process/SpawnWorker.ts";
@@ -479,42 +480,6 @@ function claudeGatewayDiscoveryGraceMs(environment: Readonly<Record<string, unkn
 
 const MCP_LIST_TIMEOUT_MS = 30_000;
 
-/** Parses `claude mcp list` lines such as `name: target - ✔ Connected`. */
-function parseClaudeCliMcpList(output: string): Array<{ name: string; status: string }> {
-  const servers: Array<{ name: string; status: string }> = [];
-  for (const line of output.split("\n")) {
-    const separator = line.indexOf(": ");
-    const statusAt = line.lastIndexOf(" - ");
-    if (separator <= 0 || statusAt <= separator) continue;
-    const label = line.slice(statusAt + 3).toLowerCase();
-    const status =
-      label.includes("connected") && !label.includes("fail")
-        ? "connected"
-        : label.includes("auth")
-          ? "needs-auth"
-          : label.includes("fail")
-            ? "failed"
-            : "pending";
-    servers.push({ name: line.slice(0, separator).trim(), status });
-  }
-  return servers;
-}
-
-function listClaudeCliMcpServers(
-  executablePath: string,
-  cwd: string | undefined,
-  environment: NodeJS.ProcessEnv,
-): Promise<Array<{ name: string; status: string }>> {
-  return new Promise((resolve) => {
-    NodeChildProcess.execFile(
-      executablePath,
-      ["mcp", "list"],
-      { ...(cwd ? { cwd } : {}), env: environment, timeout: MCP_LIST_TIMEOUT_MS - 2_000 },
-      (error, stdout) => resolve(error ? [] : parseClaudeCliMcpList(stdout)),
-    );
-  });
-}
-
 class ClaudeCapabilitiesProbeSdkError extends Schema.TaggedError<ClaudeCapabilitiesProbeSdkError>()(
   "ClaudeCapabilitiesProbeSdkError",
   {
@@ -597,7 +562,12 @@ const probeClaudeCapabilities = (
         // exactly what the CLI shows; the SDK status is only the fallback.
         const mcpResult = yield* Effect.tryPromise({
           try: async () => {
-            const listed = await listClaudeCliMcpServers(executablePath, cwd, claudeEnvironment);
+            const listed = await listClaudeCliMcpServers(
+              executablePath,
+              cwd,
+              claudeEnvironment,
+              MCP_LIST_TIMEOUT_MS - 2_000,
+            );
             return listed.length > 0 ? listed : await q.mcpServerStatus();
           },
           catch: (cause) => new ClaudeCapabilitiesProbeSdkError({ operation: "mcp", cause }),

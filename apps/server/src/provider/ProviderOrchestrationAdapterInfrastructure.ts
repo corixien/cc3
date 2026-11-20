@@ -3,6 +3,7 @@ import * as Layer from "effect/Layer";
 import * as SqlClient from "effect/sql/SqlClient";
 
 import * as ClaudeAdapterV2 from "../orchestration-v2/Adapters/ClaudeAdapterV2.ts";
+import * as ClaudeTuiQueryRunner from "../wrapper/ClaudeTuiQueryRunner.ts";
 import * as CodexAdapterV2 from "../orchestration-v2/Adapters/CodexAdapterV2.ts";
 import * as CursorAgentSdk from "@t3tools/provider-cursor/server/CursorAgentSdk";
 import * as CursorSdk from "@t3tools/provider-cursor/server/CursorSdk";
@@ -34,9 +35,15 @@ export const layerIdAllocator = Layer.unwrap(
   }),
 );
 
+// CC3: `CC3_CLAUDE_TRANSPORT=tui` runs Claude as its real TUI under a PTY (see docs/cc3-wrapper-plan.md).
+const claudeQueryRunnerLayer =
+  process.env.CC3_CLAUDE_TRANSPORT === "tui"
+    ? ClaudeTuiQueryRunner.layerTuiQueryRunner
+    : ClaudeAdapterV2.layerQueryRunner;
+
 /** Reuse the continuation worker's exact layer reference so memoization shares one queue. */
 export const layer = Layer.mergeAll(
-  ClaudeAdapterV2.layerQueryRunner,
+  claudeQueryRunnerLayer,
   CodexAdapterV2.layerAppServerClientFactory,
   CursorAgentSdk.layer.pipe(Layer.provideMerge(CursorSdk.layer)),
   layerIdAllocator,

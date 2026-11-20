@@ -32,6 +32,8 @@ export type ClaudeTranscriptEvent =
       readonly messageId: string;
       readonly model: string | undefined;
       readonly content: ReadonlyArray<ClaudeTranscriptContentBlock>;
+      /** The API message as the CLI wrote it, so the adapter sees every field unchanged. */
+      readonly rawMessage: Record<string, unknown>;
       readonly stopReason: string | null;
       readonly usage: ClaudeTranscriptUsage | undefined;
       readonly timestamp: string | undefined;
@@ -138,6 +140,7 @@ export function parseClaudeTranscriptLine(line: string): ReadonlyArray<ClaudeTra
           messageId: asString(message.id) ?? uuid,
           model: asString(message.model),
           content: parseBlocks(message.content),
+          rawMessage: message,
           stopReason: asString(message.stop_reason) ?? null,
           usage: parseUsage(message.usage),
           timestamp,

@@ -178,3 +178,51 @@ describe("WrapperSession", () => {
     NodeFs.rmSync(dir, { recursive: true });
   });
 });
+
+describe("ClaudeTuiMessageMapper", () => {
+  it("maps a tool turn to assistant, user and result messages and echoes the prompt uuid", async () => {
+    const { ClaudeTuiMessageMapper } = await import("./ClaudeTuiMessageMapper.ts");
+    let n = 0;
+    const mapper = new ClaudeTuiMessageMapper("sess", () => `gen-${++n}`);
+    mapper.expectPrompt("prompt-1");
+    const line = (value: unknown) => parseClaudeTranscriptLine(JSON.stringify(value));
+    const out = [
+      ...line({
+        type: "assistant",
+        uuid: "a1",
+        message: {
+          id: "m1",
+          model: "claude-haiku-5-5",
+          content: [{ type: "tool_use", id: "t1", name: "Bash", input: { command: "ls" } }],
+          usage: { input_tokens: 3, output_tokens: 4 },
+        },
+      }),
+    ].flatMap((event) => mapper.map(event));
+    expect(out).toMatchObject([{ type: "assistant", uuid: "a1", session_id: "sess" }]);
+    expect(mapper.pendingToolUses).toMatchObject([{ id: "t1", name: "Bash" }]);
+
+    const result = [
+      ...line({
+        type: "user",
+        message: {
+          role: "user",
+          content: [{ type: "tool_result", tool_use_id: "t1", content: "x" }],
+        },
+      }),
+      ...line({
+        type: "assistant",
+        uuid: "a2",
+        message: { id: "m2", content: [{ type: "text", text: "done" }] },
+      }),
+      ...line({ type: "system", subtype: "turn_duration", durationMs: 10 }),
+    ].flatMap((event) => mapper.map(event));
+    expect(result.map((message) => message.type)).toEqual(["user", "assistant", "result"]);
+    expect(result[2]).toMatchObject({
+      subtype: "success",
+      result: "done",
+      user_message_uuids: ["prompt-1"],
+      usage: { input_tokens: 3, output_tokens: 4 },
+    });
+    expect(mapper.pendingToolUses).toEqual([]);
+  });
+});
