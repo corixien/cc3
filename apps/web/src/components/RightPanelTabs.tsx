@@ -75,6 +75,7 @@ import { resolveShortcutCommand, type ShortcutMatchContext } from "~/keybindings
 import { readLocalApi } from "~/localApi";
 import { useParams } from "@tanstack/react-router";
 import { useSplitViewStore } from "~/splitViewStore";
+import { useSidebar } from "./ui/sidebar";
 import { useStableCallback } from "~/hooks/useStableCallback";
 import { Button } from "~/components/ui/button";
 import { AndroidIcon, AppleIcon } from "~/components/Icons";
@@ -306,6 +307,7 @@ function SplitViewItems() {
   const secondary = useSplitViewStore((state) => state.secondary);
   const open = useSplitViewStore((state) => state.open);
   const close = useSplitViewStore((state) => state.close);
+  const { setOpen: setSidebarOpen } = useSidebar();
   const candidates = shells
     .filter(
       (thread) =>
@@ -329,7 +331,10 @@ function SplitViewItems() {
         candidates.map((thread) => (
           <MenuItem
             key={`${thread.environmentId}:${thread.id}`}
-            onClick={() => open(scopeThreadRef(thread.environmentId, thread.id))}
+            onClick={() => {
+              open(scopeThreadRef(thread.environmentId, thread.id));
+              setSidebarOpen(false);
+            }}
           >
             <span className="min-w-0 truncate">{thread.title}</span>
           </MenuItem>

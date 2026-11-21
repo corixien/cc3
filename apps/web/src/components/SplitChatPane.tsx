@@ -161,7 +161,7 @@ export function SplitChatPane({ routeThread }: { routeThread: ScopedThreadRef | 
           <TooltipPopup side="bottom">{gt("Swap sides")}</TooltipPopup>
         </Tooltip>
       </div>
-      <div className="drag-region flex h-[var(--workspace-topbar-height)] min-h-[var(--workspace-topbar-height)] shrink-0 items-center gap-1 pl-3 pr-32 wco:pr-[calc(var(--workspace-native-controls-inset)+8rem)]">
+      <div className="drag-region flex h-[var(--workspace-topbar-height)] min-h-[var(--workspace-topbar-height)] shrink-0 items-center gap-1 pl-3 pr-2 wco:pr-(--workspace-native-controls-inset)">
         <span className="min-w-0 flex-1 truncate text-sm font-medium">
           {shell?.title ?? gt("Chat")}
         </span>

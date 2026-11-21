@@ -44,7 +44,7 @@ import {
   MenuSubTrigger,
   MenuTrigger,
 } from "./ui/menu";
-import { SidebarContent } from "./ui/sidebar";
+import { SidebarContent, useSidebar } from "./ui/sidebar";
 import { Spinner } from "./ui/spinner";
 
 const SortMode = Schema.Literals(["recent", "alpha", "manual"]);
@@ -244,6 +244,7 @@ export default function Cc3Sidebar() {
   const splitSecondary = useSplitViewStore((store) => store.secondary);
   const splitFocus = useSplitViewStore((store) => store.focus);
   const openInSplit = useSplitViewStore((store) => store.open);
+  const { setOpen: setSidebarOpen } = useSidebar();
   const open = (thread: EnvironmentThreadShell) => {
     // With the right pane focused, picking a chat replaces the right chat.
     const routed = params.environmentId === thread.environmentId && params.threadId === thread.id;
@@ -482,9 +483,10 @@ export default function Cc3Sidebar() {
                 {params.environmentId === menu.thread.environmentId &&
                 params.threadId === menu.thread.id ? null : (
                   <MenuItem
-                    onClick={() =>
-                      openInSplit(scopeThreadRef(menu.thread.environmentId, menu.thread.id))
-                    }
+                    onClick={() => {
+                      openInSplit(scopeThreadRef(menu.thread.environmentId, menu.thread.id));
+                      setSidebarOpen(false);
+                    }}
                   >
                     {gt("Open in split view")}
                   </MenuItem>
