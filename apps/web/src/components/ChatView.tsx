@@ -1882,15 +1882,13 @@ export default function ChatView(props: ChatViewProps) {
           providerSubagentModels,
           reportedModelSelection,
         );
-  const showComposerContextStrip =
-    !embedded &&
-    shouldShowComposerContextStrip({
-      isDraftHeroState,
-      persistInActiveThreads: settings.persistComposerContextStrip,
-      hasActiveProject: activeProject !== null && !showProviderSubagentBar,
-      isGitRepo,
-      showEnvironmentIndicator: showComposerEnvironmentIndicator,
-    });
+  const showComposerContextStrip = shouldShowComposerContextStrip({
+    isDraftHeroState,
+    persistInActiveThreads: settings.persistComposerContextStrip,
+    hasActiveProject: activeProject !== null && !showProviderSubagentBar,
+    isGitRepo,
+    showEnvironmentIndicator: showComposerEnvironmentIndicator,
+  });
   const terminalShortcutLabelOptions = {
     context: {
       terminalFocus: true,
@@ -3743,7 +3741,7 @@ export default function ChatView(props: ChatViewProps) {
                       </div>
                     ) : null}
                     <div className="relative">
-                      <ComposerSurface.Shell contextRow={!embedded}>
+                      <ComposerSurface.Shell contextRow>
                         <ComposerSurface.Host
                           inert={queuedRunEdit.isSaving}
                           aria-busy={queuedRunEdit.isSaving}
@@ -3884,7 +3882,7 @@ export default function ChatView(props: ChatViewProps) {
                                   (activeThreadShell ?? activeThread)?.pullRequests
                                 }
                                 onComposerOverlayHeightChange={publishComposerOverlayHeightStable}
-                                permissionsShownInStrip={!embedded}
+                                permissionsShownInStrip
                                 promptRef={promptRef}
                                 composerImagesRef={composerImagesRef}
                                 composerFilesRef={composerFilesRef}
@@ -4003,7 +4001,7 @@ export default function ChatView(props: ChatViewProps) {
                                   />
                                 </div>
                               )}
-                              {!embedded && (
+                              {
                                 <div className="pointer-events-auto ms-auto shrink-0 px-3 pt-1 pb-1.5 text-muted-foreground text-xs">
                                   <ComposerContextPermissions
                                     environmentId={environmentId}
@@ -4014,7 +4012,7 @@ export default function ChatView(props: ChatViewProps) {
                                     onRuntimeModeChange={handleRuntimeModeChangeStable}
                                   />
                                 </div>
-                              )}
+                              }
                             </div>
                           </div>
                         </div>
