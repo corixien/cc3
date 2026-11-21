@@ -52,10 +52,25 @@ export function SplitChatPane({ routeThread }: { routeThread: ScopedThreadRef | 
     root.style.setProperty("--cc3-split-left", String(ratio));
     root.style.setProperty("--cc3-split-right", String(1 - ratio));
     return () => {
+      root.style.removeProperty("--cc3-split-right-width");
       delete root.dataset.splitActive;
       delete root.dataset.splitFocus;
     };
   }, [active, focus, ratio]);
+
+  // The window controls at the top right belong to the left chat; keep them out of the right pane.
+  // oxlint-disable-next-line t3code/no-unreasoned-state-sync -- mirrors the pane width onto the document root for global CSS
+  useEffect(() => {
+    if (!active) return;
+    const pane = document.querySelector<HTMLElement>("[data-split-chat-pane]");
+    if (!pane) return;
+    const root = document.documentElement;
+    const observer = new ResizeObserver(() =>
+      root.style.setProperty("--cc3-split-right-width", `${pane.getBoundingClientRect().width}px`),
+    );
+    observer.observe(pane);
+    return () => observer.disconnect();
+  }, [active]);
 
   // Pressing inside a chat focuses its pane; the sidebar leaves the focus alone.
   // oxlint-disable-next-line t3code/no-unreasoned-state-sync -- document-level pointer listener

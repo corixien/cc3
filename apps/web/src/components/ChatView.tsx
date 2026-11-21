@@ -3932,7 +3932,7 @@ export default function ChatView(props: ChatViewProps) {
                             className="relative z-0"
                           >
                             <div className="mx-auto flex w-full max-w-(--chat-content-max-width) flex-wrap items-center">
-                              {!embedded && (
+                              {
                                 <ComposerStatusStrip
                                   className="min-w-0 flex-1"
                                   contextWindow={activeContextWindow}
@@ -3956,7 +3956,7 @@ export default function ChatView(props: ChatViewProps) {
                                     null
                                   }
                                 />
-                              )}
+                              }
                               {showComposerContextStrip && (
                                 <div className="pointer-events-auto min-w-0 max-w-full shrink-0">
                                   <BranchToolbar

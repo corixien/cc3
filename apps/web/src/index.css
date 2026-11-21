@@ -2668,6 +2668,18 @@ html[data-split-active] main[data-slot="sidebar-inset"] {
 html[data-split-active] [data-split-chat-pane] {
   transition: filter 150ms ease;
 }
+/* The top-right window controls sit at the right edge of the left pane, not over the right pane. */
+html[data-split-active] {
+  --workspace-controls-right: calc(
+    env(safe-area-inset-right) + 0.75rem + var(--cc3-split-right-width, 0px)
+  );
+}
+html[data-split-active].wco {
+  --workspace-controls-right: calc(
+    100vw - env(titlebar-area-width, 100vw) - env(titlebar-area-x, 0px) + 0.75rem +
+      var(--cc3-split-right-width, 0px)
+  );
+}
 html[data-split-focus="right"] main[data-slot="sidebar-inset"],
 html[data-split-focus="left"] [data-split-chat-pane] {
   filter: brightness(0.88);

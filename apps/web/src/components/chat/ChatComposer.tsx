@@ -3440,6 +3440,19 @@ export const ChatComposer = memo(function ChatComposer(props: ChatComposerProps)
     <form
       ref={composerFormRef}
       onSubmit={submitComposerStable}
+      onKeyDown={(event) => {
+        // CC3: Escape in the composer interrupts a running turn, unless a menu already took it.
+        if (
+          event.key !== "Escape" ||
+          event.defaultPrevented ||
+          event.nativeEvent.isComposing ||
+          (phase !== "running" && phase !== "connecting")
+        ) {
+          return;
+        }
+        event.preventDefault();
+        void onInterrupt();
+      }}
       onFocusCapture={(event) => {
         const activeElement = event.target;
         if (
