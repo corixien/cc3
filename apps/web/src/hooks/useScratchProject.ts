@@ -8,7 +8,10 @@ import {
   squashAtomCommandFailure,
 } from "@t3tools/client-runtime/state/runtime";
 import type { EnvironmentProject } from "@t3tools/client-runtime/state/shell";
-import type { EnvironmentId } from "@t3tools/contracts";
+import type { EnvironmentId, ThreadId } from "@t3tools/contracts";
+import type { ScopedProjectRef } from "@t3tools/contracts";
+import type { DraftId } from "~/composerDraftStore";
+import { materializeNewChat } from "~/newChatLifecycle";
 import type { AtomRegistry } from "effect/reactivity";
 import { msg } from "gt-react";
 import { useContext } from "react";
@@ -42,6 +45,11 @@ export function createScratchProjectActions(input: {
   readonly primaryEnvironmentId: () => EnvironmentId | null;
   readonly registry: AtomRegistry.AtomRegistry;
   readonly handleNewThread: NewThreadHandler;
+  /** Turns the fresh draft into a real server thread so its provider can start at once. */
+  readonly materializeDraft?: (
+    draft: { readonly draftId: DraftId; readonly threadId: ThreadId },
+    projectRef: ScopedProjectRef,
+  ) => Promise<void>;
 }) {
   const scratchWorkspaceRootFor = (environmentId: EnvironmentId | null): string | null => {
     let environment: ScratchEnvironment | undefined;
@@ -83,8 +91,10 @@ export function createScratchProjectActions(input: {
   const startScratchThread = async (environmentId: EnvironmentId) => {
     const project = await openScratchProject(environmentId);
     if (project) {
+      const projectRef = scopeProjectRef(project.environmentId, project.id);
       await input
-        .handleNewThread(scopeProjectRef(project.environmentId, project.id))
+        .handleNewThread(projectRef)
+        .then((draft) => (draft ? input.materializeDraft?.(draft, projectRef) : undefined))
         .catch((error: unknown) =>
           reportScratchFailure(m(msg("Could not start without a project")), error),
         );
@@ -104,5 +114,7 @@ export function useScratchProject() {
     primaryEnvironmentId: () => primaryEnvironmentId,
     registry,
     handleNewThread,
+    materializeDraft: (draft, projectRef) =>
+      materializeNewChat(registry, { draftId: draft.draftId, projectRef }),
   });
 }

@@ -62,7 +62,9 @@ export class WrapperSession {
       }
       await delay(150);
     }
-    throw new Error("The CLI did not become ready in time.");
+    throw new Error(
+      `The CLI did not become ready in time. Screen:\n${this.screen.lines.slice(-25).join("\n")}`,
+    );
   }
 
   /** Types a prompt (or slash command) into the TUI and submits it. */

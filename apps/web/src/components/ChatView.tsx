@@ -1043,21 +1043,6 @@ export default function ChatView(props: ChatViewProps) {
   // CC3: slash commands that open a CC3 screen (see cc3LocalSlashCommands.ts).
   const [commandPanel, setCommandPanel] = useState<Cc3CommandPanelKind | null>(null);
   const closeCommandPanel = useStableCallback(() => setCommandPanel(null));
-  const runLocalSlashCommand = useStableCallback((name: string) => {
-    const command = cc3LocalSlashCommand(name);
-    if (!command) return;
-    switch (command.action.kind) {
-      case "panel":
-        setCommandPanel(command.action.panel);
-        return;
-      case "route":
-        void navigate({ to: command.action.to as never });
-        return;
-      case "palette":
-        openCommandPalette({});
-        return;
-    }
-  });
   const activeThreadKey = activeThreadRef ? scopedThreadKey(activeThreadRef) : null;
   const activeEnvironmentServerBrowser = useEnvironmentSupportsServerBrowser(
     activeThreadRef?.environmentId ?? null,
@@ -1554,6 +1539,70 @@ export default function ChatView(props: ChatViewProps) {
       : activeProviderStatus
         ? resolveProviderMcpServersForCwd(activeProviderStatus, gitCwd)
         : [];
+  // CC3: with the terminal wrapper the CLI answers its own commands; otherwise CC3 shows its screen.
+  const runCliCommand = useAtomCommand(serverEnvironment.runCliCommand, { reportFailure: false });
+  const [cliResult, setCliResult] = useState<{
+    readonly command: string;
+    readonly output: string;
+    readonly pending: boolean;
+  } | null>(null);
+  const [cliMcpServers, setCliMcpServers] = useState<ReadonlyArray<{
+    readonly name: string;
+    readonly status: string;
+  }> | null>(null);
+  const runLocalSlashCommand = useStableCallback((name: string) => {
+    const command = cc3LocalSlashCommand(name);
+    if (!command) return;
+    const answerLocally = () => {
+      switch (command.action.kind) {
+        case "panel":
+          setCommandPanel(command.action.panel);
+          return;
+        case "route":
+          void navigate({ to: command.action.to as never });
+          return;
+        case "palette":
+          openCommandPalette({});
+          return;
+      }
+    };
+    const cwd = activeThread?.worktreePath ?? activeProject?.workspaceRoot ?? gitCwd ?? null;
+    // Informational commands run on the CLI; settings-style ones keep their CC3 screens.
+    const cliAnswers = ["mcp", "context", "status", "cost"].includes(name);
+    if (
+      !cliAnswers ||
+      String(activeProviderStatus?.driver) !== "claudeAgent" ||
+      !activeProviderStatus ||
+      !cwd
+    ) {
+      answerLocally();
+      return;
+    }
+    setCliMcpServers(null);
+    setCliResult({ command: `/${name}`, output: "", pending: true });
+    setCommandPanel("cli");
+    void runCliCommand({
+      environmentId,
+      input: {
+        instanceId: activeProviderStatus.instanceId,
+        cwd,
+        ...(isServerThread && activeThread ? { threadId: activeThread.id } : {}),
+        command: `/${name}`,
+      },
+    }).then((result) => {
+      if (result._tag !== "Success" || !result.value.supported) {
+        setCommandPanel(null);
+        answerLocally();
+        return;
+      }
+      if (name === "mcp" && result.value.mcpServers) {
+        setCliMcpServers(result.value.mcpServers);
+        setCommandPanel("connectors");
+        return;
+      }
+      setCliResult({ command: `/${name}`, output: result.value.output, pending: false });
+    });
+  });
   const activeWorkStartedAt =
     deriveActiveWorkStartedAt(activeActivityRun, activeRuntime, localDispatchStartedAt) ??
     runlessWorkStartedAt;
@@ -3667,7 +3716,8 @@ export default function ChatView(props: ChatViewProps) {
                     {!isDraftHeroState && commandPanel !== null ? (
                       <Cc3CommandPanel
                         panel={commandPanel}
-                        mcpServers={commandMcpServers}
+                        mcpServers={cliMcpServers ?? commandMcpServers}
+                        cli={cliResult}
                         onClose={closeCommandPanel}
                         overview={{
                           environmentId,
@@ -3973,7 +4023,8 @@ export default function ChatView(props: ChatViewProps) {
                         <div className="absolute inset-x-0 bottom-full">
                           <Cc3CommandPanel
                             panel={commandPanel}
-                            mcpServers={commandMcpServers}
+                            mcpServers={cliMcpServers ?? commandMcpServers}
+                            cli={cliResult}
                             onClose={closeCommandPanel}
                             overview={{
                               environmentId,

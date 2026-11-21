@@ -29,10 +29,12 @@ import { ClaudeTuiMessageMapper, claudeTuiInitMessage } from "./ClaudeTuiMessage
 import { listClaudeCliMcpServers } from "./claudeMcpList.ts";
 import {
   isClaudeInputReady,
-  isClaudeTrustPrompt,
+  answerClaudeStartupDialog,
   readClaudePermissionMode,
 } from "./ScreenBuffer.ts";
-import { KEY_DOWN, KEY_ENTER, KEY_ESCAPE, KEY_SHIFT_TAB } from "./ptyKeys.ts";
+import { KEY_ESCAPE, KEY_SHIFT_TAB } from "./ptyKeys.ts";
+import { captureCommandOutput, runCommandOnScreen } from "./ScreenCommand.ts";
+import { registerLiveTui, unregisterLiveTui, type LiveTuiHandle } from "./LiveTuiRegistry.ts";
 import { callMcpServer, splitMcpToolName, type McpServerConfig } from "./McpClient.ts";
 import {
   findClaudeTranscript,
@@ -300,11 +302,15 @@ const layerTuiQueryRunnerWithPty = Layer.effect(
         },
       );
       let session: WrapperSession | undefined;
+      let busy = false;
       let pump: ReturnType<typeof setInterval> | undefined;
       const drain = () => {
         for (const line of session?.pollTranscript() ?? [])
           for (const event of parseClaudeTranscriptLine(line))
-            for (const message of mapper.map(event)) queue.push(message);
+            for (const message of mapper.map(event)) {
+              if (message.type === "result") busy = false;
+              queue.push(message);
+            }
       };
 
       const bridge =
@@ -344,12 +350,16 @@ const layerTuiQueryRunnerWithPty = Layer.effect(
           fromEnd: resume,
         }),
         isInputReady: isClaudeInputReady,
-        // Highlight starts on "No, exit": move down to "Yes, I trust this folder".
-        answerStartupDialog: (screen) =>
-          isClaudeTrustPrompt(screen) ? `${KEY_DOWN}${KEY_ENTER}` : undefined,
+        answerStartupDialog: answerClaudeStartupDialog,
       });
       const live = session;
+      const handle: LiveTuiHandle = {
+        runCommand: (command) => runCommandOnScreen(live, command),
+        isBusy: () => busy,
+        close: () => live.close(),
+      };
       const shutdown = () => {
+        unregisterLiveTui(String(input.threadId), handle);
         if (pump !== undefined) clearInterval(pump);
         bridge?.close();
         live.close();
@@ -380,6 +390,7 @@ const layerTuiQueryRunnerWithPty = Layer.effect(
           crypto.randomUUID(),
         ),
       );
+      registerLiveTui(String(input.threadId), handle);
       pump = setInterval(() => {
         drain();
         if (live.hasExited) shutdown();
@@ -388,48 +399,16 @@ const layerTuiQueryRunnerWithPty = Layer.effect(
       const sleep = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms));
       const screenText = () => live.screen.lines.join("\n");
 
-      /** Output a slash command printed on screen only, read once the screen stops changing. */
-      const captureLocalCommand = async (command: string): Promise<string> => {
-        let previous = "";
-        let stableSince = Date.now();
-        const deadline = Date.now() + 20_000;
-        while (Date.now() < deadline) {
-          await sleep(300);
-          const current = screenText();
-          if (current !== previous) {
-            previous = current;
-            stableSince = Date.now();
-          } else if (Date.now() - stableSince >= 1_500) break;
-        }
-        const lines = live.screen.lines;
-        const echo = lines.findLastIndex((line) => line.includes(command));
-        // A dialog replaces the transcript view, so its body starts below the last full-width rule.
-        const rule = lines.findLastIndex((line) => /[▔─━]{40,}/.test(line));
-        const start = echo >= 0 ? echo + 1 : rule + 1;
-        const body: string[] = [];
-        for (const line of lines.slice(start)) {
-          if (/^[\s]*[─━]{8,}/.test(line)) break;
-          if (/^\s*[↑↓]\s*$/.test(line)) continue;
-          body.push(line.replace(/^\s*⎿\s?/, "").replace(/\s+$/, ""));
-        }
-        if (/esc to (cancel|exit|close)|enter to (select|confirm)/i.test(previous.slice(-800))) {
-          live.write(KEY_ESCAPE);
-          await sleep(200);
-          live.write(KEY_ESCAPE);
-        }
-        const text = body.join("\n").trim();
-        return text.length > 0 ? text : "(The command printed nothing.)";
-      };
-
       /** Slash commands the CLI handles itself never reach the transcript: show their screen output. */
       const settleSlashCommand = async (command: string, turnEventsBefore: number) => {
         await sleep(3_000);
         drain();
         if (mapper.turnEvents > turnEventsBefore) return;
-        const output = await captureLocalCommand(command);
+        const output = await captureCommandOutput(live, command);
         queue.push(mapper.syntheticAssistant(`\`\`\`\n${output}\n\`\`\``));
         for (const message of mapper.map({ kind: "turn_end", durationMs: undefined }))
           queue.push(message);
+        busy = false;
       };
 
       let appliedEffort: string | undefined;
@@ -442,6 +421,7 @@ const layerTuiQueryRunnerWithPty = Layer.effect(
               const text = promptText(message.message.content);
               if (message.uuid) mapper.expectPrompt(message.uuid, text);
               const turnEventsBefore = mapper.turnEvents;
+              busy = true;
               await live.submit(text);
               onQueued?.();
               if (text.trimStart().startsWith("/"))

@@ -61,6 +61,21 @@ export interface ProviderInstance {
   readonly consumeResetCredit?: (
     creditId: string | undefined,
   ) => Effect.Effect<ProviderConsumeResetCreditOutcome, ProviderDriverError>;
+  /**
+   * CC3: runs one of the CLI's own slash commands for a chat and returns what it printed. Absent
+   * when the provider is not driven through its real CLI.
+   */
+  readonly runCliCommand?: (input: {
+    readonly cwd: string;
+    readonly threadId?: string | undefined;
+    readonly command: string;
+  }) => Effect.Effect<
+    {
+      readonly output: string;
+      readonly mcpServers?: ReadonlyArray<{ readonly name: string; readonly status: string }>;
+    },
+    ProviderDriverError
+  >;
   readonly orchestrationAdapter: ProviderAdapter.ProviderAdapterV2["Service"];
   readonly textGeneration: ProviderTextGeneration;
   readonly auth?: ProviderAuthController;

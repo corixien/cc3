@@ -37,7 +37,7 @@ import * as Schema from "effect/Schema";
 import * as Rpc from "effect/rpc/Rpc";
 import * as RpcGroup from "effect/rpc/RpcGroup";
 import * as RpcMiddleware from "effect/rpc/RpcMiddleware";
-import { NonNegativeInt, TrimmedNonEmptyString } from "./baseSchemas.ts";
+import { NonNegativeInt, ThreadId, TrimmedNonEmptyString } from "./baseSchemas.ts";
 import { SecretSourceCheckResult } from "./settingsSecretValue.ts";
 import { SecretReference } from "./secretReference.ts";
 import {
@@ -469,6 +469,7 @@ export const WS_METHODS = {
   providerUploadFeedback: "provider.uploadFeedback",
   providerAuthStart: "provider.auth.start",
   providerConsumeResetCredit: "provider.consumeResetCredit",
+  providerRunCliCommand: "provider.runCliCommand",
   providerAuthComplete: "provider.auth.complete",
   chatGptReconnectProfile: "provider.chatgpt.reconnect-profile",
   chatGptImportProfile: "provider.chatgpt.import-profile",
@@ -740,6 +741,30 @@ const WsServerUpdateProviderRpc = Rpc.make(WS_METHODS.serverUpdateProvider, {
 });
 
 const ProviderSetupRpcError = Schema.Union([ProviderSetupError, EnvironmentAuthorizationError]);
+
+// CC3: a provider CLI's own slash command, run for a chat. `supported` is false for providers not
+// driven through their real CLI; the client then answers the command itself.
+export const ProviderRunCliCommandInput = Schema.Struct({
+  instanceId: ProviderInstanceId,
+  cwd: TrimmedNonEmptyString,
+  threadId: Schema.optional(ThreadId),
+  command: TrimmedNonEmptyString,
+});
+export type ProviderRunCliCommandInput = typeof ProviderRunCliCommandInput.Type;
+export const ProviderRunCliCommandResult = Schema.Struct({
+  supported: Schema.Boolean,
+  output: Schema.String,
+  mcpServers: Schema.optional(
+    Schema.Array(Schema.Struct({ name: Schema.String, status: Schema.String })),
+  ),
+});
+export type ProviderRunCliCommandResult = typeof ProviderRunCliCommandResult.Type;
+
+const WsProviderRunCliCommandRpc = Rpc.make(WS_METHODS.providerRunCliCommand, {
+  payload: ProviderRunCliCommandInput,
+  success: ProviderRunCliCommandResult,
+  error: Schema.Union([ProviderSetupError, EnvironmentAuthorizationError]),
+});
 
 const WsProviderConsumeResetCreditRpc = Rpc.make(WS_METHODS.providerConsumeResetCredit, {
   payload: ProviderConsumeResetCreditInput,
@@ -2265,6 +2290,7 @@ export const WsRpcGroup = RpcGroup.make(
   WsServerRefreshProvidersRpc,
   WsServerUpdateProviderRpc,
   WsProviderConsumeResetCreditRpc,
+  WsProviderRunCliCommandRpc,
   WsProviderAuthStartRpc,
   WsProviderAuthCompleteRpc,
   WsChatGptReconnectProfileRpc,

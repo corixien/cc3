@@ -77,3 +77,17 @@ export function readClaudePermissionMode(screen: string): string | null {
   if (footer.includes("manual mode on") || footer.includes("? for shortcuts")) return "default";
   return null;
 }
+
+/**
+ * Keys that accept a start-up confirmation dialog (trust this folder, add a directory, ...), or
+ * undefined when the screen shows none. The cursor starts on "No, exit", so the "Yes" option is
+ * reached by moving down from the highlighted line.
+ */
+export function answerClaudeStartupDialog(screen: string): string | undefined {
+  if (!/Enter\s*to\s*confirm/i.test(screen.slice(-1_500))) return undefined;
+  const lines = screen.split("\n");
+  const cursor = lines.findLastIndex((line) => /^\s*❯/.test(line));
+  const yes = lines.findLastIndex((line) => /^\s*(?:❯\s*)?(?:\d+\.\s*)?Yes/i.test(line));
+  if (cursor < 0 || yes < 0) return undefined;
+  return "\x1b[B".repeat(Math.max(0, yes - cursor)) + "\r";
+}

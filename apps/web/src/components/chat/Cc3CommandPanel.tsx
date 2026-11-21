@@ -18,6 +18,11 @@ export interface Cc3CommandPanelProps {
   readonly panel: Cc3CommandPanelKind;
   readonly overview: ThreadDetailsOverviewInput;
   readonly mcpServers: ReadonlyArray<{ readonly name: string; readonly status: string }>;
+  readonly cli?: {
+    readonly command: string;
+    readonly output: string;
+    readonly pending: boolean;
+  } | null;
   readonly onClose: () => void;
 }
 
@@ -41,11 +46,13 @@ export function Cc3CommandPanel(props: Cc3CommandPanelProps) {
 
   const servers = props.mcpServers;
   const title =
-    props.panel === "connectors"
-      ? gt("Connectors")
-      : props.panel === "overview"
-        ? gt("Session")
-        : gt("Plugins and integrations");
+    props.panel === "cli"
+      ? (props.cli?.command ?? "")
+      : props.panel === "connectors"
+        ? gt("Connectors")
+        : props.panel === "overview"
+          ? gt("Session")
+          : gt("Plugins and integrations");
 
   return (
     <div className="mb-3">
@@ -55,6 +62,15 @@ export function Cc3CommandPanel(props: Cc3CommandPanelProps) {
             <span className="text-sm font-semibold text-foreground">{title}</span>
             <ComposerBanner.Dismiss aria-label={gt("Close")} onClick={onClose} />
           </div>
+          {props.panel === "cli" ? (
+            props.cli?.pending ? (
+              <p className="px-2.5 py-1 text-xs text-muted-foreground">{gt("Running...")}</p>
+            ) : (
+              <pre className="max-h-80 overflow-auto whitespace-pre-wrap px-2.5 py-1 font-mono text-xs text-foreground">
+                {props.cli?.output}
+              </pre>
+            )
+          ) : null}
           {props.panel === "overview" ? <ThreadDetailsOverview {...props.overview} /> : null}
           {props.panel === "connectors" ? (
             <>

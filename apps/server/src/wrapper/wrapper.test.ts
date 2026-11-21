@@ -8,7 +8,12 @@ import type { PtyProcess } from "@t3tools/shared/PtyAdapter";
 
 import { claudeTranscriptPath, parseClaudeTranscriptLine } from "./ClaudeTranscript.ts";
 import { bracketedPaste, KEY_ENTER } from "./ptyKeys.ts";
-import { isClaudeInputReady, isClaudeTrustPrompt, stripAnsi } from "./ScreenBuffer.ts";
+import {
+  answerClaudeStartupDialog,
+  isClaudeInputReady,
+  isClaudeTrustPrompt,
+  stripAnsi,
+} from "./ScreenBuffer.ts";
 import { TranscriptTail } from "./TranscriptTail.ts";
 import { scrubWrapperEnvironment } from "./wrapperEnvironment.ts";
 import { WrapperSession } from "./WrapperSession.ts";
@@ -40,6 +45,15 @@ describe("terminal text", () => {
     );
     expect(isClaudeTrustPrompt("Quicksafetycheck:Isthisaproject")).toBe(true);
     expect(isClaudeTrustPrompt("welcome")).toBe(false);
+    expect(
+      answerClaudeStartupDialog(
+        "Adding a new directory\n ❯ No, exit\n   Yes, add it\n Enter to confirm · Esc to cancel",
+      ),
+    ).toBe("\x1b[B\r");
+    expect(
+      answerClaudeStartupDialog("Trust?\n ❯ Yes, I trust\n   No, exit\n Enter to confirm"),
+    ).toBe("\r");
+    expect(answerClaudeStartupDialog("❯ Try something")).toBeUndefined();
   });
 });
 

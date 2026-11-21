@@ -3,7 +3,7 @@
 // `/usage` and friends work like they do in Claude Code. Provider commands (`/compact`,
 // `/init`, skills...) keep going to the provider.
 /** Popups drawn above the composer, see Cc3CommandPanel. */
-export type Cc3CommandPanelKind = "connectors" | "overview" | "integrations";
+export type Cc3CommandPanelKind = "connectors" | "overview" | "integrations" | "cli";
 
 export type Cc3LocalSlashAction =
   | { readonly kind: "panel"; readonly panel: Cc3CommandPanelKind }

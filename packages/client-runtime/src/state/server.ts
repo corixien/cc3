@@ -1658,6 +1658,14 @@ export function createServerEnvironmentAtoms<R, E>(
         key: ({ environmentId, input }) => JSON.stringify([environmentId, input]),
       },
     }),
+    runCliCommand: createEnvironmentRpcCommand(runtime, {
+      label: "environment-data:server:run-cli-command",
+      tag: WS_METHODS.providerRunCliCommand,
+      concurrency: {
+        mode: "singleFlight",
+        key: ({ environmentId, input }) => JSON.stringify([environmentId, input]),
+      },
+    }),
     refreshProviders: createEnvironmentRpcCommand(runtime, {
       label: "environment-data:server:refresh-providers",
       tag: WS_METHODS.serverRefreshProviders,

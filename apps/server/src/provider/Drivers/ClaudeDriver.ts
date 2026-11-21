@@ -62,6 +62,9 @@ import {
   resolveClaudeHomePath,
 } from "./ClaudeHome.ts";
 import * as HostProcess from "@t3tools/shared/HostProcess";
+import * as PtyAdapter from "@t3tools/shared/PtyAdapter";
+import * as NodePtyAdapter from "../../terminal/NodePtyAdapter.ts";
+import { makeClaudeCliCommandRunner } from "../../wrapper/ClaudeCliCommands.ts";
 import { makeClaudeMaintenanceResolution } from "./ClaudeMaintenance.ts";
 const decodeClaudeSettings = Schema.decodeSync(ClaudeSettings);
 
@@ -170,6 +173,30 @@ export const ClaudeDriver: ProviderDriver<ClaudeSettings, ClaudeDriverEnv, Path.
         ),
       stateDir,
     );
+    // CC3: with the terminal wrapper, the CLI's own slash commands run on the real CLI.
+    const cliCommandRunner =
+      effectiveConfig.transport === "tui"
+        ? makeClaudeCliCommandRunner({
+            pty: yield* PtyAdapter.PtyAdapter.pipe(Effect.provide(NodePtyAdapter.layer)),
+            binaryPath: effectiveConfig.binaryPath,
+            environment: processEnv,
+          })
+        : undefined;
+    const runCliCommand =
+      cliCommandRunner === undefined
+        ? undefined
+        : (request: Parameters<typeof cliCommandRunner>[0]) =>
+            cliCommandRunner(request).pipe(
+              Effect.mapError(
+                (cause) =>
+                  new ProviderDriverError({
+                    driver: DRIVER_KIND,
+                    instanceId,
+                    detail: "The Claude command failed.",
+                    cause,
+                  }),
+              ),
+            );
     // Retain reports until the registry subscribes; end its listener on teardown.
     const workspaceRescans = yield* Queue.unbounded<string, Cause.Done>();
     yield* Effect.addFinalizer(() => Queue.end(workspaceRescans));
@@ -428,6 +455,7 @@ export const ClaudeDriver: ProviderDriver<ClaudeSettings, ClaudeDriverEnv, Path.
           Effect.provideService(FileSystem.FileSystem, fileSystem),
           Effect.provideService(Path.Path, path),
         ),
+      ...(runCliCommand === undefined ? {} : { runCliCommand }),
       orchestrationAdapter,
       textGeneration,
       consumeResetCredit,

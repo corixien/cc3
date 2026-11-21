@@ -2618,6 +2618,35 @@ export const layerWsRpc = (
           ),
         [WS_METHODS.serverUpdateProvider]: (input) =>
           providerMaintenanceRunner.updateProvider(input),
+        [WS_METHODS.providerRunCliCommand]:
+          /* Request instrumentation already owns the span; keep this helper in that context. */
+          Effect.fnUntraced(function* (input) {
+            const instance = yield* providerInstances.getInstance(input.instanceId);
+            if (
+              instance === undefined ||
+              !instance.enabled ||
+              instance.runCliCommand === undefined
+            ) {
+              return { supported: false, output: "" };
+            }
+            const result = yield* instance
+              .runCliCommand({
+                cwd: input.cwd,
+                ...(input.threadId === undefined ? {} : { threadId: input.threadId }),
+                command: input.command,
+              })
+              .pipe(
+                Effect.mapError(
+                  (error) =>
+                    new ProviderSetupError({
+                      instanceId: input.instanceId,
+                      operation: "run-cli-command",
+                      detail: error.detail,
+                    }),
+                ),
+              );
+            return { supported: true, ...result };
+          }),
         [WS_METHODS.providerConsumeResetCredit]:
           /* Request instrumentation already owns the span; keep this helper in that context. */
           Effect.fnUntraced(function* (input) {
