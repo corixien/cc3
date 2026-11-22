@@ -294,7 +294,7 @@ describe("DesktopSettings", () => {
         const settings = yield* DesktopAppSettings.DesktopAppSettings;
 
         yield* settings.setMainWindowBounds({ x: -1200, y: 40, width: 400, height: 360 }, true);
-        yield* settings.setServerExposureMode("network-accessible");
+        yield* settings.setServerExposureMode("local-only");
 
         const persisted = yield* decodeDesktopSettingsPatch(
           yield* fileSystem.readFileString(environment.desktopSettingsPath),
@@ -302,7 +302,7 @@ describe("DesktopSettings", () => {
         assert.deepEqual(persisted, {
           mainWindowBounds: { x: -1200, y: 40, width: 400, height: 360 },
           mainWindowMaximized: true,
-          serverExposureMode: "network-accessible",
+          serverExposureMode: "local-only",
         } satisfies typeof DesktopSettingsPatch.Type);
 
         const restored = yield* Effect.gen(function* () {
@@ -329,7 +329,7 @@ describe("DesktopSettings", () => {
         yield* fileSystem.makeDirectory(environment.stateDir, { recursive: true });
         yield* fileSystem.symlink(linkedSettingsPath, environment.desktopSettingsPath);
 
-        yield* settings.setServerExposureMode("network-accessible");
+        yield* settings.setServerExposureMode("local-only");
 
         assert.equal(
           yield* fileSystem.readLink(environment.desktopSettingsPath),
@@ -338,7 +338,7 @@ describe("DesktopSettings", () => {
         const persisted = yield* decodeDesktopSettingsPatch(
           yield* fileSystem.readFileString(linkedSettingsPath),
         );
-        assert.equal(persisted.serverExposureMode, "network-accessible");
+        assert.equal(persisted.serverExposureMode, "local-only");
       }),
     ),
   );
@@ -353,7 +353,7 @@ describe("DesktopSettings", () => {
           recursive: true,
         });
 
-        const error = yield* settings.setServerExposureMode("network-accessible").pipe(Effect.flip);
+        const error = yield* settings.setServerExposureMode("local-only").pipe(Effect.flip);
 
         assert.equal(error.operation, "replace-settings-file");
         assert.deepEqual(

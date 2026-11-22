@@ -245,6 +245,7 @@ describe("DesktopServerExposure", () => {
         const settings = yield* DesktopAppSettings.DesktopAppSettings;
 
         yield* settings.load;
+        yield* settings.setServerExposureMode("local-only");
         yield* serverExposure.configureFromSettings({ port: 4173 });
 
         const change = yield* serverExposure.setMode("network-accessible");
