@@ -2660,13 +2660,26 @@ code {
 }
 
 /* CC3 split view: the left pane (router) and the right pane share the row by ratio; the pane
-   without focus is a little darker. Variables and attributes are set by SplitChatPane. */
+   without focus is dimmed by an overlay below the window controls (a filter would turn the
+   panes into the containing block of their fixed controls). Set by SplitChatPane. */
 html[data-split-active] main[data-slot="sidebar-inset"] {
   flex: var(--cc3-split-left, 1) 1 0%;
-  transition: filter 150ms ease;
+  position: relative;
 }
-html[data-split-active] [data-split-chat-pane] {
-  transition: filter 150ms ease;
+html[data-split-active] main[data-slot="sidebar-inset"]::after,
+html[data-split-active] [data-split-chat-pane]::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 40;
+  pointer-events: none;
+  background: rgb(0 0 0 / 0.12);
+  opacity: 0;
+  transition: opacity 150ms ease;
+}
+html[data-split-focus="right"] main[data-slot="sidebar-inset"]::after,
+html[data-split-focus="left"] [data-split-chat-pane]::after {
+  opacity: 1;
 }
 /* The top-right layout controls belong to the left chat: they sit at the right edge of the left pane,
    clear of the right pane and its native window buttons. */
@@ -2674,8 +2687,4 @@ html[data-split-active] {
   --workspace-controls-right: calc(
     env(safe-area-inset-right) + 0.75rem + var(--cc3-split-right-width, 0px)
   );
-}
-html[data-split-focus="right"] main[data-slot="sidebar-inset"],
-html[data-split-focus="left"] [data-split-chat-pane] {
-  filter: brightness(0.88);
 }

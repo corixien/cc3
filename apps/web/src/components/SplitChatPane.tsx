@@ -52,7 +52,6 @@ export function SplitChatPane({ routeThread }: { routeThread: ScopedThreadRef | 
     root.style.setProperty("--cc3-split-left", String(ratio));
     root.style.setProperty("--cc3-split-right", String(1 - ratio));
     return () => {
-      root.style.removeProperty("--cc3-split-right-width");
       delete root.dataset.splitActive;
       delete root.dataset.splitFocus;
     };
@@ -69,7 +68,10 @@ export function SplitChatPane({ routeThread }: { routeThread: ScopedThreadRef | 
       root.style.setProperty("--cc3-split-right-width", `${pane.getBoundingClientRect().width}px`),
     );
     observer.observe(pane);
-    return () => observer.disconnect();
+    return () => {
+      observer.disconnect();
+      root.style.removeProperty("--cc3-split-right-width");
+    };
   }, [active]);
 
   // Pressing inside a chat focuses its pane; the sidebar leaves the focus alone.
@@ -92,7 +94,15 @@ export function SplitChatPane({ routeThread }: { routeThread: ScopedThreadRef | 
   const button = (label: string, onClick: () => void, icon: React.ReactNode) => (
     <Tooltip>
       <TooltipTrigger
-        render={<Button variant="ghost" size="icon-xs" aria-label={label} onClick={onClick} />}
+        render={
+          <Button
+            variant="ghost"
+            size="icon"
+            aria-label={label}
+            onClick={onClick}
+            className="size-[var(--workspace-titlebar-control-size)]! [-webkit-app-region:no-drag]"
+          />
+        }
       >
         {icon}
       </TooltipTrigger>
@@ -161,7 +171,7 @@ export function SplitChatPane({ routeThread }: { routeThread: ScopedThreadRef | 
           <TooltipPopup side="bottom">{gt("Swap sides")}</TooltipPopup>
         </Tooltip>
       </div>
-      <div className="drag-region flex h-[var(--workspace-topbar-height)] min-h-[var(--workspace-topbar-height)] shrink-0 items-center gap-1 pl-3 pr-2 wco:pr-(--workspace-native-controls-inset)">
+      <div className="drag-region relative z-50 flex h-[var(--workspace-topbar-height)] min-h-[var(--workspace-topbar-height)] shrink-0 items-center gap-1 pl-3 pr-2 wco:pr-(--workspace-native-controls-inset)">
         <span className="min-w-0 flex-1 truncate text-sm font-medium">
           {shell?.title ?? gt("Chat")}
         </span>
@@ -171,9 +181,9 @@ export function SplitChatPane({ routeThread }: { routeThread: ScopedThreadRef | 
             close();
             openOnLeft(secondary);
           },
-          <PanelLeftCloseIcon />,
+          <PanelLeftCloseIcon className="size-4" />,
         )}
-        {button(gt("Close split view"), close, <XIcon />)}
+        {button(gt("Close split view"), close, <XIcon className="size-4" />)}
       </div>
       {shell === null ? (
         <p className="p-3 text-xs text-muted-foreground">{gt("This chat is not available.")}</p>

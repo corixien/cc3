@@ -1,5 +1,5 @@
-// CC3: one compact line under the composer with context usage, git branch, repository, working
-// directory and the provider's usage limits (share used, e.g. 5h session and weekly window).
+// CC3: one compact line under the composer: repository / branch, working directory, context usage
+// and the provider's usage limits (share used, e.g. 5h session and weekly window).
 import type {
   ProviderInstanceId,
   ServerProvider,
@@ -72,23 +72,6 @@ export function ComposerStatusStrip(props: {
         props.className,
       )}
     >
-      {context ? (
-        <span
-          title={
-            maxTokens !== null
-              ? `Context: ${formatContextWindowTokens(context.usedTokens)} / ${formatContextWindowTokens(maxTokens)} tokens`
-              : "Context"
-          }
-          className={cn(
-            "inline-flex h-6 items-center gap-1 border border-transparent px-1.75",
-            toneOf(contextUsed ?? 0),
-          )}
-        >
-          <GaugeIcon aria-hidden />
-          Context{" "}
-          {contextUsed !== null ? `${contextUsed}%` : formatContextWindowTokens(context.usedTokens)}
-        </span>
-      ) : null}
       <button
         type="button"
         title="Add a project or create a GitHub repository"
@@ -112,6 +95,23 @@ export function ComposerStatusStrip(props: {
           <FolderIcon aria-hidden />
           <span className="truncate">{shortenPath(props.directory)}</span>
         </button>
+      ) : null}
+      {context ? (
+        <span
+          title={
+            maxTokens !== null
+              ? `Context: ${formatContextWindowTokens(context.usedTokens)} / ${formatContextWindowTokens(maxTokens)} tokens`
+              : "Context"
+          }
+          className={cn(
+            "inline-flex h-6 items-center gap-1 border border-transparent px-1.75",
+            toneOf(contextUsed ?? 0),
+          )}
+        >
+          <GaugeIcon aria-hidden />
+          Context{" "}
+          {contextUsed !== null ? `${contextUsed}%` : formatContextWindowTokens(context.usedTokens)}
+        </span>
       ) : null}
       {windows.length > 0 ? (
         <button

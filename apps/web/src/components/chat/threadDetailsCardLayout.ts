@@ -2,6 +2,8 @@ import type { PreviewMiniPlayerFrame } from "../preview/previewMiniPlayerLayout"
 import { DETAILS_CARD_CLEARANCE } from "./chatCanvasLayout";
 
 export const THREAD_DETAILS_CARD_GAP = 12;
+// The card ends where the composer bar ends: the status strip below it reserves this much.
+export const THREAD_DETAILS_CARD_BOTTOM_INSET = 52;
 // Keep in sync with --thread-details-panel-width.
 const THREAD_DETAILS_CARD_WIDTH = 280;
 
@@ -41,8 +43,8 @@ export function resolveThreadDetailsCardLayout({
   const y = gap + topInset;
   const height =
     overlapsDetailsCard && frame && frame.x + frame.width > x - gap && frame.x < x + width + gap
-      ? Math.min(container.height - y - gap, frame.y - y - gap)
-      : container.height - y - gap;
+      ? Math.min(container.height - y - THREAD_DETAILS_CARD_BOTTOM_INSET, frame.y - y - gap)
+      : container.height - y - THREAD_DETAILS_CARD_BOTTOM_INSET;
   if (height < 160) return null;
   return {
     x,
