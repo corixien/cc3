@@ -203,6 +203,7 @@ import { GuestPendingMessages } from "./chat/GuestShareControls";
 import { useDeviceState } from "~/state/device";
 import { BranchToolbar, type BranchToolbarHandle } from "./BranchToolbar";
 import { ComposerStatusStrip } from "./chat/ComposerStatusStrip";
+import { useSplitViewStore } from "../splitViewStore";
 import { splitPaneOwnsTarget } from "../lib/splitPaneOwner";
 import { useOpenFolderChat } from "../hooks/useOpenFolderChat";
 import { cc3LocalSlashCommand, type Cc3CommandPanelKind } from "../cc3LocalSlashCommands";
@@ -2925,6 +2926,18 @@ export default function ChatView(props: ChatViewProps) {
       else if (action === "rightPanel.toggleMaximized") toggleRightPanelMaximizedStable();
     });
   }, [embedded, splitPane, toggleRightPanelStable, toggleRightPanelMaximizedStable]);
+
+  // CC3: starting a split view folds the left chat's right panel away; it can be reopened.
+  const splitOpen = useSplitViewStore((state) => state.secondary !== null);
+  const wasSplitOpenRef = useRef(splitOpen);
+  // oxlint-disable-next-line t3code/no-unreasoned-state-sync -- reacts to the split view opening, an external store transition
+  useEffect(() => {
+    const opened = splitOpen && !wasSplitOpenRef.current;
+    wasSplitOpenRef.current = splitOpen;
+    if (opened && !embedded && !splitPane && activeThreadRef) {
+      useRightPanelStore.getState().close(activeThreadRef);
+    }
+  }, [splitOpen, embedded, splitPane, activeThreadRef]);
 
   usePasteToFocusComposer(embedded ? null : activeThreadId, composerRef);
   // A delegated task is a remote thread's subagent.
