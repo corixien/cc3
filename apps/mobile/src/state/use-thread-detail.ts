@@ -36,7 +36,7 @@ export function useSelectedThreadDetailState() {
   );
 }
 
-function useThreadProjection(target: ThreadDetailTarget): EnvironmentThread | null {
+export function useThreadProjection(target: ThreadDetailTarget): EnvironmentThread | null {
   return useAtomValue(
     target.environmentId === null || target.threadId === null
       ? EMPTY_THREAD_PROJECTION_ATOM
@@ -64,7 +64,7 @@ export function useSelectedThreadProjection(): EnvironmentThread | null {
   });
 }
 
-function useThreadVisibleTurnItems(
+export function useThreadVisibleTurnItems(
   target: ThreadDetailTarget,
 ): OrchestrationV2ThreadProjection["visibleTurnItems"] {
   return useAtomValue(

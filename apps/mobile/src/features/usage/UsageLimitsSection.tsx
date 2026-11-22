@@ -60,8 +60,10 @@ function WindowRow(props: {
   readonly now: number;
 }) {
   const { window, now } = props;
-  const remaining = remainingPercent(window);
-  const timeLeft = paceRemainingPercent(window, now);
+  const used = 100 - remainingPercent(window);
+  const timeLeftRaw = paceRemainingPercent(window, now);
+  // The tick marks how much of the window's time has passed, matching the used-quota bar.
+  const timeLeft = timeLeftRaw === null ? null : 100 - timeLeftRaw;
   const pace = paceOf(window, now);
   const m = useMessages();
   const resetsIn = resetLabels(window, now, m)?.full;
@@ -77,18 +79,15 @@ function WindowRow(props: {
     >
       <View
         className={
-          remaining <= 10
+          used >= 90
             ? "h-full rounded-full bg-red-500"
-            : remaining <= 30
+            : used >= 70
               ? "h-full rounded-full bg-amber-500"
               : "h-full rounded-full bg-foreground"
         }
-        style={[
-          { flex: remaining },
-          remaining > 30 && props.color ? { backgroundColor: props.color } : null,
-        ]}
+        style={[{ flex: used }, used < 70 && props.color ? { backgroundColor: props.color } : null]}
       />
-      <View style={{ flex: 100 - remaining }} />
+      <View style={{ flex: 100 - used }} />
     </View>
   );
   return (
@@ -97,7 +96,7 @@ function WindowRow(props: {
         <Text className="text-sm text-foreground">{window.label}</Text>
         <Text className="text-sm font-t3-medium tabular-nums text-foreground">
           <T>
-            <Var>{remaining}</Var>% left
+            <Var>{used}</Var>% used
           </T>
         </Text>
       </View>

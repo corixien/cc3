@@ -1,3 +1,5 @@
+import { EnvironmentId, ThreadId } from "@t3tools/contracts";
+import { useNavigation } from "@react-navigation/native";
 import { useGT, useMessages } from "gt-react-native";
 
 import { AppBar } from "../../components/ui/AppBar";
@@ -26,6 +28,7 @@ export function ThreadHeader(props: {
 }) {
   const gt = useGT();
   const m = useMessages();
+  const navigation = useNavigation();
   const goBack = useWorkspaceBackNavigation();
   const { toggleAuxiliaryPane, startNewTask } = useAdaptiveWorkspaceLayout();
   const { panes } = useWorkspacePaneState();
@@ -44,6 +47,17 @@ export function ThreadHeader(props: {
         },
       ]
     : [];
+  // The thread details card of the desktop: repository, folder, context, MCP servers, usage.
+  actions.push({
+    accessibilityLabel: gt("Thread details"),
+    icon: "info.circle",
+    separateBackground: false,
+    onPress: () =>
+      navigation.navigate("ThreadInfo", {
+        environmentId: EnvironmentId.make(String(props.gitControls.environmentId)),
+        threadId: ThreadId.make(String(props.gitControls.threadId)),
+      }),
+  });
   const menus = [gitMenu, terminalMenu].filter((menu): menu is AppBarMenu => menu !== null);
 
   return (
