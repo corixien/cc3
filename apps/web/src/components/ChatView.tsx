@@ -129,6 +129,7 @@ import { resolveTerminalSessionLabel } from "@t3tools/shared/terminalLabelsCopy"
 import { useAtomValue } from "@effect/atom-react";
 import {
   type MouseEvent as ReactMouseEvent,
+  type ReactNode,
   type SetStateAction,
   use,
   useEffect,
@@ -203,6 +204,7 @@ import { GuestPendingMessages } from "./chat/GuestShareControls";
 import { useDeviceState } from "~/state/device";
 import { BranchToolbar, type BranchToolbarHandle } from "./BranchToolbar";
 import { ComposerStatusStrip } from "./chat/ComposerStatusStrip";
+import { splitPaneOwnsTarget } from "../lib/splitPaneOwner";
 import { useOpenFolderChat } from "../hooks/useOpenFolderChat";
 import { cc3LocalSlashCommand, type Cc3CommandPanelKind } from "../cc3LocalSlashCommands";
 import { Cc3CommandPanel } from "./chat/Cc3CommandPanel";
@@ -431,6 +433,10 @@ type ChatViewProps =
       forceExpandedMobileComposer?: boolean;
       /** A side chat in its parent's right panel; the parent keeps the keyboard and workspace UI. */
       embedded?: SideChatParentPanel;
+      /** CC3: the second pane of the split view, a full chat that is not the routed one. */
+      splitPane?: boolean;
+      /** Buttons the split pane puts at the start of its header. */
+      splitPaneActions?: ReactNode;
       routeKind: "server";
       draftId?: never;
     }
@@ -441,6 +447,8 @@ type ChatViewProps =
       reserveTitleBarControlInset?: boolean;
       forceExpandedMobileComposer?: boolean;
       embedded?: never;
+      splitPane?: never;
+      splitPaneActions?: never;
       routeKind: "draft";
       draftId: DraftId;
     };
@@ -460,8 +468,12 @@ export default function ChatView(props: ChatViewProps) {
     reserveTitleBarControlInset = true,
     forceExpandedMobileComposer = false,
     embedded: parentPanel,
+    splitPane = false,
+    splitPaneActions,
   } = props;
   const embedded = parentPanel !== undefined;
+  const splitOwnsTarget = (target: EventTarget | null) =>
+    splitPaneOwnsTarget(splitPane ? "right" : "left", target);
   const canOperateThread = useEnvironmentScope(environmentId, AuthOrchestrationOperateScope);
   const canOperateTerminal = useEnvironmentScope(environmentId, AuthTerminalOperateScope);
   const draftId = routeKind === "draft" ? props.draftId : null;
@@ -2853,6 +2865,7 @@ export default function ChatView(props: ChatViewProps) {
   useChatShortcuts({
     enabled: activeThreadId !== null && !backgroundThread,
     embedded,
+    ownsTarget: splitOwnsTarget,
     composerElement: composerOverlayElement,
     keybindings,
     scriptKeybindings,
@@ -2910,10 +2923,11 @@ export default function ChatView(props: ChatViewProps) {
   useEffect(() => {
     if (embedded) return;
     return window.desktopBridge?.onMenuAction((action) => {
+      if (!splitPaneOwnsTarget(splitPane ? "right" : "left", null)) return;
       if (action === "rightPanel.toggle") toggleRightPanelStable();
       else if (action === "rightPanel.toggleMaximized") toggleRightPanelMaximizedStable();
     });
-  }, [embedded, toggleRightPanelStable, toggleRightPanelMaximizedStable]);
+  }, [embedded, splitPane, toggleRightPanelStable, toggleRightPanelMaximizedStable]);
 
   usePasteToFocusComposer(embedded ? null : activeThreadId, composerRef);
   // A delegated task is a remote thread's subagent.
@@ -3487,6 +3501,7 @@ export default function ChatView(props: ChatViewProps) {
             ) : null}
             {!rightPanelControlsAtRoot && !rightPanelControlsInPanel ? panelLayoutControls : null}
             {inlineRightPanelOwnsTitleBar ? threadPanelHeaderControl : null}
+            {splitPaneActions}
             <ChatHeader
               activeThreadEnvironmentId={activeThread.environmentId}
               activeThreadId={activeThread.id}

@@ -17,8 +17,8 @@ export const DEFAULT_SANS_FONT_STACK =
 export const DEFAULT_CODE_FONT_STACK =
   '"SF Mono", "SFMono-Regular", Menlo, Consolas, "Liberation Mono", monospace';
 
-/** Terminals default to the interface font; an explicit font setting still wins. */
-const DEFAULT_TERMINAL_FONT_STACK = '"Lexend Deca", "Liberation Mono", monospace';
+/** A cell grid needs a monospace font: a proportional one misaligns the cursor and the text. */
+const DEFAULT_TERMINAL_FONT_STACK = '"Liberation Mono", monospace';
 
 export const TYPOGRAPHY_ADVANCED_STORAGE_KEY = "t3code:typography-advanced";
 

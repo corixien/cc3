@@ -6,16 +6,12 @@ import { useGT } from "gt-react";
 import { ArrowLeftRightIcon, PanelLeftCloseIcon, XIcon } from "lucide-react";
 import { useEffect } from "react";
 
-import { ComposerHandleContext } from "../composerHandleContext";
 import { useQuietThreadShell } from "../state/entities";
 import { useSplitViewStore } from "../splitViewStore";
 import { buildThreadRouteParams } from "../threadRoutes";
 import ChatView from "./ChatView";
-import { BackgroundThreadContext } from "./chat/backgroundThread";
 import { Button } from "./ui/button";
 import { Tooltip, TooltipPopup, TooltipTrigger } from "./ui/tooltip";
-
-const NO_PARENT_PANEL = { openToolDiff: () => {}, runShellCommand: () => {} };
 
 function sameThread(a: ScopedThreadRef | null, b: ScopedThreadRef | null) {
   return (
@@ -171,34 +167,29 @@ export function SplitChatPane({ routeThread }: { routeThread: ScopedThreadRef | 
           <TooltipPopup side="bottom">{gt("Swap sides")}</TooltipPopup>
         </Tooltip>
       </div>
-      <div className="drag-region relative z-50 flex h-[var(--workspace-topbar-height)] min-h-[var(--workspace-topbar-height)] shrink-0 items-center gap-1 pl-3 pr-2 wco:pr-(--workspace-native-controls-inset)">
-        <span className="min-w-0 flex-1 truncate text-sm font-medium">
-          {shell?.title ?? gt("Chat")}
-        </span>
-        {button(
-          gt("Remove the left chat (this chat takes the full width)"),
-          () => {
-            close();
-            openOnLeft(secondary);
-          },
-          <PanelLeftCloseIcon className="size-4" />,
-        )}
-        {button(gt("Close split view"), close, <XIcon className="size-4" />)}
-      </div>
       {shell === null ? (
         <p className="p-3 text-xs text-muted-foreground">{gt("This chat is not available.")}</p>
       ) : (
-        <BackgroundThreadContext value>
-          <ComposerHandleContext value={null}>
-            <ChatView
-              key={`${secondary.environmentId}:${secondary.threadId}`}
-              environmentId={secondary.environmentId}
-              threadId={secondary.threadId}
-              routeKind="server"
-              embedded={NO_PARENT_PANEL}
-            />
-          </ComposerHandleContext>
-        </BackgroundThreadContext>
+        <ChatView
+          key={`${secondary.environmentId}:${secondary.threadId}`}
+          environmentId={secondary.environmentId}
+          threadId={secondary.threadId}
+          routeKind="server"
+          splitPane
+          splitPaneActions={
+            <div className="mr-2 flex shrink-0 items-center gap-1 [-webkit-app-region:no-drag]">
+              {button(
+                gt("Remove the left chat (this chat takes the full width)"),
+                () => {
+                  close();
+                  openOnLeft(secondary);
+                },
+                <PanelLeftCloseIcon className="size-4" />,
+              )}
+              {button(gt("Close split view"), close, <XIcon className="size-4" />)}
+            </div>
+          }
+        />
       )}
     </aside>
   );

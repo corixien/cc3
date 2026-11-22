@@ -36,6 +36,8 @@ interface ChatShortcutsInput {
    * composer chords, for keys pressed inside `composerElement`.
    */
   readonly embedded?: boolean;
+  /** False when another split pane owns the event. */
+  readonly ownsTarget?: (target: EventTarget | null) => boolean;
   readonly composerElement?: HTMLElement | null;
   readonly keybindings: ResolvedKeybindingsConfig;
   readonly scriptKeybindings: ResolvedKeybindingsConfig;
@@ -72,6 +74,7 @@ export function useChatShortcuts(input: ChatShortcutsInput) {
       return;
     }
     if (!input.enabled || isCommandPaletteOpen()) return;
+    if (input.ownsTarget && !input.ownsTarget(event.target)) return;
     const inSideChatPane = isInSideChatPane(event.target);
     const terminalFocusOwner = getTerminalFocusOwner();
     if (event.defaultPrevented && terminalFocusOwner === null) return;
@@ -109,6 +112,7 @@ export function useChatShortcuts(input: ChatShortcutsInput) {
       event.isComposing ||
       event.keyCode === 229 ||
       isCommandPaletteOpen() ||
+      (input.ownsTarget && !input.ownsTarget(event.target)) ||
       isInSideChatPane(event.target)
     )
       return;
@@ -119,6 +123,7 @@ export function useChatShortcuts(input: ChatShortcutsInput) {
   });
   const handleComposerShortcut = useEffectEvent((event: KeyboardEvent) => {
     if (event.defaultPrevented || isCommandPaletteOpen()) return;
+    if (input.ownsTarget && !input.ownsTarget(event.target)) return;
     const command = resolveChatShortcutCommand(event, input.keybindings, input.scriptKeybindings, {
       context: input.getShortcutContext(event.target),
     });

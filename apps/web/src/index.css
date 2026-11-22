@@ -2683,7 +2683,7 @@ html[data-split-focus="left"] [data-split-chat-pane]::after {
 }
 /* The top-right layout controls belong to the left chat: they sit at the right edge of the left pane,
    clear of the right pane and its native window buttons. */
-html[data-split-active] {
+html[data-split-active] main[data-slot="sidebar-inset"] {
   --workspace-controls-right: calc(
     env(safe-area-inset-right) + 0.75rem + var(--cc3-split-right-width, 0px)
   );
