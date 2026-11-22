@@ -37,6 +37,7 @@ export interface PanelLayoutControlsProps {
   onToggleTerminal: () => void;
   onToggleThreadPanel: () => void;
   onToggleRightPanel: () => void;
+  trailing?: ReactNode;
 }
 
 export const PanelLayoutControls = memo(function PanelLayoutControls({
@@ -57,6 +58,7 @@ export const PanelLayoutControls = memo(function PanelLayoutControls({
   onToggleTerminal,
   onToggleThreadPanel,
   onToggleRightPanel,
+  trailing,
 }: PanelLayoutControlsProps) {
   const gt = useGT();
   const threadPanelToggle = (
@@ -143,6 +145,7 @@ export const PanelLayoutControls = memo(function PanelLayoutControls({
           </TooltipPopup>
         </Tooltip>
       ) : null}
+      {trailing}
     </div>
   );
 });

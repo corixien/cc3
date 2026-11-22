@@ -129,7 +129,6 @@ import { resolveTerminalSessionLabel } from "@t3tools/shared/terminalLabelsCopy"
 import { useAtomValue } from "@effect/atom-react";
 import {
   type MouseEvent as ReactMouseEvent,
-  type ReactNode,
   type SetStateAction,
   use,
   useEffect,
@@ -323,6 +322,7 @@ import {
   ThreadPanelHeaderControl,
   WorkspaceTitlebarControls,
 } from "./chat/PanelLayoutControls";
+import { SplitPaneControls } from "./chat/SplitPaneControls";
 import type { ExpandedImagePreview } from "./chat/ExpandedImagePreview";
 import { ThreadDetailsPanel } from "./chat/ThreadDetailsPanel";
 import { NoActiveThreadState } from "./NoActiveThreadState";
@@ -436,7 +436,6 @@ type ChatViewProps =
       /** CC3: the second pane of the split view, a full chat that is not the routed one. */
       splitPane?: boolean;
       /** Buttons the split pane puts at the start of its header. */
-      splitPaneActions?: ReactNode;
       routeKind: "server";
       draftId?: never;
     }
@@ -448,7 +447,6 @@ type ChatViewProps =
       forceExpandedMobileComposer?: boolean;
       embedded?: never;
       splitPane?: never;
-      splitPaneActions?: never;
       routeKind: "draft";
       draftId: DraftId;
     };
@@ -469,7 +467,6 @@ export default function ChatView(props: ChatViewProps) {
     forceExpandedMobileComposer = false,
     embedded: parentPanel,
     splitPane = false,
-    splitPaneActions,
   } = props;
   const embedded = parentPanel !== undefined;
   const splitOwnsTarget = (target: EventTarget | null) =>
@@ -3433,6 +3430,7 @@ export default function ChatView(props: ChatViewProps) {
     <PanelLayoutControls
       {...panelToggleControlProps}
       showThreadPanelControl={!inlineRightPanelOwnsTitleBar}
+      trailing={<SplitPaneControls />}
     />
   );
   const threadPanelHeaderControl = <ThreadPanelHeaderControl {...panelToggleControlProps} />;
@@ -3501,7 +3499,6 @@ export default function ChatView(props: ChatViewProps) {
             ) : null}
             {!rightPanelControlsAtRoot && !rightPanelControlsInPanel ? panelLayoutControls : null}
             {inlineRightPanelOwnsTitleBar ? threadPanelHeaderControl : null}
-            {splitPaneActions}
             <ChatHeader
               activeThreadEnvironmentId={activeThread.environmentId}
               activeThreadId={activeThread.id}

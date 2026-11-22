@@ -250,6 +250,7 @@ export default function Cc3Sidebar() {
     const routed = params.environmentId === thread.environmentId && params.threadId === thread.id;
     if (splitSecondary !== null && splitFocus === "right" && !routed) {
       openInSplit(scopeThreadRef(thread.environmentId, thread.id));
+      setSidebarOpen(false);
       return;
     }
     void navigate({

@@ -497,9 +497,26 @@ function RightPanelEmptyState(props: {
   const highlightIndex =
     availableActions.length === 0 ? -1 : Math.min(highlight, availableActions.length - 1);
 
+  const splitTriggerRef = useRef<HTMLButtonElement>(null);
   const handleShortcut = useEffectEvent((event: KeyboardEvent) => {
     const action = surfaceShortcutActionForKey(availableActions, event);
-    if (!action) return;
+    if (!action) {
+      // CC3: V opens the split view menu.
+      if (
+        event.key.toLowerCase() === "v" &&
+        !event.metaKey &&
+        !event.ctrlKey &&
+        !event.altKey &&
+        !document.querySelector(LAUNCHER_SHORTCUT_BLOCKING_LAYERS)
+      ) {
+        const target = event.composedPath()[0] ?? event.target;
+        if (target instanceof Element && surfaceShortcutTargetsTypingContext(target)) return;
+        event.preventDefault();
+        event.stopPropagation();
+        splitTriggerRef.current?.click();
+      }
+      return;
+    }
     if (document.querySelector(LAUNCHER_SHORTCUT_BLOCKING_LAYERS)) return;
     const target = event.composedPath()[0] ?? event.target;
     if (target instanceof Element && surfaceShortcutTargetsTypingContext(target)) return;
@@ -649,6 +666,7 @@ function RightPanelEmptyState(props: {
             <MenuTrigger
               render={
                 <button
+                  ref={splitTriggerRef}
                   type="button"
                   className="flex h-8 w-full cursor-pointer items-center gap-2.5 rounded-(--control-radius) px-2.5 text-left text-sm transition-colors hover:bg-accent/60"
                 />
@@ -656,6 +674,7 @@ function RightPanelEmptyState(props: {
             >
               <Columns2 className="size-4 shrink-0" />
               <span className="min-w-0 flex-1 truncate">{gt("Split view")}</span>
+              <Kbd>V</Kbd>
             </MenuTrigger>
             <MenuPopup align="start" side="bottom" sideOffset={6} className="max-h-80 min-w-56">
               <SplitViewItems />

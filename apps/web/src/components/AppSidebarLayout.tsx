@@ -44,7 +44,6 @@ import ThreadSidebar from "./Cc3Sidebar";
 import { SidebarBrandWidthProbe } from "./sidebar/SidebarChrome";
 import { isAppModalPage } from "./sidebar/mainAppLocation";
 import type { SidebarRouteReveal } from "./sidebar/routeReveal";
-import { useSplitViewStore } from "../splitViewStore";
 import { useSidebarStageBackdropVariant } from "./SidebarStageBackdrop";
 import {
   clampThreadSidebarWidth,
@@ -409,14 +408,6 @@ function SidebarControl({ showSidebar }: { readonly showSidebar: boolean }) {
                   isSidebarVisible && stageBackdropVariant && "relative top-auto translate-y-0",
                 )}
                 aria-label={gt("Toggle main sidebar")}
-                onClick={(event) => {
-                  // CC3: the split chat acts as the left chat's sidebar, so the toggle closes it.
-                  const split = useSplitViewStore.getState();
-                  if (split.secondary !== null && !isSidebarVisible) {
-                    event.preventDefault();
-                    split.close();
-                  }
-                }}
               />
             }
           />

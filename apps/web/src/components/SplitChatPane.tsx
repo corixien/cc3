@@ -3,7 +3,7 @@
 import type { ScopedThreadRef } from "@t3tools/contracts";
 import { useNavigate } from "@tanstack/react-router";
 import { useGT } from "gt-react";
-import { ArrowLeftRightIcon, PanelLeftCloseIcon, XIcon } from "lucide-react";
+import { ArrowLeftRightIcon } from "lucide-react";
 import { useEffect } from "react";
 
 import { useQuietThreadShell } from "../state/entities";
@@ -23,7 +23,6 @@ export function SplitChatPane({ routeThread }: { routeThread: ScopedThreadRef | 
   const gt = useGT();
   const navigate = useNavigate();
   const secondary = useSplitViewStore((state) => state.secondary);
-  const close = useSplitViewStore((state) => state.close);
   const open = useSplitViewStore((state) => state.open);
   const focus = useSplitViewStore((state) => state.focus);
   const ratio = useSplitViewStore((state) => state.ratio);
@@ -87,25 +86,6 @@ export function SplitChatPane({ routeThread }: { routeThread: ScopedThreadRef | 
 
   const openOnLeft = (ref: ScopedThreadRef) =>
     void navigate({ to: "/$environmentId/$threadId", params: buildThreadRouteParams(ref) });
-  const button = (label: string, onClick: () => void, icon: React.ReactNode) => (
-    <Tooltip>
-      <TooltipTrigger
-        render={
-          <Button
-            variant="ghost"
-            size="icon"
-            aria-label={label}
-            onClick={onClick}
-            className="size-[var(--workspace-titlebar-control-size)]! [-webkit-app-region:no-drag]"
-          />
-        }
-      >
-        {icon}
-      </TooltipTrigger>
-      <TooltipPopup side="bottom">{label}</TooltipPopup>
-    </Tooltip>
-  );
-
   const swap = () => {
     open(routeThread);
     openOnLeft(secondary);
@@ -176,19 +156,6 @@ export function SplitChatPane({ routeThread }: { routeThread: ScopedThreadRef | 
           threadId={secondary.threadId}
           routeKind="server"
           splitPane
-          splitPaneActions={
-            <div className="mr-2 flex shrink-0 items-center gap-1 [-webkit-app-region:no-drag]">
-              {button(
-                gt("Remove the left chat (this chat takes the full width)"),
-                () => {
-                  close();
-                  openOnLeft(secondary);
-                },
-                <PanelLeftCloseIcon className="size-4" />,
-              )}
-              {button(gt("Close split view"), close, <XIcon className="size-4" />)}
-            </div>
-          }
         />
       )}
     </aside>
