@@ -30,10 +30,10 @@ it.each([
   [411, 22 / 16, 77, 4, 73.4],
   [320, 22 / 16, 77, 2, 77],
 ] as const)(
-  "fills a %sdp row at scale %s beside a %sdp compose button",
+  "fills a %sdp row at scale %s with a %sdp compose slot in the dock",
   (width, scale, fabSize, count, height) => {
     const metrics = floatingTabsMetrics(count, scale, fabSize, width, true);
-    expect(metrics.pill + 2 * 16 + 12 + metrics.height).toBeCloseTo(width);
+    expect(metrics.pill + 2 * 16).toBeCloseTo(width);
     expect(metrics.height).toBeCloseTo(height);
     expect(metrics.pill / count).toBeGreaterThanOrEqual(metrics.height - 0.001);
   },

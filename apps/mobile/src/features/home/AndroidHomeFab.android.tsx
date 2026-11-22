@@ -63,7 +63,8 @@ export function AndroidHomeFabLayout(props: ComponentProps<typeof SharedAndroidH
         <FabScrollContext value={onScroll}>{props.children}</FabScrollContext>
       </WorkspaceTabsContext>
       {!props.disabled &&
-      (!props.sidebar || floatingTabsEnabled) &&
+      !floatingTabsEnabled &&
+      !props.sidebar &&
       state.hasConnections &&
       layoutWidth !== null ? (
         <ScrollComposeButton

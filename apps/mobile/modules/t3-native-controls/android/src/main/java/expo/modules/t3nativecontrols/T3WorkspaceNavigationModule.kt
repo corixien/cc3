@@ -17,6 +17,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.foundation.shape.CircleShape
@@ -246,6 +247,28 @@ class T3WorkspaceNavigationView(
               tint = tint,
             )
           }
+        }
+        // New chat lives in the dock as its last slot, so it never floats apart or disappears.
+        Box(
+          modifier = Modifier
+            .weight(1f)
+            .fillMaxHeight()
+            .clip(CircleShape)
+            .clickable(enabled = newEnabled, role = Role.Button) {
+              onNewThread(emptyMap<String, Any>())
+            }
+            .semantics { contentDescription = "New thread" }
+            .padding(4.dp)
+            .alpha(if (newEnabled) 1f else DISABLED_ALPHA)
+            .background(Color(actionColor), CircleShape),
+          contentAlignment = Alignment.Center,
+        ) {
+          Icon(
+            painterResource(R.drawable.t3_new_thread),
+            contentDescription = null,
+            modifier = Modifier.size((24 * textScale).dp),
+            tint = Color(actionContentColor),
+          )
         }
       }
     }

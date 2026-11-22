@@ -18,8 +18,11 @@ export function floatingTabsMetrics(
   const beside = spacing + height;
   const room = paneWidth === undefined ? count * 60 * unit : paneWidth - beside;
   return {
-    // Reserve the compose slot even while its button is hidden.
-    pill: Math.max(0, fillWidth ? room : Math.min(count * 72 * unit, room)),
+    // The compose button is the dock's last slot, so the pill spans the former button's room too.
+    pill: Math.max(
+      0,
+      (fillWidth ? room : Math.min(count * 72 * unit, room)) + FLOATING_TABS.gap + height,
+    ),
     height,
     row: beside + count * 60 * unit,
   };

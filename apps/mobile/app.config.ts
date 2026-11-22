@@ -125,9 +125,9 @@ const iosBundleIdentifier = isIosPersonalTeamBuild
   : variant.iosBundleIdentifier;
 
 const dmSansFonts = {
-  regular: "@expo-google-fonts/dm-sans/400Regular/DMSans_400Regular.ttf",
-  medium: "@expo-google-fonts/dm-sans/500Medium/DMSans_500Medium.ttf",
-  bold: "@expo-google-fonts/dm-sans/700Bold/DMSans_700Bold.ttf",
+  regular: "./assets/fonts/LexendDeca-Regular.ttf",
+  medium: "./assets/fonts/LexendDeca-Medium.ttf",
+  bold: "./assets/fonts/LexendDeca-Bold.ttf",
 } as const;
 
 const widgetsPlugin: NonNullable<ExpoConfig["plugins"]>[number] = [
@@ -327,15 +327,15 @@ const config: ExpoConfig = {
         android: {
           fonts: [
             {
-              fontFamily: "DMSans-Regular",
+              fontFamily: "LexendDeca-Regular",
               fontDefinitions: [{ path: dmSansFonts.regular, weight: 400 }],
             },
             {
-              fontFamily: "DMSans-Medium",
+              fontFamily: "LexendDeca-Medium",
               fontDefinitions: [{ path: dmSansFonts.medium, weight: 500 }],
             },
             {
-              fontFamily: "DMSans-Bold",
+              fontFamily: "LexendDeca-Bold",
               fontDefinitions: [{ path: dmSansFonts.bold, weight: 700 }],
             },
           ],

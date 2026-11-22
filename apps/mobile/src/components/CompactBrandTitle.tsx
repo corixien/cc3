@@ -5,13 +5,11 @@ import { useState } from "react";
 import { Platform, View } from "react-native";
 
 import { AppText as Text } from "./ui/AppText";
-import { T3Wordmark } from "./T3Wordmark";
 import { IPAD_HOME_TITLE_OFFSET } from "../lib/layoutMetrics";
 import { resolveMobileStageLabel } from "../lib/mobileBranding";
 import { useAndroidControlSizing } from "./ui/useAndroidControlSizing";
 
 const BRAND_MAX_FONT_SCALE = 1.4;
-const WORDMARK_SUFFIX = "Code";
 
 export function brandTitleOffset(): number {
   if (Platform.OS !== "ios") return 0;
@@ -33,8 +31,11 @@ export function CompactBrandTitle(
   const [availableWidth, setAvailableWidth] = useState<number | null>(null);
   // Measured only while the badge shows, so hiding it does not make it look like it fits.
   const [fullWidth, setFullWidth] = useState<number | null>(null);
+  // The release build is just "CC3"; only dev and preview builds carry a badge.
+  const stageBadge = stageLabel !== "Beta";
   const showStage =
-    !props.fit || availableWidth === null || fullWidth === null || fullWidth <= availableWidth;
+    stageBadge &&
+    (!props.fit || availableWidth === null || fullWidth === null || fullWidth <= availableWidth);
 
   const title = (
     <View
@@ -52,15 +53,13 @@ export function CompactBrandTitle(
         props.fit && { flexShrink: 0 },
       ]}
     >
-      <T3Wordmark colorClassName="accent-icon" height={Math.round(15 * scale)} />
-      {/* A logo beside a fixed-size wordmark: it may grow with Dynamic Type, not crowd the bar. */}
       <Text
         allowFontScaling={props.allowFontScaling}
         maxFontSizeMultiplier={BRAND_MAX_FONT_SCALE}
-        className="font-t3-medium text-foreground-muted"
+        className="font-t3-bold text-foreground"
         style={{ fontSize: 21 * scale, letterSpacing: -0.5 * scale }}
       >
-        {WORDMARK_SUFFIX}
+        CC3
       </Text>
       {showStage ? (
         <View
