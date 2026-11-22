@@ -3,6 +3,7 @@ import { errorDisplayMessage } from "@t3tools/client-runtime/errors";
 import { DraftEnvironmentControl } from "./DraftEnvironmentControl";
 import { NativeScrollEdgeEffectsContext } from "../../native/NativeScrollViewMarker";
 import { DraftThreadHeader } from "./DraftThreadHeader";
+import { DraftHeroGreeting } from "./DraftHeroGreeting";
 import { useComposerAttachmentActions } from "../../state/use-composer-attachment-actions";
 import { useWorkspaceBackNavigation } from "../layout/workspace/useAndroidWorkspaceNavigation";
 import { submittedThreadParams } from "./thread-route-state";
@@ -758,65 +759,9 @@ export function NewTaskDraftScreen(props: {
       <T>The shared content is no longer in the inbox. You can continue editing this task draft.</T>
     </Text>
   ) : null;
-  const headingParts = gt("What should we build in {project}?", {
-    project: HEADING_PROJECT_SLOT,
-  }).split(HEADING_PROJECT_SLOT);
-  const headingBefore = headingParts[0] ?? "";
-  const headingAfter = headingParts[1] ?? "";
-  const headingBreak = headingBefore.trimEnd().lastIndexOf(" ");
-  const headingFirstLine = headingBreak < 0 ? headingBefore : headingBefore.slice(0, headingBreak);
-  const headingLead = headingBreak < 0 ? "" : headingBefore.slice(headingBreak + 1);
-  const hero = flow.isScratchDraft ? (
+  const hero = (
     <View className="items-center gap-2 px-6" testID="new-task-hero">
-      <Text className="text-center text-2xl font-t3-medium tracking-tight text-foreground">
-        <T>What should we work on?</T>
-      </Text>
-      <View className="flex-row flex-wrap items-center justify-center gap-x-1">
-        <ComposerInlineControl
-          accessibilityHint={gt("Opens the project picker")}
-          accessibilityLabel={gt("No project")}
-          chevronDirection="right"
-          disabled={isComposerInteractionLocked}
-          icon="folder"
-          label={gt("No project")}
-          onPress={chooseProject}
-        />
-        {environmentControl}
-      </View>
-      {shareUnavailableNotice}
-    </View>
-  ) : (
-    <View className="items-center gap-6 px-6" testID="new-task-hero">
-      <View className="w-full items-center gap-1.5">
-        <Text className="text-center text-2xl font-t3-medium tracking-tight text-foreground">
-          {headingFirstLine}
-        </Text>
-        <View className="max-w-full flex-row items-center justify-center">
-          <Text className="text-2xl font-t3-medium tracking-tight text-foreground">
-            {headingLead}
-          </Text>
-          <Pressable
-            accessibilityHint={gt("Opens the project picker")}
-            accessibilityLabel={selectedProjectLabel ?? selectedProject.title}
-            accessibilityRole="button"
-            disabled={isComposerInteractionLocked}
-            onPress={chooseProject}
-            className="min-w-0 max-w-[250px] border-b border-foreground-muted active:opacity-65"
-          >
-            <Text
-              className="text-2xl font-t3-medium tracking-tight text-foreground"
-              numberOfLines={1}
-            >
-              {selectedProjectLabel ?? selectedProject.title}
-            </Text>
-          </Pressable>
-          <Text className="text-2xl font-t3-medium tracking-tight text-foreground">
-            {headingAfter}
-          </Text>
-        </View>
-      </View>
-
-      {environmentControl}
+      <DraftHeroGreeting />
       {shareUnavailableNotice}
     </View>
   );
@@ -872,32 +817,6 @@ export function NewTaskDraftScreen(props: {
           label={contextProjectLabel}
           maxWidth="100%"
           onPress={chooseProject}
-        />
-      </View>
-      <View className="min-w-0 shrink">
-        <ComposerInlineControl
-          accessibilityLabel={
-            connectionState === "connected"
-              ? gt("Choose environment, {label}, Connected", { label: selectedEnvironmentLabel })
-              : gt("Choose environment, {label}, Offline", { label: selectedEnvironmentLabel })
-          }
-          chevronDirection="right"
-          disabled={isComposerInteractionLocked}
-          renderIcon={(size) => (
-            <EnvironmentMachineSymbol
-              kind={resolveEnvironmentMachineKind(selectedEnvironmentServerConfig)}
-              size={size}
-              tintColorClassName="accent-icon-muted"
-            />
-          )}
-          label={selectedEnvironmentLabel}
-          maxWidth="100%"
-          onPress={() => openContextPicker("NewTaskEnvironment")}
-          suffix={
-            connectionState === "connected" ? null : (
-              <ConnectionStatusDot state="error" pulse={false} size={6} />
-            )
-          }
         />
       </View>
     </View>
@@ -970,7 +889,7 @@ export function NewTaskDraftScreen(props: {
           />
         </View>
       ) : null}
-      {viewportHeight < SHORT_DRAFT_VIEWPORT_HEIGHT ? contextControls : null}
+      {!flow.isScratchDraft ? contextControls : null}
       {flow.canChooseWorkspace ? workspaceControls : null}
     </View>
   );

@@ -89,7 +89,7 @@ export function ThreadInfoSheet({ route }: StaticScreenProps<InfoTarget>) {
   const max = context?.maxTokens != null && context.maxTokens > 0 ? context.maxTokens : null;
   const used = context?.usedTokens ?? 0;
   const usedPercent = max !== null ? Math.min(100, Math.max(0, (used / max) * 100)) : null;
-  const categories = [...(context?.contextCategories ?? [])].toSorted((a, b) => {
+  const categories = [...(context?.contextCategories ?? [])].sort((a, b) => {
     const order = { used: 0, buffer: 1, free: 2, deferred: 3 } as const;
     return order[a.kind] - order[b.kind] || b.tokens - a.tokens;
   });

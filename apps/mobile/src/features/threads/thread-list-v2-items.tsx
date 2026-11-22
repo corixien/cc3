@@ -95,6 +95,9 @@ import { useScaledTextRole } from "../settings/appearance/useScaledTextRole";
 import { PullRequestGlyph } from "../pull-requests/pullRequestGlyphs";
 import { pullRequestStatus } from "../pull-requests/pullRequestStatus";
 
+// CC3: the desktop list shows chats by title and status only, without project icons.
+const SHOW_PROJECT_ICONS = false;
+
 interface StatusLabel {
   // Null when the icon and timer carry the status on their own.
   readonly label: string | null;
@@ -536,11 +539,11 @@ export const ThreadListV2PendingRow = memo(function ThreadListV2PendingRow(props
     [onDeletePendingTask, pendingTask],
   );
 
-  const titleTextInset = props.project ? projectIconSize + 8 : 0;
+  const titleTextInset = SHOW_PROJECT_ICONS && props.project ? projectIconSize + 8 : 0;
   const rowContent = (
     <>
       <View className="flex-row items-start gap-2">
-        {props.project ? (
+        {SHOW_PROJECT_ICONS && props.project ? (
           <View className="justify-center" style={{ height: titleLineHeight }}>
             <ProjectFavicon
               environmentId={pendingTask.environmentId}
@@ -1348,11 +1351,11 @@ export const ThreadListV2Row = memo(function ThreadListV2Row(props: {
       ? primaryAction.swipeHint
       : primaryAction.swipeSnoozeHint;
 
-  const titleTextInset = props.project ? projectIconSize + 8 : 0;
+  const titleTextInset = SHOW_PROJECT_ICONS && props.project ? projectIconSize + 8 : 0;
   const cardContent = (
     <>
       <View className="flex-row items-start gap-2">
-        {props.project ? (
+        {SHOW_PROJECT_ICONS && props.project ? (
           <View className="justify-center" style={{ height: titleLineHeight }}>
             <ProjectFavicon
               environmentId={thread.environmentId}
@@ -1672,7 +1675,7 @@ export const ThreadListV2Row = memo(function ThreadListV2Row(props: {
             sidebarPane && "px-3",
           )}
         >
-          {props.project ? (
+          {SHOW_PROJECT_ICONS && props.project ? (
             <View className="opacity-40">
               <ProjectFavicon
                 environmentId={thread.environmentId}
