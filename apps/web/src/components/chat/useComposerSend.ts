@@ -220,7 +220,7 @@ interface ComposerSendInput {
   readonly usageLimitsOffered: boolean;
   readonly openUsageLimits: UsageLimitsPanel["open"];
   /** CC3: runs a slash command CC3 answers itself; true when it handled the prompt. */
-  readonly runLocalSlashCommand?: ((name: string) => void) | undefined;
+  readonly runLocalSlashCommand?: ((name: string, args: string) => void) | undefined;
   readonly clearUsageLimitsFor: UsageLimitsPanel["clearFor"];
   readonly needsLoadBalancing: boolean;
   readonly loadBalancing: DraftEnvironmentRouting["loadBalancing"];
@@ -423,7 +423,7 @@ export function useComposerSend(input: ComposerSendInput) {
       promptRef.current = "";
       setComposerDraftPrompt(composerDraftTarget, "");
       composerRef.current?.resetCursorState();
-      runLocalSlashCommand(localSlash.name);
+      runLocalSlashCommand(localSlash.name, localSlash.args);
       return;
     }
 

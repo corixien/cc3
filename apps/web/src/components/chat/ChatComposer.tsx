@@ -396,7 +396,7 @@ export interface ChatComposerProps {
   onToggleKeepFullHistory: () => void;
   onUsageLimitsCommand?: (() => void) | undefined;
   /** CC3: runs a slash command CC3 answers itself (see cc3LocalSlashCommands.ts). */
-  onLocalSlashCommand?: ((name: string) => void) | undefined;
+  onLocalSlashCommand?: ((name: string, args: string) => void) | undefined;
   sideChatAvailable?: boolean;
   sideChatDisabledReason?: string | null;
   /** Arms a fresh session for the next message; absent where `/clear` is unavailable. */
@@ -2004,7 +2004,7 @@ export const ChatComposer = memo(function ChatComposer(props: ChatComposerProps)
         });
         if (applied) {
           setComposerHighlightedItemId(null);
-          props.onLocalSlashCommand?.(item.command);
+          props.onLocalSlashCommand?.(item.command, "");
         }
         return;
       }

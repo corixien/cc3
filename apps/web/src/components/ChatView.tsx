@@ -206,7 +206,11 @@ import { ComposerStatusStrip } from "./chat/ComposerStatusStrip";
 import { useSplitViewStore } from "../splitViewStore";
 import { splitPaneOwnsTarget } from "../lib/splitPaneOwner";
 import { useOpenFolderChat } from "../hooks/useOpenFolderChat";
-import { cc3LocalSlashCommand, type Cc3CommandPanelKind } from "../cc3LocalSlashCommands";
+import {
+  CC3_CLI_ARGUMENT_COMMANDS,
+  cc3LocalSlashCommand,
+  type Cc3CommandPanelKind,
+} from "../cc3LocalSlashCommands";
 import { Cc3CommandPanel } from "./chat/Cc3CommandPanel";
 import { openCommandPalette } from "../commandPaletteBus";
 import { ComposerContextPermissions } from "./ComposerContextPermissions";
@@ -1560,7 +1564,7 @@ export default function ChatView(props: ChatViewProps) {
     readonly name: string;
     readonly status: string;
   }> | null>(null);
-  const runLocalSlashCommand = useStableCallback((name: string) => {
+  const runLocalSlashCommand = useStableCallback((name: string, args: string) => {
     const command = cc3LocalSlashCommand(name);
     if (!command) return;
     const answerLocally = () => {
@@ -1578,7 +1582,9 @@ export default function ChatView(props: ChatViewProps) {
     };
     const cwd = activeThread?.worktreePath ?? activeProject?.workspaceRoot ?? gitCwd ?? null;
     // Informational commands run on the CLI; settings-style ones keep their CC3 screens.
-    const cliAnswers = ["mcp", "context", "status", "cost"].includes(name);
+    const cliRunsArguments = args.length > 0 && CC3_CLI_ARGUMENT_COMMANDS.has(name);
+    const cliAnswers = cliRunsArguments || ["mcp", "context", "status", "cost"].includes(name);
+    const cliCommand = cliRunsArguments ? `/${name} ${args}` : `/${name}`;
     if (
       !cliAnswers ||
       String(activeProviderStatus?.driver) !== "claudeAgent" ||
@@ -1589,7 +1595,7 @@ export default function ChatView(props: ChatViewProps) {
       return;
     }
     setCliMcpServers(null);
-    setCliResult({ command: `/${name}`, output: "", pending: true });
+    setCliResult({ command: cliCommand, output: "", pending: true });
     setCommandPanel("cli");
     void runCliCommand({
       environmentId,
@@ -1597,7 +1603,7 @@ export default function ChatView(props: ChatViewProps) {
         instanceId: activeProviderStatus.instanceId,
         cwd,
         ...(isServerThread && activeThread ? { threadId: activeThread.id } : {}),
-        command: `/${name}`,
+        command: cliCommand,
       },
     }).then((result) => {
       if (result._tag !== "Success" || !result.value.supported) {
@@ -1605,12 +1611,12 @@ export default function ChatView(props: ChatViewProps) {
         answerLocally();
         return;
       }
-      if (name === "mcp" && result.value.mcpServers) {
+      if (name === "mcp" && !cliRunsArguments && result.value.mcpServers) {
         setCliMcpServers(result.value.mcpServers);
         setCommandPanel("connectors");
         return;
       }
-      setCliResult({ command: `/${name}`, output: result.value.output, pending: false });
+      setCliResult({ command: cliCommand, output: result.value.output, pending: false });
     });
   });
   const activeWorkStartedAt =

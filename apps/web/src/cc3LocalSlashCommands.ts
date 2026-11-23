@@ -59,6 +59,11 @@ export const CC3_LOCAL_SLASH_COMMANDS = [
     action: { kind: "panel", panel: "integrations" },
   },
   {
+    name: "plugin",
+    description: "Manage plugins and marketplaces",
+    action: { kind: "panel", panel: "integrations" },
+  },
+  {
     name: "plugins",
     description: "Manage plugins and integrations",
     action: { kind: "panel", panel: "integrations" },
@@ -97,7 +102,18 @@ export function cc3LocalSlashCommand(name: string): Cc3LocalSlashCommand | null 
 }
 
 /** `/mcp` or `/mcp extra words`, and only a command CC3 answers itself. */
-export function parseCc3LocalSlash(prompt: string): Cc3LocalSlashCommand | null {
-  const match = /^\/([a-z][a-z-]*)(?:\s.*)?$/i.exec(prompt.trim());
-  return match?.[1] ? cc3LocalSlashCommand(match[1].toLowerCase()) : null;
+export function parseCc3LocalSlash(
+  prompt: string,
+): (Cc3LocalSlashCommand & { readonly args: string }) | null {
+  const match = /^\/([a-z][a-z-]*)(?:\s+(.*))?$/is.exec(prompt.trim());
+  const command = match?.[1] ? cc3LocalSlashCommand(match[1].toLowerCase()) : null;
+  return command ? { ...command, args: match?.[2]?.trim() ?? "" } : null;
 }
+
+/** Commands whose arguments the Claude CLI runs itself (`claude mcp add ...`, `claude plugin ...`). */
+export const CC3_CLI_ARGUMENT_COMMANDS: ReadonlySet<string> = new Set([
+  "mcp",
+  "plugin",
+  "plugins",
+  "marketplace",
+]);
