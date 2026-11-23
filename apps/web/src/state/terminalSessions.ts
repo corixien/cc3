@@ -1,3 +1,4 @@
+import { CLAUDE_TUI_TERMINAL_ID } from "../types";
 import { useAtomValue } from "@effect/atom-react";
 import {
   combineTerminalSessionState,
@@ -226,11 +227,25 @@ export function useKnownTerminalSessions(input: {
   readonly threadId: ThreadId | null;
 }): ReadonlyArray<KnownTerminalSession> | null {
   const canRead = useEnvironmentScope(input.environmentId, AuthTerminalReadScope);
-  return useAtomValue(
+  const sessions = useAtomValue(
     input.environmentId === null || !canRead
       ? NO_KNOWN_TERMINAL_SESSIONS_ATOM
       : knownTerminalSessionsAtom(input.environmentId, input.threadId),
   );
+  return withoutClaudeTui(sessions);
+}
+
+const withoutTuiCache = new WeakMap<object, ReadonlyArray<KnownTerminalSession>>();
+function withoutClaudeTui(
+  sessions: ReadonlyArray<KnownTerminalSession> | null,
+): ReadonlyArray<KnownTerminalSession> | null {
+  if (sessions === null) return null;
+  let filtered = withoutTuiCache.get(sessions);
+  if (!filtered) {
+    filtered = sessions.filter((session) => session.target.terminalId !== CLAUDE_TUI_TERMINAL_ID);
+    withoutTuiCache.set(sessions, filtered);
+  }
+  return filtered;
 }
 
 export function useThreadRunningTerminalIds(input: {

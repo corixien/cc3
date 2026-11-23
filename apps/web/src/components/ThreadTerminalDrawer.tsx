@@ -178,6 +178,19 @@ function nextTerminalFontSizeForZoomKey(event: KeyboardEvent, size: number): num
   return Math.min(MAX_TERMINAL_FONT_SIZE, Math.max(MIN_TERMINAL_FONT_SIZE, next));
 }
 
+// CC3: swaps the Claude mascot of the TUI welcome box for a "CC3" mark of the same size.
+const CLAUDE_MASCOT_ROWS: ReadonlyArray<readonly [string, string]> = [
+  [" ▐\u001b[48;2;0;0;0m▛███▛█", "▛▀▀▛▀▀▀▀▜"],
+  ["▝▜\u001b[48;2;0;0;0m█████\u001b[49m█▀", "▌  ▌   ▀▜"],
+  [" ▝▝   ▝▝ ", "▙▄▄▙▄▄▄▄▟"],
+];
+function replaceClaudeMascot(data: string): string {
+  if (!data.includes("▝")) return data;
+  let result = data;
+  for (const [from, to] of CLAUDE_MASCOT_ROWS) result = result.replaceAll(from, to);
+  return result;
+}
+
 // CC3: the xdg-open shim of the Claude TUI prints this OSC; only live output counts, never a replay.
 const CC3_OPEN_URL_PATTERN = /\u001b\]777;cc3-open;([^\u0007\u001b]+)\u0007/g;
 const TERMINAL_TITLE_PATTERN = /\u001b\][02];([^\u0007\u001b]*)(?:\u0007|\u001b\\)/g;
@@ -185,6 +198,7 @@ const TERMINAL_TITLE_PATTERN = /\u001b\][02];([^\u0007\u001b]*)(?:\u0007|\u001b\
 export interface TerminalOutputHooks {
   readonly onOpenUrl?: (url: string) => void;
   readonly onTitle?: (title: string) => void;
+  readonly transform?: (data: string) => string;
 }
 
 export function writeTerminalOutputUpdate(
@@ -193,9 +207,9 @@ export function writeTerminalOutputUpdate(
   hooks?: TerminalOutputHooks,
 ): void {
   if (update.type === "reset") {
-    terminal.resetAndWrite(update.data);
+    terminal.resetAndWrite(hooks?.transform ? hooks.transform(update.data) : update.data);
   } else if (update.type === "append") {
-    terminal.write(update.data);
+    terminal.write(hooks?.transform ? hooks.transform(update.data) : update.data);
     if (hooks?.onOpenUrl) {
       for (const match of update.data.matchAll(CC3_OPEN_URL_PATTERN)) hooks.onOpenUrl(match[1]!);
     }
@@ -812,7 +826,11 @@ function TerminalSessionViewport({
         INITIAL_TERMINAL_OUTPUT_CURSOR,
       );
       if (initialOutput.type === "reset" && initialOutput.data.length > 0) {
-        writeTerminalOutputUpdate(terminal, initialOutput);
+        writeTerminalOutputUpdate(
+          terminal,
+          initialOutput,
+          onTitleChange ? { transform: replaceClaudeMascot } : undefined,
+        );
       }
       outputCursorRef.current = initialOutput.cursor;
       if (latestSession.error !== null) writeSystemMessage(terminal, latestSession.error);
@@ -845,7 +863,7 @@ function TerminalSessionViewport({
                   void readLocalApi()?.shell.openExternal(url);
                 });
               },
-              ...(onTitleChange ? { onTitle: onTitleChange } : {}),
+              ...(onTitleChange ? { onTitle: onTitleChange, transform: replaceClaudeMascot } : {}),
             },
           );
         }),
@@ -1189,7 +1207,11 @@ function TerminalSessionViewport({
             }
           } else if (data === "\u007f") {
             typedLine = typedLine.slice(0, -1);
-          } else if (data.length > 0 && !data.startsWith("\u001b") && !/[\u0000-\u001f]/.test(data)) {
+          } else if (
+            data.length > 0 &&
+            !data.startsWith("\u001b") &&
+            !/[\u0000-\u001f]/.test(data)
+          ) {
             typedLine += data;
           } else {
             typedLine = "";

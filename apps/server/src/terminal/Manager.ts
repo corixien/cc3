@@ -610,12 +610,13 @@ const CC3_CLAUDE_TUI_SCRIPT = [
   'chmod +x "$shim/xdg-open"',
   'ln -sf xdg-open "$shim/cc3-browser"',
   'export BROWSER="$shim/cc3-browser" PATH="$shim:$PATH"',
-  'flags=""',
-  '[ "$CC3_TUI_SKIP_PERMISSIONS" = "1" ] && flags="--dangerously-skip-permissions"',
+  "set --",
+  '[ -n "$CC3_TUI_MCP_CONFIG" ] && set -- "$@" --mcp-config "$CC3_TUI_MCP_CONFIG"',
+  '[ "$CC3_TUI_SKIP_PERMISSIONS" = "1" ] && set -- "$@" --dangerously-skip-permissions',
   'if ls "${CLAUDE_CONFIG_DIR:-$HOME/.claude}"/projects/*/"$id".jsonl >/dev/null 2>&1; then',
-  '  exec "$bin" $flags --resume "$id" --settings \'{"theme":"custom:cc3"}\'',
+  '  exec "$bin" "$@" --resume "$id" --settings \'{"theme":"custom:cc3"}\'',
   "else",
-  '  exec "$bin" $flags --session-id "$id" --settings \'{"theme":"custom:cc3"}\'',
+  '  exec "$bin" "$@" --session-id "$id" --settings \'{"theme":"custom:cc3"}\'',
   "fi",
 ].join("\n");
 

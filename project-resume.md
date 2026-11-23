@@ -79,3 +79,6 @@ Open: Claude process still starts with the first message (adapter startTurn woul
 - Terminal title (OSC 0/2) from Claude renames the chat (`ClaudeTuiPane`); typed `/new` opens a new chat; thread details toggle hidden for TUI chats.
 - Zoom: Ctrl +/-/0 in a terminal changes `fontSizeTerminal`; elsewhere `cc3Zoom.ts` (CSS zoom, localStorage).
 - Open: bottom terminal "mirrors" Claude (cause not found), Clawd replacement not possible (rendered by the CLI).
+- Drawer terminal no longer lists/reuses the `claude-tui` session (`state/terminalSessions.ts` filter; id in `types.ts`).
+- Claude TUI gets the T3 MCP server (`--mcp-config` from `CC3_TUI_MCP_CONFIG`, issued in `terminal/cc3TuiMcp.ts`, wired in `ws.ts`) so preview_* browser tools work.
+- Clawd in the welcome box is rewritten to a "CC3" block mark on the client (`replaceClaudeMascot` in ThreadTerminalDrawer).

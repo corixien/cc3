@@ -175,6 +175,8 @@ import * as ThreadSearch from "./orchestration-v2/ThreadSearch.ts";
 import * as OrchestrationEventStore from "./persistence/OrchestrationEventStore.ts";
 import { userFacingDispatchErrorMessage } from "./orchestration-v2/UserFacingErrors.ts";
 import * as ProviderRegistry from "./provider/ProviderRegistry.ts";
+import * as McpSessionRegistry from "./mcp/McpSessionRegistry.ts";
+import { makeTuiMcpLauncher } from "./terminal/cc3TuiMcp.ts";
 import * as SecretCheck from "./secrets/SecretCheck.ts";
 import * as AcpRegistrySessions from "./provider/AcpRegistrySessions.ts";
 import * as ProviderInstanceRegistry from "./provider/ProviderInstanceRegistry.ts";
@@ -1534,6 +1536,15 @@ export const layerWsRpc = (
       const prepareTerminalLaunch = yield* makePrepareTerminalLaunch(
         threadManagement.getThreadShell,
       );
+      const tuiMcpRegistry = yield* Effect.serviceOption(McpSessionRegistry.McpSessionRegistry);
+      const withTuiMcp = makeTuiMcpLauncher(Option.getOrUndefined(tuiMcpRegistry));
+      const prepareTuiTerminalLaunch = Effect.fn("ws.prepareTuiTerminalLaunch")(function* <
+        Input extends Parameters<typeof prepareTerminalLaunch>[0] &
+          Parameters<typeof withTuiMcp>[0],
+      >(input: Input) {
+        const launch = yield* prepareTerminalLaunch(input);
+        return { ...launch, input: yield* withTuiMcp(launch.input) };
+      });
       const previewManager = yield* PreviewManager.PreviewManager;
       const portDiscovery = yield* PortScanner.PortDiscovery;
       const providerRegistry = yield* ProviderRegistry.ProviderRegistry;
@@ -3267,7 +3278,7 @@ export const layerWsRpc = (
         [WS_METHODS.reviewGetDiffPreview]: (input) => review.getDiffPreview(input),
         [WS_METHODS.reviewGetDiffFileContents]: (input) => review.getDiffFileContents(input),
         [WS_METHODS.terminalOpen]: (input) =>
-          prepareTerminalLaunch(input).pipe(
+          prepareTuiTerminalLaunch(input).pipe(
             Effect.flatMap((launch) =>
               terminalManager
                 .open(launch.input)
@@ -3276,7 +3287,7 @@ export const layerWsRpc = (
           ),
         [WS_METHODS.terminalAttach]: (input, metadata) =>
           Stream.unwrap(
-            prepareTerminalLaunch(input).pipe(
+            prepareTuiTerminalLaunch(input).pipe(
               Effect.map((launch) =>
                 terminalManager
                   .attachOutputStream(launch.input, terminalViewerId(metadata))

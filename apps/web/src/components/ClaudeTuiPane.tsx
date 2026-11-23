@@ -12,7 +12,7 @@ import { scopeThreadRef } from "@t3tools/client-runtime/environment";
 import { useGT } from "gt-react";
 import { useEffect, useRef, useState } from "react";
 
-import { DEFAULT_INTERACTION_MODE } from "../types";
+import { CLAUDE_TUI_TERMINAL_ID, DEFAULT_INTERACTION_MODE } from "../types";
 import { finalizePromotedDraftThreadByRef } from "../composerDraftStore";
 import { threadEnvironment } from "../state/threads";
 import { useOrchestrationCommand } from "../state/use-orchestration-command";
@@ -35,7 +35,6 @@ export interface ClaudeTuiPaneProps {
   readonly onNewChat: () => void;
 }
 
-const TERMINAL_ID = "claude-tui";
 const THEME_VARIABLES = {
   "--terminal-background": "#000000",
   "--terminal-foreground": "#e8e8e8",
@@ -97,7 +96,10 @@ export function ClaudeTuiPane(props: ClaudeTuiPaneProps) {
 
   // Claude sets the terminal title to its session summary; the chat list shows it.
   const handleTitle = useStableCallback((raw: string) => {
-    const title = raw.replace(/^[^\p{L}\p{N}]+/u, "").trim().slice(0, 80);
+    const title = raw
+      .replace(/^[^\p{L}\p{N}]+/u, "")
+      .trim()
+      .slice(0, 80);
     if (!threadReady || title.length === 0 || /^claude( code)?$/i.test(title)) return;
     if (title === lastTitleRef.current) return;
     lastTitleRef.current = title;
@@ -121,7 +123,7 @@ export function ClaudeTuiPane(props: ClaudeTuiPaneProps) {
           advancedTypography
           threadRef={scopeThreadRef(environmentId, threadId)}
           threadId={threadId}
-          terminalId={TERMINAL_ID}
+          terminalId={CLAUDE_TUI_TERMINAL_ID}
           terminalLabel="Claude"
           cwd={props.cwd}
           worktreePath={props.worktreePath}
