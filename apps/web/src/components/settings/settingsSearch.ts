@@ -897,6 +897,12 @@ export const SETTINGS_SEARCH_ITEMS = [
     searchTerms: [msg("ask before thread chat history")],
   },
   {
+    id: "claude-skip-permissions",
+    title: msg("Start Claude with skipped permissions"),
+    to: "/settings/general",
+    searchTerms: [msg("claude dangerously skip permissions bypass terminal")],
+  },
+  {
     id: "terminal-close-confirmation",
     title: msg("Terminal close confirmation"),
     to: "/settings/general",

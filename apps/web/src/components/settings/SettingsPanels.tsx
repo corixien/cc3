@@ -1046,6 +1046,24 @@ export function GeneralSettingsPanel() {
           }
         />
         <SettingsRow
+          {...setting("claude-skip-permissions")}
+          description={
+            <T>
+              Start Claude terminal sessions with --dangerously-skip-permissions. Applies to newly
+              started sessions.
+            </T>
+          }
+          control={
+            <Switch
+              checked={settings.claudeSkipPermissions}
+              onCheckedChange={(checked) =>
+                updateSettings({ claudeSkipPermissions: Boolean(checked) })
+              }
+              aria-label={gt("Start Claude with skipped permissions")}
+            />
+          }
+        />
+        <SettingsRow
           {...setting("terminal-close-confirmation")}
           description={<T>Ask before closing terminals and stopping their running processes.</T>}
           resetAction={

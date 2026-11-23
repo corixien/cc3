@@ -10,6 +10,7 @@ import { startAppServices } from "./appInit";
 import { AppRoot } from "./AppRoot";
 import { whenLocaleReady } from "./i18n/runtime";
 import { reloadOnceForChunkLoadError } from "./lib/chunkReloadGuard";
+import { installGuiZoom } from "./cc3Zoom";
 
 const router = startAppServices();
 
@@ -41,6 +42,7 @@ export const startup = Promise.all([
   .then(([ManagedAuthShell]) => {
     // Route chunk failures resolve router.load() and surface later through the error boundary.
     if (reloadScheduled) return;
+    installGuiZoom();
     ReactDOM.createRoot(document.getElementById("root") as HTMLElement).render(
       <React.StrictMode>
         {ManagedAuthShell && clerkPublishableKey ? (
@@ -53,5 +55,6 @@ export const startup = Promise.all([
   })
   .catch((error: unknown) => {
     if (reloadScheduled) return;
+    installGuiZoom();
     throw error;
   });

@@ -33,6 +33,9 @@ import {
   type ResolvedKeybindingsConfig,
   type ScopedThreadRef,
   type ThreadId,
+  DEFAULT_UNIFIED_SETTINGS,
+  MAX_TERMINAL_FONT_SIZE,
+  MIN_TERMINAL_FONT_SIZE,
 } from "@t3tools/contracts";
 import { getTerminalLabel } from "@t3tools/shared/terminalLabelsCopy";
 import * as Schema from "effect/Schema";
@@ -79,7 +82,7 @@ import {
 } from "../types";
 import { readLocalApi } from "~/localApi";
 import { confirmTerminalClose } from "~/lib/terminalCloseConfirm";
-import { useClientSettings } from "../hooks/useSettings";
+import { updateClientSettings, useClientSettings } from "../hooks/useSettings";
 import { getFileMetadataQueryAtom } from "../hooks/useFileMetadata";
 import { FileMetadataThreadContext } from "../hooks/FileMetadataThreadProvider";
 import { useLocalStorage } from "../hooks/useLocalStorage";
@@ -160,14 +163,47 @@ function writeSystemMessage(
   terminal.write(`\r\n[terminal] ${message}\r\n`);
 }
 
+// CC3: Ctrl +/-/0 inside a terminal zooms its font; the size is a persisted client setting.
+function nextTerminalFontSizeForZoomKey(event: KeyboardEvent, size: number): number | null {
+  if (!event.ctrlKey || event.altKey || event.metaKey || event.type !== "keydown") return null;
+  const next =
+    event.key === "+" || event.key === "="
+      ? size + 1
+      : event.key === "-" || event.key === "_"
+        ? size - 1
+        : event.key === "0"
+          ? DEFAULT_UNIFIED_SETTINGS.fontSizeTerminal
+          : null;
+  if (next === null) return null;
+  return Math.min(MAX_TERMINAL_FONT_SIZE, Math.max(MIN_TERMINAL_FONT_SIZE, next));
+}
+
+// CC3: the xdg-open shim of the Claude TUI prints this OSC; only live output counts, never a replay.
+const CC3_OPEN_URL_PATTERN = /\u001b\]777;cc3-open;([^\u0007\u001b]+)\u0007/g;
+const TERMINAL_TITLE_PATTERN = /\u001b\][02];([^\u0007\u001b]*)(?:\u0007|\u001b\\)/g;
+
+export interface TerminalOutputHooks {
+  readonly onOpenUrl?: (url: string) => void;
+  readonly onTitle?: (title: string) => void;
+}
+
 export function writeTerminalOutputUpdate(
   terminal: Pick<GhosttyTerminalSurface, "resetAndWrite" | "write">,
   update: TerminalOutputUpdate,
+  hooks?: TerminalOutputHooks,
 ): void {
   if (update.type === "reset") {
     terminal.resetAndWrite(update.data);
   } else if (update.type === "append") {
     terminal.write(update.data);
+    if (hooks?.onOpenUrl) {
+      for (const match of update.data.matchAll(CC3_OPEN_URL_PATTERN)) hooks.onOpenUrl(match[1]!);
+    }
+    if (hooks?.onTitle) {
+      let title: string | undefined;
+      for (const match of update.data.matchAll(TERMINAL_TITLE_PATTERN)) title = match[1];
+      if (title !== undefined) hooks.onTitle(title);
+    }
   }
 }
 
@@ -181,6 +217,7 @@ export function synchronizeTerminalOutput(
   >,
   session: Pick<TerminalSessionState, "output" | "version">,
   cursor: TerminalOutputCursor,
+  hooks?: TerminalOutputHooks,
 ): TerminalOutputCursor {
   if (session.version === 0) return cursor;
   const update = readTerminalOutputUpdate(session.output, cursor);
@@ -188,7 +225,7 @@ export function synchronizeTerminalOutput(
   const cells = terminal.getSelectionCellCount();
   const compared = cells <= MAX_COMPARED_SELECTION_CELLS;
   const selection = cells > 0 && compared ? terminal.getSelection() : "";
-  writeTerminalOutputUpdate(terminal, update);
+  writeTerminalOutputUpdate(terminal, update, hooks);
   if (!compared || (cells > 0 && terminal.getSelection() !== selection)) {
     terminal.clearSelection({ source: "output" });
   }
@@ -201,11 +238,12 @@ export function synchronizeTerminalSession(
   previous: Pick<TerminalSessionState, "output" | "version" | "error">,
   session: Pick<TerminalSessionState, "output" | "version" | "error">,
   cursor: TerminalOutputCursor,
+  hooks?: TerminalOutputHooks,
 ): TerminalOutputCursor {
   const nextCursor =
     session.version === previous.version && session.output === previous.output
       ? cursor
-      : synchronizeTerminalOutput(terminal, session, cursor);
+      : synchronizeTerminalOutput(terminal, session, cursor, hooks);
   // An attach failure can change only the error, keeping the last buffer.
   if (
     session.error !== null &&
@@ -478,6 +516,9 @@ interface TerminalViewportProps {
   runtimeEnv?: Record<string, string>;
   providerInstanceId?: ProviderInstanceId;
   onSessionExited: () => void;
+  onTitleChange?: (title: string) => void;
+  /** Return true to consume a submitted input line. */
+  onSubmitLine?: (line: string) => boolean;
   onAddTerminalContext?: (selection: TerminalContextSelection) => void;
   /** Focuses the viewport when it mounts; otherwise focus arrives through `focusTerminal`. */
   autoFocus?: boolean;
@@ -514,6 +555,8 @@ function TerminalSessionViewport({
   runtimeEnv,
   providerInstanceId,
   onSessionExited,
+  onTitleChange,
+  onSubmitLine,
   onAddTerminalContext,
   autoFocus = false,
   visible,
@@ -796,6 +839,14 @@ function TerminalSessionViewport({
             previous,
             session,
             outputCursorRef.current,
+            {
+              onOpenUrl: (url) => {
+                void openLinkInPreview(url, false, () => {
+                  void readLocalApi()?.shell.openExternal(url);
+                });
+              },
+              ...(onTitleChange ? { onTitle: onTitleChange } : {}),
+            },
           );
         }),
       );
@@ -1021,6 +1072,13 @@ function TerminalSessionViewport({
       };
 
       function handleBeforeKey(event: KeyboardEvent): boolean {
+        const zoomed = nextTerminalFontSizeForZoomKey(event, terminalFontRef.current.size);
+        if (zoomed !== null) {
+          event.preventDefault();
+          event.stopPropagation();
+          void updateClientSettings({ fontSizeTerminal: zoomed });
+          return false;
+        }
         const currentKeybindings = readKeybindings();
         const options = { context: { terminalFocus: true, terminalOpen: true } };
         if (preventTerminalCloseShortcut(event, currentKeybindings)) {
@@ -1118,7 +1176,25 @@ function TerminalSessionViewport({
         })();
       }
 
+      // CC3: a typed "/new" opens a new chat instead of clearing the Claude session in place.
+      let typedLine = "";
       function handleData(data: string): void {
+        if (onSubmitLine) {
+          if (data === "\r") {
+            const line = typedLine.trim();
+            typedLine = "";
+            if (onSubmitLine(line)) {
+              void sendTerminalInput("\u0015", m(msg("Terminal write failed")));
+              return;
+            }
+          } else if (data === "\u007f") {
+            typedLine = typedLine.slice(0, -1);
+          } else if (data.length > 0 && !data.startsWith("\u001b") && !/[\u0000-\u001f]/.test(data)) {
+            typedLine += data;
+          } else {
+            typedLine = "";
+          }
+        }
         void sendTerminalInput(data, m(msg("Terminal write failed")));
       }
 

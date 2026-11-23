@@ -16,6 +16,8 @@ import { DEFAULT_INTERACTION_MODE } from "../types";
 import { finalizePromotedDraftThreadByRef } from "../composerDraftStore";
 import { threadEnvironment } from "../state/threads";
 import { useOrchestrationCommand } from "../state/use-orchestration-command";
+import { useStableCallback } from "../hooks/useStableCallback";
+import { useClientSettings } from "../hooks/useSettings";
 import { Button } from "./ui/button";
 import { TerminalViewport } from "./ThreadTerminalDrawer";
 
@@ -30,6 +32,7 @@ export interface ClaudeTuiPaneProps {
   readonly modelSelection: ModelSelection;
   readonly runtimeMode: RuntimeMode;
   readonly keybindings: ResolvedKeybindingsConfig;
+  readonly onNewChat: () => void;
 }
 
 const TERMINAL_ID = "claude-tui";
@@ -45,6 +48,11 @@ export function ClaudeTuiPane(props: ClaudeTuiPaneProps) {
   const createThread = useOrchestrationCommand(threadEnvironment.create, {
     reportFailure: true,
   });
+  const skipPermissions = useClientSettings((settings) => settings.claudeSkipPermissions);
+  const updateMetadata = useOrchestrationCommand(threadEnvironment.updateMetadata, {
+    reportFailure: false,
+  });
+  const lastTitleRef = useRef<string | null>(null);
   const [fontReady, setFontReady] = useState(false);
   const [threadReady, setThreadReady] = useState(!isDraft);
   const [exited, setExited] = useState(false);
@@ -87,6 +95,20 @@ export function ClaudeTuiPane(props: ClaudeTuiPaneProps) {
     });
   });
 
+  // Claude sets the terminal title to its session summary; the chat list shows it.
+  const handleTitle = useStableCallback((raw: string) => {
+    const title = raw.replace(/^[^\p{L}\p{N}]+/u, "").trim().slice(0, 80);
+    if (!threadReady || title.length === 0 || /^claude( code)?$/i.test(title)) return;
+    if (title === lastTitleRef.current) return;
+    lastTitleRef.current = title;
+    void updateMetadata({ environmentId, input: { threadId, title } });
+  });
+  const handleSubmitLine = useStableCallback((line: string) => {
+    if (line !== "/new") return false;
+    props.onNewChat();
+    return true;
+  });
+
   return (
     <div
       className="relative min-h-0 flex-1 bg-black p-2 pl-3"
@@ -103,9 +125,14 @@ export function ClaudeTuiPane(props: ClaudeTuiPaneProps) {
           terminalLabel="Claude"
           cwd={props.cwd}
           worktreePath={props.worktreePath}
-          runtimeEnv={{ CC3_TUI_SESSION: threadId }}
+          runtimeEnv={{
+            CC3_TUI_SESSION: threadId,
+            ...(skipPermissions ? { CC3_TUI_SKIP_PERMISSIONS: "1" } : {}),
+          }}
           providerInstanceId={props.modelSelection.instanceId}
           onSessionExited={() => setExited(true)}
+          onTitleChange={handleTitle}
+          onSubmitLine={handleSubmitLine}
           autoFocus
           visible
           keybindings={props.keybindings}

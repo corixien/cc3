@@ -73,3 +73,9 @@ Open: Claude process still starts with the first message (adapter startTurn woul
   runs `claude --session-id|--resume <threadId> --settings {"theme":"custom:cc3"}` when runtimeEnv has `CC3_TUI_SESSION`.
 - Theme file `~/.claude/themes/cc3.json` (only used via `--settings`, so only inside CC3).
 - Font: `apps/web/public/fonts/CC3Mono-{Regular,Bold}.ttf (Red Hat Mono, OFL), default terminal font.
+
+## TUI additions (2026-11-23)
+- TUI launch script (`terminal/Manager.ts`): unsets inherited Claude markers, `CLAUDE_CODE_FORCE_SESSION_PERSISTENCE=1`, `--dangerously-skip-permissions` when client setting `claudeSkipPermissions` (default on, Settings > General), `xdg-open`/`BROWSER` shim prints OSC 777 `cc3-open;URL` which `ThreadTerminalDrawer` opens in the CC3 preview browser (live output only).
+- Terminal title (OSC 0/2) from Claude renames the chat (`ClaudeTuiPane`); typed `/new` opens a new chat; thread details toggle hidden for TUI chats.
+- Zoom: Ctrl +/-/0 in a terminal changes `fontSizeTerminal`; elsewhere `cc3Zoom.ts` (CSS zoom, localStorage).
+- Open: bottom terminal "mirrors" Claude (cause not found), Clawd replacement not possible (rendered by the CLI).

@@ -1832,6 +1832,7 @@ export default function ChatView(props: ChatViewProps) {
           modelSelection: activeThread.modelSelection,
           runtimeMode,
           keybindings,
+          onNewChat: handleNewThreadInActiveProjectStable,
         } satisfies ClaudeTuiPaneProps)
       : null;
   const backgroundThread = use(BackgroundThreadContext);
@@ -3495,7 +3496,7 @@ export default function ChatView(props: ChatViewProps) {
   const panelToggleControls = (
     <PanelLayoutControls
       {...panelToggleControlProps}
-      showThreadPanelControl={!inlineRightPanelOwnsTitleBar}
+      showThreadPanelControl={!inlineRightPanelOwnsTitleBar && !claudeTuiProps}
       trailing={<SplitPaneControls />}
     />
   );
