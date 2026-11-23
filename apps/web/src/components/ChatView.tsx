@@ -1566,7 +1566,7 @@ export default function ChatView(props: ChatViewProps) {
     readonly status: string;
   }> | null>(null);
   const claudeCommandCwd =
-    activeThread?.worktreePath ?? activeProject?.workspaceRoot ?? gitCwd ?? null;
+    activeThread?.worktreePath ?? activeProject?.workspaceRoot ?? gitCwd ?? "~";
   const runClaudeCommand = useStableCallback(async (command: string) => {
     if (!activeProviderStatus || !claudeCommandCwd) return { output: "" };
     const result = await runCliCommand({
@@ -1600,7 +1600,7 @@ export default function ChatView(props: ChatViewProps) {
           return;
       }
     };
-    const cwd = activeThread?.worktreePath ?? activeProject?.workspaceRoot ?? gitCwd ?? null;
+    const cwd = claudeCommandCwd;
     const configPanel = CC3_CLAUDE_CONFIG_PANELS[name];
     if (configPanel && cwd && String(activeProviderStatus?.driver) === "claudeAgent") {
       setCommandPanel(configPanel);

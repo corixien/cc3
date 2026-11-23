@@ -3,6 +3,7 @@
 // wrapper session uses it; otherwise a standby TUI is started for the chat, so commands such as
 // /context or /cost work before the first message. `/mcp` needs no TUI: `claude mcp list` is the
 // CLI's own answer.
+import * as NodeOs from "node:os";
 import * as Effect from "effect/Effect";
 import * as Schema from "effect/Schema";
 import type * as PtyAdapter from "@t3tools/shared/PtyAdapter";
@@ -92,7 +93,9 @@ export function makeClaudeCliCommandRunner(deps: {
     return handle;
   });
 
-  return Effect.fn("ClaudeCliCommands.run")(function* (request: ClaudeCliCommandRequest) {
+  return Effect.fn("ClaudeCliCommands.run")(function* (input: ClaudeCliCommandRequest) {
+    // A chat without a project has no folder; "~" stands for the home directory.
+    const request = input.cwd === "~" ? { ...input, cwd: NodeOs.homedir() } : input;
     const configRequest = parseConfigCommand(request.command);
     if (configRequest !== null) {
       const output = yield* Effect.tryPromise({
