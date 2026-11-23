@@ -46,7 +46,7 @@ const clientSettings: ClientSettings = {
   fontSizeCode: 13,
   fontSizeInterface: 16,
   fontSizePrompt: 14,
-  fontSizeTerminal: 12,
+  fontSizeTerminal: 15,
   fontSmoothing: true,
   glassOpacity: 80,
   onboardingCompletedAt: null,
