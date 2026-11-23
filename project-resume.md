@@ -72,4 +72,4 @@ Open: Claude process still starts with the first message (adapter startTurn woul
   server thread through `threadEnvironment.create`. Server: `terminal/Manager.ts` `cc3ClaudeTuiShellCandidate`
   runs `claude --session-id|--resume <threadId> --settings {"theme":"custom:cc3"}` when runtimeEnv has `CC3_TUI_SESSION`.
 - Theme file `~/.claude/themes/cc3.json` (only used via `--settings`, so only inside CC3).
-- Font: `apps/web/public/fonts/LexendDecaMono-{Regular,Bold}.ttf` generated from Lexend Deca (fixed 620 advance), default terminal font.
+- Font: `apps/web/public/fonts/CC3Mono-{Regular,Bold}.ttf (Red Hat Mono, OFL), default terminal font.

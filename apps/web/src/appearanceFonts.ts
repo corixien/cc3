@@ -18,7 +18,7 @@ export const DEFAULT_CODE_FONT_STACK =
   '"SF Mono", "SFMono-Regular", Menlo, Consolas, "Liberation Mono", monospace';
 
 /** A cell grid needs a monospace font: a proportional one misaligns the cursor and the text. */
-const DEFAULT_TERMINAL_FONT_STACK = '"Lexend Deca Mono", "Liberation Mono", monospace';
+const DEFAULT_TERMINAL_FONT_STACK = '"CC3 Mono", "Liberation Mono", monospace';
 
 export const TYPOGRAPHY_ADVANCED_STORAGE_KEY = "t3code:typography-advanced";
 

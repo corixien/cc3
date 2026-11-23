@@ -54,8 +54,8 @@ export function ClaudeTuiPane(props: ClaudeTuiPaneProps) {
   // oxlint-disable-next-line t3code/no-unreasoned-state-sync -- the terminal measures its cells, so the font must be loaded first.
   useEffect(() => {
     void Promise.all([
-      document.fonts.load('16px "Lexend Deca Mono"'),
-      document.fonts.load('bold 16px "Lexend Deca Mono"'),
+      document.fonts.load('16px "CC3 Mono"'),
+      document.fonts.load('bold 16px "CC3 Mono"'),
     ])
       .catch(() => undefined)
       .then(() => setFontReady(true));
