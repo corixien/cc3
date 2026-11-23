@@ -38,7 +38,7 @@ export interface ClaudeTuiPaneProps {
 const THEME_VARIABLES = {
   "--terminal-background": "#000000",
   "--terminal-foreground": "#e8e8e8",
-  "--terminal-cursor": "#d97757",
+  "--terminal-cursor": "#e8e8e8",
 } as React.CSSProperties;
 
 export function ClaudeTuiPane(props: ClaudeTuiPaneProps) {

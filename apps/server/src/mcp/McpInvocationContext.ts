@@ -31,6 +31,8 @@ export interface McpThreadCaller {
   readonly providerInstanceId: ProviderInstanceId;
   /** A delegated child task; its parent owns the work it hands back. */
   readonly subagent?: boolean;
+  /** CC3: a Claude TUI in a terminal; it has no provider run, so liveness is not checked. */
+  readonly terminal?: boolean;
 }
 
 export interface McpClientCaller {

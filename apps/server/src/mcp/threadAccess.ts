@@ -194,20 +194,22 @@ export const isLiveCallerShell = (
     "archivedAt" | "activeRunId" | "providerInstanceId" | "pendingBackgroundTasks"
   > | null,
   providerInstanceId: ProviderInstanceId | undefined,
+  terminal = false,
 ) =>
   shell !== null &&
   shell.archivedAt === null &&
-  shell.providerInstanceId === providerInstanceId &&
-  (shell.activeRunId !== null ||
-    (shell.pendingBackgroundTasks?.some(
-      (task) => task.kind === "subagent" && task.providerInstanceId === providerInstanceId,
-    ) ??
-      false));
+  (terminal ||
+    (shell.providerInstanceId === providerInstanceId &&
+      (shell.activeRunId !== null ||
+        (shell.pendingBackgroundTasks?.some(
+          (task) => task.kind === "subagent" && task.providerInstanceId === providerInstanceId,
+        ) ??
+          false))));
 
 /** Thread callers need a live run or its background subagent in an unarchived thread. OAuth clients rely on their session and ceiling. */
 export function assertLiveCaller({ caller, scope }: Caller) {
   if (caller === undefined) return Effect.void;
-  return isLiveCallerShell(caller, scope.thread?.providerInstanceId)
+  return isLiveCallerShell(caller, scope.thread?.providerInstanceId, scope.thread?.terminal)
     ? Effect.void
     : Effect.fail(
         new OrchestratorMcpFailure({

@@ -1445,12 +1445,13 @@ const make = Effect.gen(function* () {
       "The calling provider no longer owns an active thread run.",
     );
     const activeRun = ThreadManagementService.latestActiveRun(parent);
+    if (scope.thread?.terminal === true && parent.thread.archivedAt === null) return Effect.void;
     if (parent.thread.archivedAt === null && activeRun === undefined) {
       // Decide from this one fresh snapshot: a run may have started since `parent` was read.
       return threadManagement.getThreadShell(parent.thread.id).pipe(
         Effect.mapError(threadManagementFailure),
         Effect.flatMap((shell) =>
-          isLiveCallerShell(shell, scope.thread?.providerInstanceId)
+          isLiveCallerShell(shell, scope.thread?.providerInstanceId, scope.thread?.terminal)
             ? Effect.void
             : Effect.fail(notActive),
         ),

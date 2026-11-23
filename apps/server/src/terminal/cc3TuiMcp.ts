@@ -27,10 +27,11 @@ export const makeTuiMcpLauncher = (
       const { config: session } = yield* registry.issue({
         threadId: ThreadId.make(input.threadId),
         providerInstanceId: ProviderInstanceId.make(input.providerInstanceId ?? "claudeAgent"),
+        terminal: true,
       });
       config = yield* encodeJson({
         mcpServers: {
-          "t3-code": {
+          cc3: {
             type: "http",
             url: session.endpoint,
             headers: { Authorization: session.authorizationHeader },
