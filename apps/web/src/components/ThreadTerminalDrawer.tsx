@@ -178,11 +178,15 @@ function nextTerminalFontSizeForZoomKey(event: KeyboardEvent, size: number): num
   return Math.min(MAX_TERMINAL_FONT_SIZE, Math.max(MIN_TERMINAL_FONT_SIZE, next));
 }
 
-// CC3: swaps the Claude mascot of the TUI welcome box for a "CC3" mark of the same size.
+// CC3: swaps the Claude mascot of the TUI welcome box for the CC3 logo, drawn by private-use tiles of CC3 Mono.
+const CC3_LOGO_COLOR = "\u001b[49m\u001b[38;2;232;232;232m";
+const logoRow = (row: number) =>
+  CC3_LOGO_COLOR +
+  Array.from({ length: 9 }, (_, col) => String.fromCodePoint(0xe000 + row * 9 + col)).join("");
 const CLAUDE_MASCOT_ROWS: ReadonlyArray<readonly [string, string]> = [
-  [" ▐\u001b[48;2;0;0;0m▛███▛█", "▛▀▀▛▀▀▀▀▜"],
-  ["▝▜\u001b[48;2;0;0;0m█████\u001b[49m█▀", "▌  ▌   ▀▜"],
-  [" ▝▝   ▝▝ ", "▙▄▄▙▄▄▄▄▟"],
+  [" ▐\u001b[48;2;0;0;0m▛███▛█", logoRow(0)],
+  ["▝▜\u001b[48;2;0;0;0m█████\u001b[49m█▀", logoRow(1)],
+  [" ▝▝   ▝▝ ", logoRow(2)],
 ];
 function replaceClaudeMascot(data: string): string {
   if (!data.includes("▝")) return data;

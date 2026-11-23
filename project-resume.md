@@ -81,4 +81,4 @@ Open: Claude process still starts with the first message (adapter startTurn woul
 - Open: bottom terminal "mirrors" Claude (cause not found), Clawd replacement not possible (rendered by the CLI).
 - Drawer terminal no longer lists/reuses the `claude-tui` session (`state/terminalSessions.ts` filter; id in `types.ts`).
 - Claude TUI gets the T3 MCP server (`--mcp-config` from `CC3_TUI_MCP_CONFIG`, issued in `terminal/cc3TuiMcp.ts`, wired in `ws.ts`) so preview_* browser tools work.
-- Clawd in the welcome box is rewritten to a "CC3" block mark on the client (`replaceClaudeMascot` in ThreadTerminalDrawer).
+- Clawd in the welcome box is rewritten client-side (`replaceClaudeMascot`) to the CC3 logo letters: 27 private-use tiles U+E000.. in CC3 Mono (generator script scratch only).
