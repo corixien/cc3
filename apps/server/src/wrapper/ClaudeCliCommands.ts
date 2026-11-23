@@ -7,7 +7,12 @@ import * as Effect from "effect/Effect";
 import * as Schema from "effect/Schema";
 import type * as PtyAdapter from "@t3tools/shared/PtyAdapter";
 
-import { claudeManagementArgv, runClaudeManagementCommand } from "./claudeManagementCommand.ts";
+import {
+  claudeManagementArgv,
+  PLUGIN_CATALOG_COMMAND,
+  readClaudePluginCatalog,
+  runClaudeManagementCommand,
+} from "./claudeManagementCommand.ts";
 import { listClaudeCliMcpServers } from "./claudeMcpList.ts";
 import {
   findLiveTui,
@@ -86,6 +91,13 @@ export function makeClaudeCliCommandRunner(deps: {
   });
 
   return Effect.fn("ClaudeCliCommands.run")(function* (request: ClaudeCliCommandRequest) {
+    if (request.command.trim() === PLUGIN_CATALOG_COMMAND) {
+      const output = yield* Effect.tryPromise({
+        try: () => readClaudePluginCatalog(deps.binaryPath, request.cwd, deps.environment),
+        catch: fail,
+      });
+      return { output } satisfies ClaudeCliCommandResult;
+    }
     const managementArgv = claudeManagementArgv(request.command);
     if (managementArgv !== null) {
       const output = yield* Effect.tryPromise({

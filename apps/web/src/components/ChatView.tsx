@@ -1564,6 +1564,25 @@ export default function ChatView(props: ChatViewProps) {
     readonly name: string;
     readonly status: string;
   }> | null>(null);
+  const claudeCommandCwd =
+    activeThread?.worktreePath ?? activeProject?.workspaceRoot ?? gitCwd ?? null;
+  const runClaudeCommand = useStableCallback(async (command: string) => {
+    if (!activeProviderStatus || !claudeCommandCwd) return { output: "" };
+    const result = await runCliCommand({
+      environmentId,
+      input: {
+        instanceId: activeProviderStatus.instanceId,
+        cwd: claudeCommandCwd,
+        ...(isServerThread && activeThread ? { threadId: activeThread.id } : {}),
+        command,
+      },
+    });
+    if (result._tag !== "Success") return { output: "" };
+    return {
+      output: result.value.output,
+      ...(result.value.mcpServers ? { mcpServers: result.value.mcpServers } : {}),
+    };
+  });
   const runLocalSlashCommand = useStableCallback((name: string, args: string) => {
     const command = cc3LocalSlashCommand(name);
     if (!command) return;
@@ -3747,6 +3766,11 @@ export default function ChatView(props: ChatViewProps) {
                         panel={commandPanel}
                         mcpServers={cliMcpServers ?? commandMcpServers}
                         cli={cliResult}
+                        runClaudeCommand={
+                          String(activeProviderStatus?.driver) === "claudeAgent" && claudeCommandCwd
+                            ? runClaudeCommand
+                            : undefined
+                        }
                         onClose={closeCommandPanel}
                         overview={{
                           environmentId,

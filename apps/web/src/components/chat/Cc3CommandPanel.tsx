@@ -7,6 +7,7 @@ import { useEffect } from "react";
 
 import type { Cc3CommandPanelKind } from "../../cc3LocalSlashCommands";
 import { cn } from "../../lib/utils";
+import { Cc3McpManager, Cc3PluginsManager, type Cc3RunClaudeCommand } from "./Cc3ClaudeManager";
 import { ComposerBanner } from "./ComposerBanner";
 import {
   Row,
@@ -23,6 +24,8 @@ export interface Cc3CommandPanelProps {
     readonly output: string;
     readonly pending: boolean;
   } | null;
+  /** Runs a Claude CLI command; set for Claude chats, which get the full plugin and MCP managers. */
+  readonly runClaudeCommand?: Cc3RunClaudeCommand | undefined;
   readonly onClose: () => void;
 }
 
@@ -72,7 +75,13 @@ export function Cc3CommandPanel(props: Cc3CommandPanelProps) {
             )
           ) : null}
           {props.panel === "overview" ? <ThreadDetailsOverview {...props.overview} /> : null}
-          {props.panel === "connectors" ? (
+          {props.panel === "connectors" && props.runClaudeCommand ? (
+            <Cc3McpManager run={props.runClaudeCommand} />
+          ) : null}
+          {props.panel === "integrations" && props.runClaudeCommand ? (
+            <Cc3PluginsManager run={props.runClaudeCommand} />
+          ) : null}
+          {props.panel === "connectors" && !props.runClaudeCommand ? (
             <>
               {servers.length === 0 ? (
                 <p className="px-2.5 py-1 text-xs text-muted-foreground">
@@ -111,7 +120,7 @@ export function Cc3CommandPanel(props: Cc3CommandPanelProps) {
               </Row>
             </>
           ) : null}
-          {props.panel === "integrations" ? (
+          {props.panel === "integrations" && !props.runClaudeCommand ? (
             <>
               <Row icon={<BlocksIcon />} onClick={() => open("/settings/integrations")}>
                 {gt("Browse and manage integrations")}
