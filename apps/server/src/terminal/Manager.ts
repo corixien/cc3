@@ -592,6 +592,26 @@ function joinWindowsPath(...parts: ReadonlyArray<string>): string {
 const POWERSHELL_UTF8_SETUP =
   "[Console]::OutputEncoding = $OutputEncoding = [System.Text.UTF8Encoding]::new()";
 
+// CC3: runs `claude` for the session id in CC3_TUI_SESSION, resuming it when its transcript exists.
+// The theme comes from --settings, so it applies to CC3 only and never touches the user's settings.
+const CC3_CLAUDE_TUI_SCRIPT = [
+  'id="$CC3_TUI_SESSION"',
+  'bin="${CC3_TUI_BIN:-claude}"',
+  'if ls "${CLAUDE_CONFIG_DIR:-$HOME/.claude}"/projects/*/"$id".jsonl >/dev/null 2>&1; then',
+  '  exec "$bin" --resume "$id" --settings \'{"theme":"custom:cc3"}\'',
+  "else",
+  '  exec "$bin" --session-id "$id" --settings \'{"theme":"custom:cc3"}\'',
+  "fi",
+].join("\n");
+
+function cc3ClaudeTuiShellCandidate(
+  runtimeEnv: Record<string, string> | null,
+  platform: NodeJS.Platform,
+): ShellCandidate | null {
+  if (platform === "win32" || !runtimeEnv?.CC3_TUI_SESSION) return null;
+  return { shell: "/bin/sh", args: ["-c", CC3_CLAUDE_TUI_SCRIPT] };
+}
+
 function shellCandidateFromCommand(
   command: string | null,
   platform: NodeJS.Platform,
@@ -2844,12 +2864,19 @@ export const makeWithOptions = Effect.fn("TerminalManager.makeWithOptions")(func
       increment(terminalSessionsTotal, { lifecycle: eventType }).pipe(
         Effect.andThen(
           Effect.gen(function* () {
-            const shellCandidates = yield* resolveShellCandidates(
+            const resolvedShellCandidates = yield* resolveShellCandidates(
               shellResolver,
               platform,
               baseEnv,
               session.runtimeEnv?.T3CODE_TERMINAL_SHELL ?? baseEnv.T3CODE_TERMINAL_SHELL,
             ).pipe(Effect.provideService(FileSystem.FileSystem, fileSystem));
+            // CC3: a chat's terminal can run the Claude Code TUI instead of a shell.
+            const shellCandidates = cc3ClaudeTuiShellCandidate(session.runtimeEnv, platform)
+              ? [
+                  cc3ClaudeTuiShellCandidate(session.runtimeEnv, platform)!,
+                  ...resolvedShellCandidates,
+                ]
+              : resolvedShellCandidates;
             const terminalEnv = createTerminalSpawnEnv(
               baseEnv,
               session.runtimeEnv,

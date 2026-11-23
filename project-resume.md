@@ -64,3 +64,12 @@ Done (gap round): ScreenBuffer is now an @xterm/headless emulator (never shown t
 Not done: token streaming in tui transport (CLI limit), Codex wrapper (codex not installed here). OpenCode/Kilo use their own server (kilo via OpenCode binaryPath, untested).
 Done (CLI commands + real new chat): RPC provider.runCliCommand (contracts rpc.ts, ws.ts handler, client-runtime serverEnvironment.runCliCommand) -> ProviderInstance.runCliCommand (set by ClaudeDriver when transport=tui) -> wrapper/ClaudeCliCommands.ts (/mcp via `claude mcp list`; other commands on the chat's live TUI or a standby TUI via LiveTuiRegistry.ts, output read from the headless screen in ScreenCommand.ts). Web: ChatView.runLocalSlashCommand sends mcp/context/status/cost to the CLI (panel kind "cli" in Cc3CommandPanel), falls back to the CC3 screens when unsupported. Plus (scratch chats) creates a real thread (newChatLifecycle.ts materializeNewChat) and deletes it when left unused (onlyIfUnused). Start-up dialogs (trust, add-dir) answered by answerClaudeStartupDialog; ready-timeout error now carries the screen.
 Open: Claude process still starts with the first message (adapter startTurn would need a warm-up path); first message takes ~15s in tui mode.
+
+## Branches (2026-11-23)
+- `cc3-GUI`: GUI-based Claude chat (plugin/MCP/config panels, `/cc3-config` runner). Frozen at b94f6e1f20.
+- `main`: TUI experiment. Claude threads show the real Claude Code TUI in a terminal instead of the chat
+  (`apps/web/src/components/ClaudeTuiPane.tsx`, hook in `ChatView.tsx` via `claudeTuiProps`). Drafts get a
+  server thread through `threadEnvironment.create`. Server: `terminal/Manager.ts` `cc3ClaudeTuiShellCandidate`
+  runs `claude --session-id|--resume <threadId> --settings {"theme":"custom:cc3"}` when runtimeEnv has `CC3_TUI_SESSION`.
+- Theme file `~/.claude/themes/cc3.json` (only used via `--settings`, so only inside CC3).
+- Font: `apps/web/public/fonts/LexendDecaMono-{Regular,Bold}.ttf` generated from Lexend Deca (fixed 620 advance), default terminal font.

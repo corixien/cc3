@@ -176,6 +176,22 @@ html[data-mobile-composer-route-transition="true"]::view-transition-old(t3-mobil
   font-display: swap;
 }
 
+@font-face {
+  font-family: "Lexend Deca Mono";
+  src: url("/fonts/LexendDecaMono-Regular.ttf") format("truetype");
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Lexend Deca Mono";
+  src: url("/fonts/LexendDecaMono-Bold.ttf") format("truetype");
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+}
+
 @theme {
   --font-sans:
     "Lexend Deca", -apple-system, BlinkMacSystemFont, "Inter Variable", "Segoe UI", system-ui,
