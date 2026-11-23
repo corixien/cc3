@@ -3,7 +3,12 @@
 // `/usage` and friends work like they do in Claude Code. Provider commands (`/compact`,
 // `/init`, skills...) keep going to the provider.
 /** Popups drawn above the composer, see Cc3CommandPanel. */
-export type Cc3CommandPanelKind = "connectors" | "overview" | "integrations" | "cli";
+export type Cc3CommandPanelKind =
+  | "connectors"
+  | "overview"
+  | "integrations"
+  | "cli"
+  | `config:${"permissions" | "hooks" | "agents" | "commands" | "styles" | "memory" | "settings" | "account"}`;
 
 export type Cc3LocalSlashAction =
   | { readonly kind: "panel"; readonly panel: Cc3CommandPanelKind }
@@ -83,6 +88,11 @@ export const CC3_LOCAL_SLASH_COMMANDS = [
     description: "Configure keyboard shortcuts",
     action: route("/settings/keybindings"),
   },
+  {
+    name: "output-style",
+    description: "Change how Claude responds",
+    action: route("/settings/chat"),
+  },
   { name: "help", description: "Search all commands and actions", action: { kind: "palette" } },
   { name: "resume", description: "Find and reopen a chat", action: { kind: "palette" } },
 ] as const satisfies ReadonlyArray<Cc3LocalSlashCommand>;
@@ -117,3 +127,17 @@ export const CC3_CLI_ARGUMENT_COMMANDS: ReadonlySet<string> = new Set([
   "plugins",
   "marketplace",
 ]);
+
+/** In a Claude chat these commands open the Claude config manager instead of a CC3 settings page. */
+export const CC3_CLAUDE_CONFIG_PANELS: Readonly<Record<string, Cc3CommandPanelKind>> = {
+  permissions: "config:permissions",
+  hooks: "config:hooks",
+  agents: "config:agents",
+  memory: "config:memory",
+  "output-style": "config:styles",
+  config: "config:settings",
+  settings: "config:settings",
+  login: "config:account",
+  logout: "config:account",
+  doctor: "config:account",
+};

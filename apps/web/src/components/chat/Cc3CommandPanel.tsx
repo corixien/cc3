@@ -7,6 +7,7 @@ import { useEffect } from "react";
 
 import type { Cc3CommandPanelKind } from "../../cc3LocalSlashCommands";
 import { cn } from "../../lib/utils";
+import { Cc3ClaudeConfig, type ConfigTab } from "./Cc3ClaudeConfig";
 import { Cc3McpManager, Cc3PluginsManager, type Cc3RunClaudeCommand } from "./Cc3ClaudeManager";
 import { ComposerBanner } from "./ComposerBanner";
 import {
@@ -55,7 +56,9 @@ export function Cc3CommandPanel(props: Cc3CommandPanelProps) {
         ? gt("Connectors")
         : props.panel === "overview"
           ? gt("Session")
-          : gt("Plugins and integrations");
+          : props.panel.startsWith("config:")
+            ? gt("Claude settings")
+            : gt("Plugins and integrations");
 
   return (
     <div className="mb-3">
@@ -75,6 +78,13 @@ export function Cc3CommandPanel(props: Cc3CommandPanelProps) {
             )
           ) : null}
           {props.panel === "overview" ? <ThreadDetailsOverview {...props.overview} /> : null}
+          {props.panel.startsWith("config:") && props.runClaudeCommand ? (
+            <Cc3ClaudeConfig
+              key={props.panel}
+              run={props.runClaudeCommand}
+              initialTab={props.panel.slice("config:".length) as ConfigTab}
+            />
+          ) : null}
           {props.panel === "connectors" && props.runClaudeCommand ? (
             <Cc3McpManager run={props.runClaudeCommand} />
           ) : null}

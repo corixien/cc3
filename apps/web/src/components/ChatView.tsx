@@ -207,6 +207,7 @@ import { useSplitViewStore } from "../splitViewStore";
 import { splitPaneOwnsTarget } from "../lib/splitPaneOwner";
 import { useOpenFolderChat } from "../hooks/useOpenFolderChat";
 import {
+  CC3_CLAUDE_CONFIG_PANELS,
   CC3_CLI_ARGUMENT_COMMANDS,
   cc3LocalSlashCommand,
   type Cc3CommandPanelKind,
@@ -1600,6 +1601,11 @@ export default function ChatView(props: ChatViewProps) {
       }
     };
     const cwd = activeThread?.worktreePath ?? activeProject?.workspaceRoot ?? gitCwd ?? null;
+    const configPanel = CC3_CLAUDE_CONFIG_PANELS[name];
+    if (configPanel && cwd && String(activeProviderStatus?.driver) === "claudeAgent") {
+      setCommandPanel(configPanel);
+      return;
+    }
     // Informational commands run on the CLI; settings-style ones keep their CC3 screens.
     const cliRunsArguments = args.length > 0 && CC3_CLI_ARGUMENT_COMMANDS.has(name);
     const cliAnswers = cliRunsArguments || ["mcp", "context", "status", "cost"].includes(name);

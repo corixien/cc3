@@ -13,6 +13,7 @@ import {
   readClaudePluginCatalog,
   runClaudeManagementCommand,
 } from "./claudeManagementCommand.ts";
+import { parseCliPassthrough, parseConfigCommand, runConfigRequest } from "./claudeConfigFiles.ts";
 import { listClaudeCliMcpServers } from "./claudeMcpList.ts";
 import {
   findLiveTui,
@@ -21,7 +22,8 @@ import {
   type LiveTuiHandle,
 } from "./LiveTuiRegistry.ts";
 import { runCommandOnScreen } from "./ScreenCommand.ts";
-import { answerClaudeStartupDialog, isClaudeInputReady } from "./ScreenBuffer.ts";
+import { KEY_DOWN, KEY_ENTER } from "./ptyKeys.ts";
+import { isClaudeInputReady, isClaudeTrustPrompt } from "./ScreenBuffer.ts";
 import { scrubWrapperEnvironment } from "./wrapperEnvironment.ts";
 import { TranscriptTail } from "./TranscriptTail.ts";
 import { WrapperSession } from "./WrapperSession.ts";
@@ -91,6 +93,28 @@ export function makeClaudeCliCommandRunner(deps: {
   });
 
   return Effect.fn("ClaudeCliCommands.run")(function* (request: ClaudeCliCommandRequest) {
+    const configRequest = parseConfigCommand(request.command);
+    if (configRequest !== null) {
+      const output = yield* Effect.tryPromise({
+        try: () => runConfigRequest(configRequest, request.cwd, deps.environment),
+        catch: fail,
+      });
+      return { output } satisfies ClaudeCliCommandResult;
+    }
+    const passthroughArgv = parseCliPassthrough(request.command);
+    if (passthroughArgv !== null) {
+      const output = yield* Effect.tryPromise({
+        try: () =>
+          runClaudeManagementCommand(
+            deps.binaryPath,
+            passthroughArgv,
+            request.cwd,
+            deps.environment,
+          ),
+        catch: fail,
+      });
+      return { output } satisfies ClaudeCliCommandResult;
+    }
     if (request.command.trim() === PLUGIN_CATALOG_COMMAND) {
       const output = yield* Effect.tryPromise({
         try: () => readClaudePluginCatalog(deps.binaryPath, request.cwd, deps.environment),
