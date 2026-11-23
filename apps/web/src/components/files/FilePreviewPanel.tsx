@@ -48,7 +48,7 @@ import {
   squashAtomCommandFailure,
 } from "@t3tools/client-runtime/state/runtime";
 import { mediaFileReference } from "@t3tools/client-runtime/media-reference";
-import { FolderTree, Globe2, WrapTextIcon } from "lucide-react";
+import { Globe2, MessageSquarePlusIcon, WrapTextIcon, XIcon } from "lucide-react";
 import * as Schema from "effect/Schema";
 import {
   lazy,
@@ -68,7 +68,7 @@ import { useRemoteOpenState } from "~/remoteOpen";
 import { useClientSettings } from "~/hooks/useSettings";
 import { useTheme } from "~/hooks/useTheme";
 import { useStableCallback } from "~/hooks/useStableCallback";
-import { getLocalStorageItem, setLocalStorageItem, useLocalStorage } from "~/hooks/useLocalStorage";
+import { getLocalStorageItem, useLocalStorage } from "~/hooks/useLocalStorage";
 import { resolveDiffThemeName } from "~/lib/diffRendering";
 import { PREFERRED_HIGHLIGHTER } from "~/lib/syntaxHighlighting";
 import { cn, isMacPlatform } from "~/lib/utils";
@@ -88,6 +88,8 @@ import { previewEnvironment } from "~/state/preview";
 import { serverEnvironment } from "~/state/server";
 import { useEnvironmentScope } from "~/state/session";
 import { useAtomCommand } from "~/state/use-atom-command";
+import { terminalEnvironment } from "~/state/terminal";
+import { CLAUDE_TUI_TERMINAL_ID } from "~/types";
 import { useAtomQueryRunner } from "~/state/use-atom-query-runner";
 
 import { AttachmentFilePreview } from "./AttachmentFilePreview";
@@ -101,12 +103,9 @@ import { FileBreadcrumbs } from "./FileBreadcrumbs";
 import { breadcrumbPathOf, retainedBreadcrumbTrail, trailChildOf } from "./filePath";
 import { FileMarkdownPreview } from "./FileMarkdownPreview";
 import {
-  type FileCommentAnnotationEntry,
   type FileCommentAnnotationGroup,
   type FileCommentLineAnnotation,
   formatFileCommentRange,
-  nextFileCommentId,
-  normalizeFileCommentRange,
   remapFileCommentAnnotations,
   promptFileCommentEntries,
 } from "./fileCommentAnnotations";
@@ -924,44 +923,6 @@ function EditableFileSurface({
     );
   };
 
-  const beginComment = (range: SelectedLineRange) => {
-    editorRef.current?.setSelections([]);
-    editorRef.current?.blur();
-    const { startLine, endLine } = normalizeFileCommentRange(range);
-    const draftEntry: FileCommentAnnotationEntry = {
-      id: nextFileCommentId(),
-      kind: "draft",
-      startLine,
-      endLine,
-      text: "",
-    };
-    setLineAnnotations((current) => {
-      const withoutDraft = current.flatMap((annotation) => {
-        const entries = annotation.metadata.entries.filter((entry) => entry.kind !== "draft");
-        return entries.length > 0 ? [{ ...annotation, metadata: { entries } }] : [];
-      });
-      const existingIndex = withoutDraft.findIndex(
-        (annotation) => annotation.lineNumber === endLine,
-      );
-      if (existingIndex < 0) {
-        return [
-          ...withoutDraft,
-          {
-            lineNumber: endLine,
-            metadata: { entries: [draftEntry] },
-          },
-        ];
-      }
-      return withoutDraft.map((annotation, index) =>
-        index === existingIndex
-          ? {
-              ...annotation,
-              metadata: { entries: [...annotation.metadata.entries, draftEntry] },
-            }
-          : annotation,
-      );
-    });
-  };
   const hasOpenCommentForm = lineAnnotations.some((annotation) =>
     annotation.metadata.entries.some((entry) => entry.kind === "draft"),
   );
@@ -978,9 +939,6 @@ function EditableFileSurface({
   }, [hasOpenCommentForm, setSelectedRange]);
   const handleLineSelectionEnd = (range: SelectedLineRange | null) => {
     setSelectedRange(range);
-    if (range) {
-      beginComment(range);
-    }
   };
 
   const handlePostRender: FilePostRender = (fileContainer, instance, phase) => {
@@ -1017,7 +975,7 @@ function EditableFileSurface({
             onEditChange={handleEditChange}
             options={{
               disableFileHeader: true,
-              enableGutterUtility: !hasOpenCommentForm,
+              enableGutterUtility: false,
               enableLineSelection: !hasOpenCommentForm,
               onGutterUtilityClick: setSelectedRange,
               onLineSelectionChange: setSelectedRange,
@@ -1251,7 +1209,7 @@ export default function FilePreviewPanel({
     serverConfig?.shellRevealInFileManager === true;
   // Everything preview-related keys off previewPath; a folder has no preview.
   const previewPath = isFolder ? null : relativePath;
-  const [explorerOpen, setExplorerOpen] = useState(initialExplorerOpen);
+  const [explorerOpen] = useState(initialExplorerOpen);
   const showExplorer = shouldShowFileExplorer({
     relativePath: previewPath,
     explorerOpen,
@@ -1423,15 +1381,25 @@ export default function FilePreviewPanel({
     // oxlint-disable-next-line react/exhaustive-effect-dependencies -- A new path or trail re-renders the crumbs, so the current one scrolls back into view.
   }, [breadcrumbPath, breadcrumbTrail]);
 
-  const toggleExplorer = () => {
-    setExplorerOpen((current) => {
-      const next = !current;
-      try {
-        setLocalStorageItem(FILE_EXPLORER_STORAGE_KEY, next, Schema.Boolean);
-      } catch (error) {
-        console.error(error);
+  // CC3: the chat is the Claude TUI, so the request is pasted into its terminal input.
+  const writeTerminal = useAtomCommand(terminalEnvironment.write, { reportFailure: false });
+  const handleSuggestChanges = () => {
+    if (previewPath === null) return;
+    void writeTerminal({
+      environmentId,
+      input: {
+        threadId: threadRef.threadId,
+        terminalId: CLAUDE_TUI_TERMINAL_ID,
+        data: `\u001b[200~Suggest changes for @${previewPath}: \u001b[201~`,
+      },
+    }).then((result) => {
+      if (result._tag === "Failure" && !isAtomCommandInterrupted(result)) {
+        toastManager.add({
+          type: "error",
+          title: gt("Unable to add to chat"),
+          description: gt("Open a Claude chat for this project and try again."),
+        });
       }
-      return next;
     });
   };
 
@@ -1556,13 +1524,14 @@ export default function FilePreviewPanel({
               <Globe2 className="size-3.5" />
             </FileSurfaceAction>
           ) : null}
+          {!isHostFile && previewPath !== null && !isMedia ? (
+            <FileSurfaceAction label={gt("Suggest changes")} onPress={handleSuggestChanges}>
+              <MessageSquarePlusIcon className="size-3.5" />
+            </FileSurfaceAction>
+          ) : null}
           {!isHostFile && previewPath !== null ? (
-            <FileSurfaceAction
-              label={explorerOpen ? gt("Hide file explorer") : gt("Show file explorer")}
-              pressed={explorerOpen}
-              onPress={toggleExplorer}
-            >
-              <FolderTree className="size-3.5" />
+            <FileSurfaceAction label={gt("Close file")} onPress={() => navigateToFolder("")}>
+              <XIcon className="size-3.5" />
             </FileSurfaceAction>
           ) : null}
         </div>
