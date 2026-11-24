@@ -137,7 +137,11 @@ export function ClaudeTuiPane(props: ClaudeTuiPaneProps) {
     useRightPanelStore.getState().openFile(scopeThreadRef(environmentId, threadId), relative);
   });
   // Claude's `cd` (reported by a hook) moves the file tree, but only while a file view is already open.
+  const lastCwd = useRef(props.cwd.replace(/\/+$/, ""));
   const handleCwdChange = useStableCallback((cwd: string) => {
+    const target = cwd.replace(/\/+$/, "");
+    if (lastCwd.current === target) return;
+    lastCwd.current = target;
     const ref = scopeThreadRef(environmentId, threadId);
     const panel = useRightPanelStore.getState();
     const hasFiles = selectThreadRightPanelState(panel.byThreadKey, ref).surfaces.some(
@@ -145,7 +149,6 @@ export function ClaudeTuiPane(props: ClaudeTuiPaneProps) {
     );
     if (!hasFiles) return;
     const root = props.cwd.replace(/\/+$/, "");
-    const target = cwd.replace(/\/+$/, "");
     if (target === root) panel.openFile(ref, ".");
     else
       panel.openFile(ref, target.startsWith(`${root}/`) ? target.slice(root.length + 1) : target);

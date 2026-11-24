@@ -13,7 +13,20 @@ done
 echo /dev/tty
 `,
   "cc3-cwd": String.raw`#!/bin/sh
-c=$(sed -n 's/.*"cwd" *: *"\([^"]*\)".*/\1/p' | head -n 1)
+in=$(cat)
+cwd=$(printf %s "$in" | sed -n 's/.*"cwd" *: *"\([^"]*\)".*/\1/p' | head -n 1)
+cmd=$(printf %s "$in" | sed -n 's/.*"command" *: *"\(\([^"\\]\|\\.\)*\)".*/\1/p' | head -n 1)
+c="$cwd"
+if printf %s "$cmd" | grep -qE '(^|[;&| ])cd( |$|;|&|[|])'; then
+  dest=$(printf %s "$cmd" | grep -oE '(^|[;&| ])cd( +[^;&|]*)?' | tail -n 1 | sed -E 's/^[;&| ]*cd *//' | tr -d "\"'\\\\" | sed -E 's/ +$//')
+  case "$dest" in
+    "") d="$HOME" ;;
+    "~"*) d="$HOME$(printf %s "$dest" | cut -c2-)" ;;
+    /*) d="$dest" ;;
+    *) d="$cwd/$dest" ;;
+  esac
+  [ -d "$d" ] && c=$(cd "$d" && pwd -P)
+fi
 [ -n "$c" ] || exit 0
 printf '\033]777;cc3-cwd;%s\007' "$(printf %s "$c" | base64 -w0)" > "$(cc3-tty)"
 `,
