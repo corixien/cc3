@@ -84,3 +84,7 @@ Open: Claude process still starts with the first message (adapter startTurn woul
 - Clawd in the welcome box is rewritten client-side (`replaceClaudeMascot`) to the CC3 logo letters: 27 private-use tiles U+E000.. in CC3 Mono (generator script scratch only).
 - TUI MCP credentials are marked `terminal` (McpThreadCaller) so preview_* tools skip the active-run check; server key is "cc3"; cursor #e8e8e8.
 - File panel: X closes file to root view, Suggest-changes button pastes `@path` into the claude-tui terminal, gutter + comments removed.
+- Zoom: Ctrl +/-/0 outside terminals = Electron window zoom (`cc3Zoom.ts`, bridge `setWindowZoomFactor`); terminals divide their font by the window zoom (independent zoom).
+- Header: smaller title, status dot (`claudeTuiStatus.ts`, from terminal title prefix), split right pane has no sidebar inset.
+- Settings: pages chat/voice/providers/scheduled-tasks and default-model/text-generation rows hidden; new "Claude Code" section in General.
+- TUI shims (`terminal/cc3TuiShims.ts`): `cc3-terminal` types a command into the drawer terminal (OSC cc3-term), `cc3-terminal-output` reads its history file; `--append-system-prompt` tells Claude about CC3.

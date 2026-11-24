@@ -63,17 +63,11 @@ describe("searchSettings", () => {
     expect(searchSettings("word", ITEMS).map((item) => item.id)).toEqual(["word-wrap"]);
     expect(searchSettings("network", ITEMS).map((item) => item.id)).toEqual(["network-access"]);
     expect(searchSettings("sharing", ITEMS).map((item) => item.id)).toEqual(["network-access"]);
-    expect(searchSettings("claude", ITEMS).map((item) => item.id)).toEqual(["providers"]);
+    expect(searchSettings("claude", ITEMS)).toEqual([]);
     expect(searchSettings("long lines", ITEMS).map((item) => item.id)).toEqual(["word-wrap"]);
     const spanish = (message: string) => (message === "Word wrap" ? "Ajuste de línea" : message);
     expect(searchSettings("ajuste", ITEMS, spanish).map((item) => item.id)).toEqual(["word-wrap"]);
-    for (const query of ["fallback", "fallback agent", "fallback model"]) {
-      expect(searchSettings(query)[0]).toMatchObject({
-        id: "fallback-model",
-        to: "/settings/threads",
-        scope: "environment-defaults",
-      });
-    }
+    expect(searchSettings("fallback model")).toEqual([]);
   });
 
   it("hides the Secrets page from nav and search while the secrets feature is disabled", () => {
@@ -81,11 +75,13 @@ describe("searchSettings", () => {
     expect(searchSettings("1password").map((item) => item.to)).not.toContain("/settings/secrets");
   });
 
-  it("finds the Scheduled tasks page", () => {
-    expect(searchSettings("scheduled tasks")[0]).toMatchObject({
-      id: "scheduled-tasks",
-      to: "/settings/scheduled-tasks",
-    });
+  it("hides pages and rows of the GUI chat", () => {
+    expect(searchSettings("scheduled tasks").map((item) => item.to)).not.toContain(
+      "/settings/scheduled-tasks",
+    );
+    expect(SETTINGS_NAV_GROUPS.flatMap((group) => group.paths)).not.toContain(
+      "/settings/providers",
+    );
   });
 
   it("matches normalized title substrings", () => {
@@ -222,9 +218,6 @@ describe("searchSettings", () => {
       ["Delete old browser artifacts", "storage-artifacts"],
       ["Delete old rotated logs", "storage-artifacts"],
       ["Custom search URL", "browser-search-engine"],
-      ["Native sessions", "providers"],
-      ["CODEX_HOME path", "providers"],
-      ["Shadow home path", "providers"],
     ] as const) {
       expect(searchSettings(title)[0]?.id, title).toBe(id);
     }

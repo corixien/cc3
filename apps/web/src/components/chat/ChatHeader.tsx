@@ -25,6 +25,7 @@ import { Badge } from "../ui/badge";
 import { MiddleTruncate } from "../ui/middle-truncate";
 import { Tooltip, TooltipPopup, TooltipTrigger } from "../ui/tooltip";
 import { toastManager } from "../ui/toast";
+import { ClaudeTuiStatusDot } from "./ClaudeTuiStatusDot";
 import { useThreadActionMenu } from "~/hooks/useThreadActionMenu";
 import { readLocalApi } from "~/localApi";
 import { threadEnvironment } from "../../state/threads";
@@ -368,9 +369,10 @@ export const ChatHeader = memo(function ChatHeader({
                   />
                 }
               >
-                <h2 className="min-w-0" dir={textDirection(activeThreadTitle)}>
+                <h2 className="min-w-0 text-[13px]" dir={textDirection(activeThreadTitle)}>
                   <WorkspaceBreadcrumbText>{activeThreadTitle}</WorkspaceBreadcrumbText>
                 </h2>
+                <ClaudeTuiStatusDot threadId={activeThreadId} />
                 <ChevronDownIcon
                   aria-hidden
                   data-thread-title-chevron

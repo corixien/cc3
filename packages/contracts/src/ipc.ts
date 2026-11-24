@@ -1166,6 +1166,7 @@ export interface DesktopBridge {
   getWindowFullscreenState: () => boolean;
   onWindowFullscreenStateChange: (listener: (fullscreen: boolean) => void) => () => void;
   getWindowZoomFactor: () => number;
+  setWindowZoomFactor: (factor: number) => void;
   getUpdateState: () => Promise<DesktopUpdateState>;
   /** `minimumVersion` is a track switch's checked release; nothing older is offered after. */
   setUpdateChannel: (

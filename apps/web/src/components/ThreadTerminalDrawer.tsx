@@ -82,6 +82,7 @@ import {
 } from "../types";
 import { readLocalApi } from "~/localApi";
 import { confirmTerminalClose } from "~/lib/terminalCloseConfirm";
+import { getGuiZoom, useGuiZoom } from "../cc3Zoom";
 import { updateClientSettings, useClientSettings } from "../hooks/useSettings";
 import { getFileMetadataQueryAtom } from "../hooks/useFileMetadata";
 import { FileMetadataThreadContext } from "../hooks/FileMetadataThreadProvider";
@@ -197,11 +198,13 @@ function replaceClaudeMascot(data: string): string {
 
 // CC3: the xdg-open shim of the Claude TUI prints this OSC; only live output counts, never a replay.
 const CC3_OPEN_URL_PATTERN = /\u001b\]777;cc3-open;([^\u0007\u001b]+)\u0007/g;
+const CC3_TERMINAL_COMMAND_PATTERN = /\u001b\]777;cc3-term;([A-Za-z0-9+/=]+)\u0007/g;
 const TERMINAL_TITLE_PATTERN = /\u001b\][02];([^\u0007\u001b]*)(?:\u0007|\u001b\\)/g;
 
 export interface TerminalOutputHooks {
   readonly onOpenUrl?: (url: string) => void;
   readonly onTitle?: (title: string) => void;
+  readonly onTerminalCommand?: (command: string) => void;
   readonly transform?: (data: string) => string;
 }
 
@@ -216,6 +219,12 @@ export function writeTerminalOutputUpdate(
     terminal.write(hooks?.transform ? hooks.transform(update.data) : update.data);
     if (hooks?.onOpenUrl) {
       for (const match of update.data.matchAll(CC3_OPEN_URL_PATTERN)) hooks.onOpenUrl(match[1]!);
+    }
+    if (hooks?.onTerminalCommand) {
+      for (const match of update.data.matchAll(CC3_TERMINAL_COMMAND_PATTERN)) {
+        const bytes = Uint8Array.from(atob(match[1]!), (char) => char.charCodeAt(0));
+        hooks.onTerminalCommand(new TextDecoder().decode(bytes));
+      }
     }
     if (hooks?.onTitle) {
       let title: string | undefined;
@@ -535,6 +544,7 @@ interface TerminalViewportProps {
   providerInstanceId?: ProviderInstanceId;
   onSessionExited: () => void;
   onTitleChange?: (title: string) => void;
+  onTerminalCommand?: (command: string) => void;
   /** Return true to consume a submitted input line. */
   onSubmitLine?: (line: string) => boolean;
   onAddTerminalContext?: (selection: TerminalContextSelection) => void;
@@ -574,6 +584,7 @@ function TerminalSessionViewport({
   providerInstanceId,
   onSessionExited,
   onTitleChange,
+  onTerminalCommand,
   onSubmitLine,
   onAddTerminalContext,
   autoFocus = false,
@@ -668,13 +679,16 @@ function TerminalSessionViewport({
       terminal: settings.fontFamilyTerminal,
     }),
   );
-  const terminalFontSize = useClientSettings((settings) =>
+  const guiZoom = useGuiZoom();
+  const terminalFontSetting = useClientSettings((settings) =>
     resolveTerminalFontSizePreference({
       advanced: advancedTypography,
       code: settings.fontSizeCode,
       terminal: settings.fontSizeTerminal,
     }),
   );
+  // The window zoom scales the canvas too; dividing keeps the terminal's on-screen size independent of it.
+  const terminalFontSize = terminalFontSetting / guiZoom;
   const terminalFontRef = useRef({ family: terminalFontFamily, size: terminalFontSize });
   // Keyed by the launch (see TerminalViewport), so the atom is fixed for this surface.
   const terminalSessionAtom = attachedTerminalSessionAtom(environmentId, {
@@ -868,6 +882,7 @@ function TerminalSessionViewport({
                 });
               },
               ...(onTitleChange ? { onTitle: onTitleChange, transform: replaceClaudeMascot } : {}),
+              ...(onTerminalCommand ? { onTerminalCommand } : {}),
             },
           );
         }),
@@ -1094,7 +1109,10 @@ function TerminalSessionViewport({
       };
 
       function handleBeforeKey(event: KeyboardEvent): boolean {
-        const zoomed = nextTerminalFontSizeForZoomKey(event, terminalFontRef.current.size);
+        const zoomed = nextTerminalFontSizeForZoomKey(
+          event,
+          Math.round(terminalFontRef.current.size * getGuiZoom()),
+        );
         if (zoomed !== null) {
           event.preventDefault();
           event.stopPropagation();
@@ -1286,7 +1304,16 @@ function TerminalSessionViewport({
         mount.focus({ preventScroll: true });
       }
     };
-  }, [cwd, environmentId, terminalId, terminalSessionAtom, threadId]);
+  }, [
+    cwd,
+    environmentId,
+    onSubmitLine,
+    onTerminalCommand,
+    onTitleChange,
+    terminalId,
+    terminalSessionAtom,
+    threadId,
+  ]);
 
   const attachContainer = (mount: HTMLDivElement) => {
     containerRef.current = mount;

@@ -5,15 +5,13 @@ import { NotificationSettings } from "./NotificationSettings";
 import { PRIVACY_POLICY_URL } from "../../legalLinks";
 import { CheckIcon } from "lucide-react";
 import { msg, T, useGT, useMessages } from "gt-react";
-import { Link, useNavigate } from "@tanstack/react-router";
+import { Link } from "@tanstack/react-router";
 import { useRef, useState } from "react";
 import {
   type DesktopUpdateChannel,
   IDLE_COMPACTION_MODES,
   type IdleCompactionMode,
   globalIdleCompaction,
-  ProviderDriverKind,
-  type ProviderInstanceId,
   type SidebarProjectGroupingMode,
 } from "@t3tools/contracts";
 import {
@@ -21,7 +19,6 @@ import {
   type DiffLayout,
   MAX_SIDEBAR_AUTO_SETTLE_AFTER_DAYS,
   MIN_SIDEBAR_AUTO_SETTLE_AFTER_DAYS,
-  type ResponseStreamingMode,
   type QuitConfirmationMode,
   SidebarProjectSortOrder,
   ScreenReaderAnnouncements,
@@ -32,7 +29,6 @@ import {
   managedUpdatesMessage,
 } from "@t3tools/client-runtime/contract-labels";
 import { desktopUpdateChannelOf } from "@t3tools/shared/cliRelease";
-import { createModelSelection, pickModelSelection } from "@t3tools/shared/model";
 import { resolvePastedPath } from "@t3tools/shared/path";
 import * as Equal from "effect/Equal";
 import * as Schema from "effect/Schema";
@@ -48,8 +44,6 @@ import {
   isDesktopUpdateButtonDisabled,
   resolveDesktopUpdateButtonAction,
 } from "../../components/desktopUpdate.logic";
-import { ProviderModelPicker } from "../chat/ProviderModelPicker";
-import { TraitsPicker } from "../chat/TraitsPicker";
 import { isElectron } from "../../env";
 import { buildHostedChannelSelectionUrl, type HostedAppChannel } from "../../hostedPairing";
 import {
@@ -63,28 +57,14 @@ import {
   useScopedSettingsMixed,
   useUpdateScopedSettings,
 } from "./useScopedSettings";
-import { useScopedModelDisabledReason } from "./useScopedModelAvailability";
 import { useOptionalSettingsScope, useSettingsScope } from "./SettingsScopeContext";
 import { scopedIdleCompaction } from "./scopedSettings";
-import { ProjectDefaultsSettings } from "./ProjectDefaultsSettings";
-import { ThreadTitleInstructionsSettings } from "./ThreadTitleInstructionsSettings";
 import { SnoozePresetsRow } from "./SnoozePresetsSettings";
 import { useDesktopUpdateState } from "../../state/desktopUpdate";
 import { managedTelemetryOffMessage, usePrimaryManagedPolicy } from "../../state/managedPolicy";
-import {
-  getTextGenerationModelOptionsByInstance,
-  resolveAppModelSelectionState,
-  selectsPlanAgent,
-} from "../../modelSelection";
-import { useTextGenerationTargets } from "../../textGenerators";
 import { ensureLocalApi, readLocalApi } from "../../localApi";
 import { isMacPlatform } from "../../lib/utils";
-import {
-  useEnvironmentProviders,
-  useEnvironments,
-  usePrimaryEnvironmentId,
-} from "../../state/environments";
-import { EMPTY_SERVER_PROVIDERS } from "../../state/server";
+import { useEnvironments, usePrimaryEnvironmentId } from "../../state/environments";
 import { Button } from "../ui/button";
 import { DraftInput } from "../ui/draft-input";
 import { Input } from "../ui/input";
@@ -109,7 +89,6 @@ import {
   syncAutoSettleDaysField,
 } from "./SettingsPanels.logic";
 import {
-  SETTINGS_PICKER_TRIGGER_CLASSNAME,
   SettingResetButton,
   SettingsPageContainer,
   SettingsRow,
@@ -131,16 +110,6 @@ import { downloadLocalUpdate } from "../sidebar/SidebarUpdatePill";
 import { useUpdateEverythingRun } from "../sidebar/updateEverythingRun";
 import { awaitsTrackSwitch, channelSwitchLabel } from "../sidebar/updateEverything.logic";
 import { isHostedByThisApp } from "../sidebar/useUpdateEverything";
-
-const RESPONSE_STREAMING_MODE_LABELS: Record<ResponseStreamingMode, string> = {
-  turn: msg("Wait for the full response"),
-  paragraph: msg("Show finished paragraphs"),
-};
-
-const RESPONSE_STREAMING_MODE_DESCRIPTIONS: Record<ResponseStreamingMode, string> = {
-  turn: msg("Text appears once the agent finishes its turn."),
-  paragraph: msg("Each paragraph or code block appears as soon as it is complete."),
-};
 
 const SIDEBAR_PROJECT_SORT_ORDER_LABELS: Record<SidebarProjectSortOrder, string> = {
   updated_at: msg("Last user message"),
@@ -166,7 +135,6 @@ const QUIT_CONFIRMATION_MODE_LABELS: Record<QuitConfirmationMode, string> = {
   "double-click": msg("Double press"),
 };
 
-const DEFAULT_DRIVER_KIND = ProviderDriverKind.make("codex");
 function AboutVersionSection() {
   const setting = useSearchableSetting();
   const gt = useGT();
@@ -967,6 +935,27 @@ export function GeneralSettingsPanel() {
         />
       </SettingsSection>
 
+      <SettingsSection id="claude" title={gt("Claude Code")}>
+        <SettingsRow
+          {...setting("claude-skip-permissions")}
+          description={
+            <T>
+              Start Claude terminal sessions with --dangerously-skip-permissions. Applies to newly
+              started sessions.
+            </T>
+          }
+          control={
+            <Switch
+              checked={settings.claudeSkipPermissions}
+              onCheckedChange={(checked) =>
+                updateSettings({ claudeSkipPermissions: Boolean(checked) })
+              }
+              aria-label={gt("Start Claude with skipped permissions")}
+            />
+          }
+        />
+      </SettingsSection>
+
       <SettingsSection id="confirmations" title={gt("Confirmations")}>
         <SettingsRow
           {...setting("unpin-confirmation")}
@@ -1042,24 +1031,6 @@ export function GeneralSettingsPanel() {
                 updateSettings({ confirmThreadDelete: Boolean(checked) })
               }
               aria-label={gt("Confirm thread deletion")}
-            />
-          }
-        />
-        <SettingsRow
-          {...setting("claude-skip-permissions")}
-          description={
-            <T>
-              Start Claude terminal sessions with --dangerously-skip-permissions. Applies to newly
-              started sessions.
-            </T>
-          }
-          control={
-            <Switch
-              checked={settings.claudeSkipPermissions}
-              onCheckedChange={(checked) =>
-                updateSettings({ claudeSkipPermissions: Boolean(checked) })
-              }
-              aria-label={gt("Start Claude with skipped permissions")}
             />
           }
         />
@@ -1875,66 +1846,16 @@ function ScopedCompactIdleThreadsRow() {
 
 export function ThreadsSettingsPanel() {
   const setting = useSearchableSetting();
-  const messages = useMessages();
   const gt = useGT();
   const settings = useScopedSettings();
   const updateSettings = useUpdateScopedSettings();
-  const navigate = useNavigate();
-  const { environment, connectedEnvironments, target, scope } = useSettingsScope();
+  const { connectedEnvironments, scope } = useSettingsScope();
   const isProjectScope = scope.kind === "project" || scope.kind === "checkout";
-  const environmentId = environment?.environmentId ?? null;
   const hasServerTargets = connectedEnvironments.length > 0;
-  const mixedResponseStreamingMode = useScopedSettingsMixed(["responseStreamingMode"]);
-  const providersByEnvironment = useEnvironmentProviders();
-  const serverProviders =
-    (environment?.serverConfig
-      ? providersByEnvironment.get(environment.environmentId)
-      : undefined) ?? EMPTY_SERVER_PROVIDERS;
   const supportsAutoSettlementScope = connectedEnvironments.every(
     (target) => target.serverConfig?.environment.capabilities.threadAutoSettlementScope === true,
   );
-
-  const textGenerationTargets = useTextGenerationTargets({
-    environmentId,
-    settings,
-    providers: serverProviders.filter((provider) => provider.supportsTextGeneration !== false),
-    projectId: target?.projectId ?? null,
-    selections: [settings.textGenerationModelSelection],
-  });
-  const textGenerationProviders = textGenerationTargets.providers;
-  const textGenerationModelSelection = resolveAppModelSelectionState(
-    settings,
-    textGenerationProviders,
-  );
-  const textGenInstanceId = textGenerationModelSelection.instanceId;
-  const textGenModel = textGenerationModelSelection.model;
-  const textGenModelOptions = textGenerationModelSelection.options;
-  const textGenerationModelInstanceEntries = textGenerationTargets.entries;
-  const hasTextGenerationProvider = textGenerationModelInstanceEntries.some(
-    (entry) => entry.enabled && entry.isAvailable,
-  );
-  const textGenInstanceEntry = textGenerationModelInstanceEntries.find(
-    (entry) => entry.instanceId === textGenInstanceId,
-  );
-  const textGenProvider: ProviderDriverKind =
-    textGenInstanceEntry?.driverKind ?? DEFAULT_DRIVER_KIND;
-  const textGenerationModelOptionsByInstance = getTextGenerationModelOptionsByInstance(
-    settings,
-    textGenerationProviders,
-    textGenInstanceId,
-    textGenModel,
-  );
-  const isTextGenerationModelDirty = !Equal.equals(
-    settings.textGenerationModelSelection ?? null,
-    DEFAULT_UNIFIED_SETTINGS.textGenerationModelSelection ?? null,
-  );
-  const textGenerationModelDisabledReason = useScopedModelDisabledReason(
-    settings,
-    textGenerationModelInstanceEntries,
-    true,
-  );
   const mixedAddProjectBaseDirectory = useScopedSettingsMixed(["addProjectBaseDirectory"]);
-  const mixedTextGenerationModel = useScopedSettingsMixed(["textGenerationModelSelection"]);
 
   return (
     <SettingsPageContainer>
@@ -1996,52 +1917,11 @@ export function ThreadsSettingsPanel() {
         />
       </SettingsSection>
 
-      <ProjectDefaultsSettings category="general" />
-
       {!isProjectScope ? (
         <SettingsSection id="snooze" title={gt("Snooze")}>
           <SnoozePresetsRow />
         </SettingsSection>
       ) : null}
-
-      <SettingsSection id="usage-limits" title={gt("Usage limits")}>
-        <SettingsRow
-          serverScoped
-          {...setting("auto-resume-limited-threads")}
-          description={gt(
-            "Automatically resume threads when their usage limits reset. You can cancel auto-resume in each thread.",
-          )}
-          settingKeys={["autoResumeLimitedThreads"]}
-          control={
-            <ScopedSwitch
-              settingKeys={["autoResumeLimitedThreads"]}
-              checked={settings.autoResumeLimitedThreads}
-              onCheckedChange={(checked) =>
-                updateSettings({ autoResumeLimitedThreads: Boolean(checked) })
-              }
-              aria-label={gt("Resume after usage limits")}
-            />
-          }
-        />
-        <SettingsRow
-          serverScoped
-          {...setting("snooze-limited-threads")}
-          description={gt(
-            "Snooze threads until their usage limits reset. Enable auto-resume to continue the agent after the reset.",
-          )}
-          settingKeys={["snoozeLimitedThreads"]}
-          control={
-            <ScopedSwitch
-              settingKeys={["snoozeLimitedThreads"]}
-              checked={settings.snoozeLimitedThreads}
-              onCheckedChange={(checked) =>
-                updateSettings({ snoozeLimitedThreads: Boolean(checked) })
-              }
-              aria-label={gt("Snooze until limits reset")}
-            />
-          }
-        />
-      </SettingsSection>
 
       {hasServerTargets ? (
         <SettingsSection id="auto-settle" title={gt("Auto-settle")}>
@@ -2147,172 +2027,6 @@ export function ThreadsSettingsPanel() {
           ) : null}
         </SettingsSection>
       ) : null}
-
-      <SettingsSection id="text-generation" title={gt("Text generation")}>
-        <SettingsRow
-          serverScoped
-          settingKeys={["textGenerationModelSelection"]}
-          {...setting("text-generation-model")}
-          description={gt(
-            "For thread titles and other generated text. Source control has its own setting. Text generators from Providers also appear here.",
-          )}
-          resetAction={
-            hasServerTargets && isTextGenerationModelDirty ? (
-              <SettingResetButton
-                ariaLabel={gt("Reset text generation model to default")}
-                onClick={() =>
-                  updateSettings({
-                    textGenerationModelSelection:
-                      DEFAULT_UNIFIED_SETTINGS.textGenerationModelSelection,
-                  })
-                }
-              />
-            ) : null
-          }
-          control={
-            !hasServerTargets ? (
-              <span className="text-sm text-muted-foreground">
-                <T>Connect an environment to choose its text generation model.</T>
-              </span>
-            ) : !hasTextGenerationProvider ? (
-              <span className="text-sm text-muted-foreground">
-                <T>No text generation providers available.</T>
-              </span>
-            ) : (
-              <div className="flex flex-wrap items-center justify-end gap-1.5">
-                <ProviderModelPicker
-                  environmentId={environmentId}
-                  activeInstanceId={textGenInstanceId}
-                  model={textGenModel}
-                  lockedProvider={null}
-                  instanceEntries={textGenerationModelInstanceEntries}
-                  modelOptionsByInstance={textGenerationModelOptionsByInstance}
-                  triggerClassName={SETTINGS_PICKER_TRIGGER_CLASSNAME}
-                  {...(mixedTextGenerationModel ? { triggerLabel: gt("Mixed") } : {})}
-                  getModelDisabledReason={textGenerationModelDisabledReason}
-                  {...(environmentId
-                    ? {
-                        onOpenProviderSetup: (instanceId: ProviderInstanceId) => {
-                          void navigate({
-                            to: "/settings/providers",
-                            search: { environmentId, instanceId },
-                          });
-                        },
-                      }
-                    : {})}
-                  onInstanceModelChange={(instanceId, model) => {
-                    const reason = textGenerationModelDisabledReason(instanceId, model);
-                    if (reason) {
-                      toastManager.add({
-                        type: "error",
-                        title: gt("Text generation model not saved"),
-                        description: reason,
-                      });
-                      return;
-                    }
-                    updateSettings({
-                      textGenerationModelSelection: resolveAppModelSelectionState(
-                        {
-                          ...settings,
-                          textGenerationModelSelection: pickModelSelection(
-                            textGenerationModelSelection,
-                            instanceId,
-                            model,
-                          ),
-                        },
-                        textGenerationProviders,
-                      ),
-                    });
-                  }}
-                />
-                {textGenInstanceEntry ? (
-                  <TraitsPicker
-                    provider={textGenProvider}
-                    models={textGenInstanceEntry?.models ?? []}
-                    model={textGenModel}
-                    modelOptions={textGenModelOptions}
-                    allowPromptInjectedEffort={false}
-                    includePlanAgent={selectsPlanAgent(textGenModelOptions)}
-                    triggerClassName={SETTINGS_PICKER_TRIGGER_CLASSNAME}
-                    onModelOptionsChange={(nextOptions) => {
-                      updateSettings({
-                        textGenerationModelSelection: resolveAppModelSelectionState(
-                          {
-                            ...settings,
-                            textGenerationModelSelection: createModelSelection(
-                              textGenInstanceId,
-                              textGenModel,
-                              nextOptions,
-                            ),
-                          },
-                          textGenerationProviders,
-                        ),
-                      });
-                    }}
-                  />
-                ) : null}
-              </div>
-            )
-          }
-        />
-        <AdvancedSettings
-          targetIds={[setting("thread-title-instructions").id, setting("response-streaming").id]}
-        >
-          <ThreadTitleInstructionsSettings />
-          <SettingsRow
-            serverScoped
-            settingKeys={["responseStreamingMode"]}
-            {...setting("response-streaming")}
-            description={
-              mixedResponseStreamingMode
-                ? gt("The selected targets use different streaming modes.")
-                : messages(RESPONSE_STREAMING_MODE_DESCRIPTIONS[settings.responseStreamingMode])
-            }
-            resetAction={
-              settings.responseStreamingMode !== DEFAULT_UNIFIED_SETTINGS.responseStreamingMode ? (
-                <SettingResetButton
-                  ariaLabel={gt("Reset response streaming to default")}
-                  onClick={() =>
-                    updateSettings({
-                      responseStreamingMode: DEFAULT_UNIFIED_SETTINGS.responseStreamingMode,
-                    })
-                  }
-                />
-              ) : null
-            }
-            control={
-              <Select
-                value={mixedResponseStreamingMode ? null : settings.responseStreamingMode}
-                onValueChange={(value) => {
-                  if (value === "turn" || value === "paragraph") {
-                    updateSettings({ responseStreamingMode: value });
-                  }
-                }}
-              >
-                <SelectTrigger
-                  size="sm"
-                  className="w-full sm:w-56"
-                  aria-label={gt("Response streaming")}
-                >
-                  <SelectValue>
-                    {(value: ResponseStreamingMode | null) =>
-                      value === null ? gt("Mixed") : messages(RESPONSE_STREAMING_MODE_LABELS[value])
-                    }
-                  </SelectValue>
-                </SelectTrigger>
-                <SelectPopup align="end" alignItemWithTrigger={false}>
-                  <SelectItem hideIndicator value="turn">
-                    {messages(RESPONSE_STREAMING_MODE_LABELS.turn)}
-                  </SelectItem>
-                  <SelectItem hideIndicator value="paragraph">
-                    {messages(RESPONSE_STREAMING_MODE_LABELS.paragraph)}
-                  </SelectItem>
-                </SelectPopup>
-              </Select>
-            }
-          />
-        </AdvancedSettings>
-      </SettingsSection>
     </SettingsPageContainer>
   );
 }

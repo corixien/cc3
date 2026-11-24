@@ -1,4 +1,5 @@
 // @effect-diagnostics-next-line nodeBuiltinImport:off -- Effect's Crypto digest is effectful; a sync hash keeps historyPath a plain function.
+import { CC3_TUI_SHIMS, CC3_TUI_SYSTEM_PROMPT } from "./cc3TuiShims.ts";
 import * as NodeCrypto from "node:crypto";
 
 import { withWorkspaceLease } from "../workspace/workspaceLease.ts";
@@ -594,23 +595,26 @@ const POWERSHELL_UTF8_SETUP =
 
 // CC3: runs `claude` for the session id in CC3_TUI_SESSION, resuming it when its transcript exists.
 // The theme comes from --settings, so it applies to CC3 only and never touches the user's settings.
-const CC3_CLAUDE_TUI_SCRIPT = [
+export const CC3_CLAUDE_TUI_SCRIPT = [
   'id="$CC3_TUI_SESSION"',
   'bin="${CC3_TUI_BIN:-claude}"',
   // The server may have been started from inside a Claude session; those markers disable transcripts.
   "unset CLAUDECODE CLAUDE_CODE_CHILD_SESSION CLAUDE_CODE_ENTRYPOINT CLAUDE_CODE_EXECPATH CLAUDE_CODE_SSE_PORT",
   "export CLAUDE_CODE_FORCE_SESSION_PERSISTENCE=1",
-  // Claude opens URLs with xdg-open or $BROWSER; shims send them to CC3's browser panel as an OSC sequence.
+  // Shims on PATH: xdg-open and the cc3-* helpers (see cc3TuiShims.ts).
   'shim="${XDG_RUNTIME_DIR:-/tmp}/cc3-bin"',
   'mkdir -p "$shim"',
-  "cat > \"$shim/xdg-open\" <<'CC3EOF'",
-  "#!/bin/sh",
-  'printf "\\033]777;cc3-open;%s\\007" "$1" > /dev/tty',
-  "CC3EOF",
-  'chmod +x "$shim/xdg-open"',
+  ...Object.entries(CC3_TUI_SHIMS).flatMap(([name, body]) => [
+    `cat > "$shim/${name}" <<'CC3EOF'`,
+    body.trimEnd(),
+    "CC3EOF",
+    `chmod +x "$shim/${name}"`,
+  ]),
   'ln -sf xdg-open "$shim/cc3-browser"',
   'export BROWSER="$shim/cc3-browser" PATH="$shim:$PATH"',
+  `CC3_PROMPT='${CC3_TUI_SYSTEM_PROMPT.replaceAll("'", "'\\''")}'`,
   "set --",
+  'set -- --append-system-prompt "$CC3_PROMPT"',
   '[ -n "$CC3_TUI_MCP_CONFIG" ] && set -- "$@" --mcp-config "$CC3_TUI_MCP_CONFIG"',
   '[ "$CC3_TUI_SKIP_PERMISSIONS" = "1" ] && set -- "$@" --dangerously-skip-permissions',
   'if ls "${CLAUDE_CONFIG_DIR:-$HOME/.claude}"/projects/*/"$id".jsonl >/dev/null 2>&1; then',

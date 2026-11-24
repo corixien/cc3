@@ -140,22 +140,14 @@ export const SETTINGS_NAV_GROUPS: ReadonlyArray<{
     paths: [
       "/settings/general",
       "/settings/appearance",
-      "/settings/chat",
       "/settings/diffs",
       "/settings/keybindings",
-      "/settings/voice",
       "/settings/snap-shot",
     ],
   },
   {
     heading: msg("Agents"),
-    paths: [
-      "/settings/providers",
-      "/settings/threads",
-      "/settings/browser",
-      "/settings/devices",
-      "/settings/scheduled-tasks",
-    ],
+    paths: ["/settings/threads", "/settings/browser", "/settings/devices"],
   },
   {
     heading: msg("Code"),
@@ -1648,6 +1640,23 @@ export function settingsForThisPlatform(
 const CC3_HIDDEN_SETTINGS_PAGES: ReadonlySet<SettingsPath> = new Set([
   "/settings/projects",
   "/settings/labs",
+  "/settings/chat",
+  "/settings/voice",
+  "/settings/providers",
+  "/settings/scheduled-tasks",
+]);
+
+// CC3: rows of the GUI chat that the Claude terminal does not use.
+const CC3_HIDDEN_SETTING_IDS: ReadonlySet<string> = new Set([
+  "project-defaults",
+  "default-model",
+  "fallback-model",
+  "default-permissions",
+  "response-streaming",
+  "new-threads",
+  "text-generation-model",
+  "thread-title-instructions",
+  "auto-resume-limited-threads",
 ]);
 
 export function searchSettings(
@@ -1660,7 +1669,9 @@ export function searchSettings(
   const queryTokens = normalizedQuery.split(" ");
 
   return settingsForThisPlatform(items)
-    .filter((item) => !CC3_HIDDEN_SETTINGS_PAGES.has(item.to))
+    .filter(
+      (item) => !CC3_HIDDEN_SETTINGS_PAGES.has(item.to) && !CC3_HIDDEN_SETTING_IDS.has(item.id),
+    )
     .flatMap((item, index) => {
       const title = normalizeSearchText(decodeMsg(item.title));
       const fields = [

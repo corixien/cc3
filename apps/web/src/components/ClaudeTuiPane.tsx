@@ -12,10 +12,18 @@ import { scopeThreadRef } from "@t3tools/client-runtime/environment";
 import { useGT } from "gt-react";
 import { useEffect, useRef, useState } from "react";
 
-import { CLAUDE_TUI_TERMINAL_ID, DEFAULT_INTERACTION_MODE } from "../types";
+import {
+  CLAUDE_TUI_TERMINAL_ID,
+  DEFAULT_INTERACTION_MODE,
+  DEFAULT_THREAD_TERMINAL_ID,
+} from "../types";
+import { revealThreadTerminal } from "../lib/revealThreadTerminal";
+import { terminalEnvironment } from "../state/terminal";
+import { useAtomCommand } from "../state/use-atom-command";
 import { finalizePromotedDraftThreadByRef } from "../composerDraftStore";
 import { threadEnvironment } from "../state/threads";
 import { useOrchestrationCommand } from "../state/use-orchestration-command";
+import { claudeTuiStatusFromTitle, setClaudeTuiStatus } from "../claudeTuiStatus";
 import { useStableCallback } from "../hooks/useStableCallback";
 import { useClientSettings } from "../hooks/useSettings";
 import { Button } from "./ui/button";
@@ -96,6 +104,8 @@ export function ClaudeTuiPane(props: ClaudeTuiPaneProps) {
 
   // Claude sets the terminal title to its session summary; the chat list shows it.
   const handleTitle = useStableCallback((raw: string) => {
+    const status = claudeTuiStatusFromTitle(raw);
+    if (status !== null) setClaudeTuiStatus(threadId, status);
     const title = raw
       .replace(/^[^\p{L}\p{N}]+/u, "")
       .trim()
@@ -104,6 +114,23 @@ export function ClaudeTuiPane(props: ClaudeTuiPaneProps) {
     if (title === lastTitleRef.current) return;
     lastTitleRef.current = title;
     void updateMetadata({ environmentId, input: { threadId, title } });
+  });
+  // `cc3-terminal` (run by Claude) types a command into the thread's terminal drawer for the user.
+  const writeTerminal = useAtomCommand(terminalEnvironment.write, { reportFailure: false });
+  const handleTerminalCommand = useStableCallback((command: string) => {
+    revealThreadTerminal(scopeThreadRef(environmentId, threadId), DEFAULT_THREAD_TERMINAL_ID);
+    // The drawer's shell may still be starting; retry the write briefly.
+    const attempt = (remaining: number) => {
+      void writeTerminal({
+        environmentId,
+        input: { threadId, terminalId: DEFAULT_THREAD_TERMINAL_ID, data: command },
+      }).then((result) => {
+        if (result._tag === "Failure" && remaining > 0) {
+          window.setTimeout(() => attempt(remaining - 1), 400);
+        }
+      });
+    };
+    window.setTimeout(() => attempt(6), 300);
   });
   const handleSubmitLine = useStableCallback((line: string) => {
     if (line !== "/new") return false;
@@ -134,6 +161,7 @@ export function ClaudeTuiPane(props: ClaudeTuiPaneProps) {
           providerInstanceId={props.modelSelection.instanceId}
           onSessionExited={() => setExited(true)}
           onTitleChange={handleTitle}
+          onTerminalCommand={handleTerminalCommand}
           onSubmitLine={handleSubmitLine}
           autoFocus
           visible

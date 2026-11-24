@@ -3555,7 +3555,7 @@ export default function ChatView(props: ChatViewProps) {
                       "wco:pr-(--workspace-native-controls-inset)",
                   )
                 : "flex h-[var(--workspace-topbar-height)] min-h-[var(--workspace-topbar-height)] shrink-0 items-center pl-(--workspace-gutter-start) pr-(--workspace-gutter-end)",
-              COLLAPSED_SIDEBAR_TITLEBAR_INSET_CLASS,
+              !splitPane && COLLAPSED_SIDEBAR_TITLEBAR_INSET_CLASS,
             )}
           >
             {isElectron && rightPanelControlsAtRoot ? (
