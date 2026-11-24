@@ -1,5 +1,5 @@
 // CC3: GitHub panel of the right sidebar. Browse any repository and branch through the user's own `gh`,
-// switch the chat's checkout, clone a repository as a project, and hand files to Claude.
+// read its commits, switch the chat's checkout, link folders, pull files, and hand files to Claude.
 import { scopedThreadKey } from "@t3tools/client-runtime/environment";
 import {
   isAtomCommandInterrupted,
@@ -13,19 +13,23 @@ import {
   FileIcon,
   FolderIcon,
   GitBranchIcon,
-  PlusIcon,
-  Trash2Icon,
+  LockIcon,
   MessageSquarePlusIcon,
+  MoreHorizontalIcon,
+  PlusIcon,
   RefreshCwIcon,
+  SearchIcon,
 } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 
 import { Button } from "~/components/ui/button";
+import { Input } from "~/components/ui/input";
+import { Menu, MenuItem, MenuPopup, MenuSeparator, MenuTrigger } from "~/components/ui/menu";
 import { Spinner } from "~/components/ui/spinner";
 import { toastManager } from "~/components/ui/toast";
+import { setClaudeCwd, useClaudeCwd } from "~/claudeCwd";
 import { writeTextToClipboard } from "~/hooks/useCopyToClipboard";
 import { readLocalApi } from "~/localApi";
-import { setClaudeCwd, useClaudeCwd } from "~/claudeCwd";
 import { newProjectId } from "~/lib/utils";
 import { sourceControlEnvironment } from "~/state/sourceControl";
 import { terminalEnvironment } from "~/state/terminal";
@@ -34,65 +38,20 @@ import { CLAUDE_TUI_TERMINAL_ID } from "~/types";
 
 import { Cc3GitHubPull } from "./Cc3GitHubPull";
 import { callGh } from "./ghBridge";
+import {
+  type FileData,
+  type LocalInfo,
+  type RepoSummary,
+  type Tree,
+  shortName,
+  useGh,
+} from "./ghHooks";
+import { GitHubCommits } from "./GitHubCommits";
+import { CloneForm, DeleteForm, LinkFolderForm, NewBranchForm, NewRepoForm } from "./GitHubForms";
+import { SimpleSelect } from "./GitHubUi";
 import { useRepoFolderLinks } from "./repoFolderLinks";
 
-interface Query<T> {
-  readonly data: T | null;
-  readonly error: string | null;
-  readonly loading: boolean;
-}
-
-/** Runs one request whenever its key changes; `null` skips it. */
-function useGh<T>(request: Record<string, unknown> | null, refresh = 0): Query<T> {
-  const [state, setState] = useState<Query<T>>({ data: null, error: null, loading: false });
-  const key = request === null ? null : JSON.stringify(request);
-  // oxlint-disable-next-line t3code/no-unreasoned-state-sync -- loads external data through the desktop host
-  useEffect(() => {
-    if (key === null) {
-      setState({ data: null, error: null, loading: false });
-      return;
-    }
-    let cancelled = false;
-    setState((previous) => ({ ...previous, loading: true, error: null }));
-    void callGh(JSON.parse(key) as Record<string, unknown>).then((result) => {
-      if (cancelled) return;
-      setState(
-        result.ok
-          ? { data: result.data as T, error: null, loading: false }
-          : { data: null, error: result.error, loading: false },
-      );
-    });
-    return () => {
-      cancelled = true;
-    };
-  }, [key, refresh]);
-  return state;
-}
-
-interface RepoSummary {
-  nameWithOwner: string;
-  description: string | null;
-  isPrivate: boolean;
-  url: string;
-  defaultBranchRef: { name: string } | null;
-}
-interface LocalInfo {
-  repo: string | null;
-  branch: string | null;
-  branches: string[];
-}
-type Tree =
-  | { kind: "file" }
-  | {
-      kind: "dir";
-      entries: Array<{ name: string; path: string; type: "dir" | "file"; size: number }>;
-    };
-type FileData = { binary: true } | { binary: false; text: string };
-
-const SELECT_CLASS =
-  "h-7 min-w-0 flex-1 rounded-md border border-border/70 bg-background px-2 text-xs text-foreground outline-none focus:ring-1 focus:ring-ring";
-const INPUT_CLASS =
-  "h-7 min-w-0 flex-1 rounded-md border border-border/70 bg-background px-2 text-xs text-foreground outline-none focus:ring-1 focus:ring-ring";
+type Dialog = "repo" | "branch" | "link" | "clone" | "delete" | "pull" | null;
 
 export default function Cc3GitHubPanel(props: {
   readonly threadRef: ScopedThreadRef;
@@ -102,17 +61,15 @@ export default function Cc3GitHubPanel(props: {
   const threadKey = scopedThreadKey(props.threadRef);
   const chatFolder = useClaudeCwd(threadKey) ?? props.cwd;
   const folderLinks = useRepoFolderLinks();
-  const [linkForm, setLinkForm] = useState<string | null>(null);
   const [revision, setRevision] = useState(0);
   const local = useGh<LocalInfo>(chatFolder ? { op: "local", cwd: chatFolder } : null, revision);
   const account = useGh<{ login: string }>({ op: "status" });
   const repos = useGh<RepoSummary[]>({ op: "repos" }, revision);
+
   const [listMode, setListMode] = useState(false);
-  const [pullOpen, setPullOpen] = useState(false);
-  const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
+  const [query, setQuery] = useState("");
   const [typedRepo, setTypedRepo] = useState<string | null>(null);
   const repo = listMode ? null : (typedRepo ?? local.data?.repo ?? null);
-  const [repoInput, setRepoInput] = useState("");
   const repoInfo = useGh<RepoSummary>(repo ? { op: "repo", repo } : null);
   const branches = useGh<string[]>(repo ? { op: "branches", repo } : null, revision);
   const [pickedBranch, setPickedBranch] = useState<string | null>(null);
@@ -122,46 +79,196 @@ export default function Cc3GitHubPanel(props: {
     pickedBranch && branches.data?.includes(pickedBranch)
       ? pickedBranch
       : ((isLocalRepo ? local.data?.branch : null) ?? defaultBranch ?? branches.data?.[0] ?? null);
+
+  const [tab, setTab] = useState<"files" | "commits">("files");
+  const [dialog, setDialog] = useState<Dialog>(null);
+  const [busy, setBusy] = useState(false);
   const [path, setPath] = useState("");
   const [openFilePath, setOpenFilePath] = useState<string | null>(null);
-  const tree = useGh<Tree>(repo && branch ? { op: "tree", repo, ref: branch, path } : null);
+  const tree = useGh<Tree>(
+    repo && branch && tab === "files" ? { op: "tree", repo, ref: branch, path } : null,
+  );
   const file = useGh<FileData>(
     repo && branch && openFilePath ? { op: "file", repo, ref: branch, path: openFilePath } : null,
   );
-  const [switching, setSwitching] = useState(false);
-  const [cloneTarget, setCloneTarget] = useState<string | null>(null);
-  const [form, setForm] = useState<"repo" | "branch" | null>(null);
-  const [newName, setNewName] = useState("");
-  const [newDescription, setNewDescription] = useState("");
-  const [newVisibility, setNewVisibility] = useState<"private" | "public">("private");
-  const [newInFolder, setNewInFolder] = useState(true);
-  const [publish, setPublish] = useState(true);
-  const [creating, setCreating] = useState(false);
+
   const startProjectClone = useAtomCommand(sourceControlEnvironment.startProjectClone, {
     reportFailure: false,
   });
   const writeTerminal = useAtomCommand(terminalEnvironment.write, { reportFailure: false });
 
-  const displayName = (full: string) =>
-    full.startsWith(`${account.data?.login ?? ""}/`) ? full.slice(full.indexOf("/") + 1) : full;
+  const login = account.data?.login ?? "";
+  const displayName = (full: string) => (full.startsWith(`${login}/`) ? shortName(full) : full);
   const home = props.cwd ? /^\/home\/[^/]+/.exec(props.cwd)?.[0] : undefined;
+  const folderIsFree = chatFolder !== null && local.data !== null && local.data.repo === null;
+  const linkedFolder = repo ? (folderLinks.links[repo] ?? (isLocalRepo ? chatFolder : null)) : null;
+  const chatOnLinked = linkedFolder !== null && linkedFolder === chatFolder;
   const githubUrl = repo
     ? `https://github.com/${repo}${branch ? `/tree/${branch}${path ? `/${path}` : ""}` : ""}`
     : null;
+  const fileUrl =
+    repo && branch && openFilePath
+      ? `https://github.com/${repo}/blob/${branch}/${openFilePath}`
+      : null;
 
-  const repoShortName = repo ? (repo.split("/")[1] ?? repo) : "";
-  const linkedFolder = repo ? (folderLinks.links[repo] ?? (isLocalRepo ? chatFolder : null)) : null;
-  const chatOnLinked = linkedFolder !== null && linkedFolder === chatFolder;
-  const saveLink = async (useInChat: boolean) => {
-    if (!repo || linkForm === null) return;
-    const folder = linkForm.trim().replace(/(.)\/+$/, "$1");
-    if (!folder) return;
+  const toast = (type: "error" | "success", title: string, description?: string) =>
+    toastManager.add({ type, title, ...(description ? { description } : {}) });
+  const refresh = () => setRevision((value) => value + 1);
+  const sendToClaude = (data: string) => {
+    void writeTerminal({
+      environmentId: props.threadRef.environmentId,
+      input: { threadId: props.threadRef.threadId, terminalId: CLAUDE_TUI_TERMINAL_ID, data },
+    }).then((result) => {
+      if (result._tag === "Failure" && !isAtomCommandInterrupted(result)) {
+        toast(
+          "error",
+          gt("Unable to reach Claude"),
+          gt("Open a Claude chat for this project and try again."),
+        );
+      }
+    });
+  };
+  /** Moves the Claude session into a folder, as if the user had typed /cd there. */
+  const connectClaude = (folder: string) => {
+    setClaudeCwd(threadKey, folder);
+    sendToClaude(`\u0015/cd ${folder}\r`);
+  };
+
+  const chooseRepo = (value: string) => {
+    const next = value
+      .trim()
+      .replace(/^https:\/\/github\.com\//, "")
+      .replace(/\.git$/, "");
+    if (!/^[\w.-]+\/[\w.-]+$/.test(next)) return;
+    setTypedRepo(next);
+    setListMode(false);
+    setDialog(null);
+    setQuery("");
+    setPickedBranch(null);
+    setPath("");
+    setOpenFilePath(null);
+    setTab("files");
+  };
+  const backToList = () => {
+    setListMode(true);
+    setDialog(null);
+    setPath("");
+    setOpenFilePath(null);
+  };
+
+  const switchBranch = async () => {
+    if (!chatFolder || !branch) return;
+    setBusy(true);
+    const needsFetch = !local.data?.branches.includes(branch);
+    const fetched = needsFetch ? await callGh({ op: "fetch", cwd: chatFolder }) : null;
+    const result =
+      fetched && !fetched.ok ? fetched : await callGh({ op: "switch", cwd: chatFolder, branch });
+    setBusy(false);
+    if (result.ok) {
+      toast("success", gt("Switched to {branch}", { branch }));
+      refresh();
+    } else {
+      toast("error", gt("Could not switch branch"), result.error);
+    }
+  };
+
+  const clone = async (target: string) => {
+    if (!repo) return;
+    setBusy(true);
+    const result = await startProjectClone({
+      environmentId: props.threadRef.environmentId,
+      input: {
+        projectId: newProjectId(),
+        title: shortName(repo),
+        // oxlint-disable-next-line react/purity -- runs in an event handler
+        createdAt: new Date().toISOString(),
+        repository: repo,
+        destinationPath: target,
+      },
+    });
+    setBusy(false);
+    if (result._tag === "Failure") {
+      if (!isAtomCommandInterrupted(result)) {
+        toast("error", gt("Clone failed"), String(squashAtomCommandFailure(result)));
+      }
+      return;
+    }
+    folderLinks.link(repo, target);
+    toast("success", gt("Cloning {repo}", { repo }), target);
+    setDialog(null);
+  };
+
+  const createRepository = async (input: {
+    name: string;
+    description: string;
+    visibility: "private" | "public";
+    inFolder: boolean;
+  }) => {
+    const useFolder = input.inFolder && folderIsFree && chatFolder;
+    setBusy(true);
+    const result = await callGh({
+      op: "createRepo",
+      name: input.name,
+      visibility: input.visibility,
+      description: input.description,
+      ...(useFolder ? { cwd: chatFolder } : { parent: home ?? chatFolder }),
+    });
+    setBusy(false);
+    if (!result.ok) {
+      toast("error", gt("Could not create the repository"), result.error);
+      return;
+    }
+    const created = result.data as { repo: string | null; path: string };
+    toast("success", gt("Created {repo}", { repo: created.repo ?? input.name }), created.path);
+    if (created.repo) folderLinks.link(created.repo, created.path);
+    setDialog(null);
+    setTypedRepo(useFolder ? null : created.repo);
+    setListMode(false);
+    setPickedBranch(null);
+    setPath("");
+    setOpenFilePath(null);
+    refresh();
+    if (!useFolder) connectClaude(created.path);
+  };
+
+  const createBranch = async (input: { name: string; publish: boolean }) => {
+    if (!repo || !branch) return;
+    setBusy(true);
+    const result = await callGh(
+      isLocalRepo && chatFolder
+        ? {
+            op: "createBranch",
+            cwd: chatFolder,
+            name: input.name,
+            base: branch,
+            push: input.publish,
+          }
+        : { op: "createRemoteBranch", repo, name: input.name, base: branch },
+    );
+    setBusy(false);
+    if (!result.ok) {
+      toast("error", gt("Could not create the branch"), result.error);
+      return;
+    }
+    toast(
+      "success",
+      gt("Created {branch}", { branch: input.name }),
+      isLocalRepo ? gt("Claude is now on this branch.") : gt("Clone the repository to work on it."),
+    );
+    setDialog(null);
+    setPickedBranch(input.name);
+    refresh();
+  };
+
+  const saveLink = async (folderInput: string, useInChat: boolean) => {
+    if (!repo) return;
+    const folder = folderInput.replace(/(.)\/+$/, "$1");
     const result = await callGh({ op: "local", cwd: folder });
     if (!result.ok) {
       toast("error", gt("Could not link the folder"), result.error);
       return;
     }
-    const info = result.data as { exists: boolean; repo: string | null };
+    const info = result.data as LocalInfo;
     if (!info.exists) {
       toast("error", gt("Could not link the folder"), gt("This folder does not exist."));
       return;
@@ -175,572 +282,110 @@ export default function Cc3GitHubPanel(props: {
       return;
     }
     folderLinks.link(repo, folder);
-    setLinkForm(null);
+    setDialog(null);
     toast("success", gt("Linked {folder}", { folder }));
     if (useInChat) connectClaude(folder);
   };
 
-  const chooseRepo = (value: string) => {
-    const next = value
-      .trim()
-      .replace(/^https:\/\/github\.com\//, "")
-      .replace(/\.git$/, "");
-    if (!/^[\w.-]+\/[\w.-]+$/.test(next)) return;
-    setTypedRepo(next);
-    setListMode(false);
-    setPullOpen(false);
-    setRepoInput("");
-    setPickedBranch(null);
-    setPath("");
-    setOpenFilePath(null);
-  };
-  const toast = (type: "error" | "success", title: string, description?: string) =>
-    toastManager.add({ type, title, ...(description ? { description } : {}) });
-
-  const switchBranch = async () => {
-    if (!chatFolder || !branch) return;
-    setSwitching(true);
-    const needsFetch = !local.data?.branches.includes(branch);
-    const fetched = needsFetch ? await callGh({ op: "fetch", cwd: chatFolder }) : null;
-    const result =
-      fetched && !fetched.ok ? fetched : await callGh({ op: "switch", cwd: chatFolder, branch });
-    setSwitching(false);
-    if (result.ok) {
-      toast("success", gt("Switched to {branch}", { branch }));
-      setRevision((value) => value + 1);
-    } else {
-      toast("error", gt("Could not switch branch"), result.error);
-    }
-  };
-
-  const clone = async () => {
-    if (!repo || !cloneTarget) return;
-    const name = repo.split("/")[1] ?? repo;
-    const result = await startProjectClone({
-      environmentId: props.threadRef.environmentId,
-      input: {
-        projectId: newProjectId(),
-        title: name,
-        // oxlint-disable-next-line react/purity -- runs in an event handler
-        createdAt: new Date().toISOString(),
-        repository: repo,
-        destinationPath: cloneTarget,
-      },
-    });
-    if (result._tag === "Failure") {
-      if (!isAtomCommandInterrupted(result)) {
-        toast("error", gt("Clone failed"), String(squashAtomCommandFailure(result)));
-      }
-      return;
-    }
-    folderLinks.link(repo, cloneTarget);
-    toast("success", gt("Cloning {repo}", { repo }), cloneTarget);
-    setCloneTarget(null);
-  };
-
-  const sendToClaude = (data: string) => {
-    void writeTerminal({
-      environmentId: props.threadRef.environmentId,
-      input: {
-        threadId: props.threadRef.threadId,
-        terminalId: CLAUDE_TUI_TERMINAL_ID,
-        data,
-      },
-    }).then((result) => {
-      if (result._tag === "Failure" && !isAtomCommandInterrupted(result)) {
-        toast(
-          "error",
-          gt("Unable to add to chat"),
-          gt("Open a Claude chat for this project and try again."),
-        );
-      }
-    });
-  };
-
-  const askClaude = (text: string) => sendToClaude(`\u001b[200~${text}\u001b[201~`);
-  // Moves the Claude session into a folder, as if the user had typed /cd there.
-  const connectClaude = (folder: string) => {
-    setClaudeCwd(threadKey, folder);
-    sendToClaude(`\u0015/cd ${folder}\r`);
-  };
-
-  const folderIsFree = chatFolder !== null && local.data !== null && local.data.repo === null;
-  const openForm = (kind: "repo" | "branch") => {
-    setForm(kind);
-    setNewName("");
-    setNewDescription("");
-    setNewInFolder(folderIsFree);
-    setCloneTarget(null);
-  };
-  const createRepository = async () => {
-    const name = newName.trim();
-    if (!name) return;
-    setCreating(true);
-    const useFolder = newInFolder && folderIsFree && chatFolder;
-    const result = await callGh({
-      op: "createRepo",
-      name,
-      visibility: newVisibility,
-      description: newDescription,
-      ...(useFolder ? { cwd: chatFolder } : { parent: home ?? chatFolder }),
-    });
-    setCreating(false);
-    if (!result.ok) {
-      toast("error", gt("Could not create the repository"), result.error);
-      return;
-    }
-    const created = result.data as { repo: string | null; path: string };
-    toast("success", gt("Created {repo}", { repo: created.repo ?? name }), created.path);
-    if (created.repo) folderLinks.link(created.repo, created.path);
-    setForm(null);
-    setTypedRepo(useFolder ? null : created.repo);
-    setListMode(false);
-    setPickedBranch(null);
-    setPath("");
-    setOpenFilePath(null);
-    setRevision((value) => value + 1);
-    if (!useFolder) connectClaude(created.path);
-  };
-  const createBranch = async () => {
-    const name = newName.trim();
-    if (!name || !repo || !branch) return;
-    setCreating(true);
-    const result = await callGh(
-      isLocalRepo && chatFolder
-        ? { op: "createBranch", cwd: chatFolder, name, base: branch, push: publish }
-        : { op: "createRemoteBranch", repo, name, base: branch },
-    );
-    setCreating(false);
-    if (!result.ok) {
-      toast("error", gt("Could not create the branch"), result.error);
-      return;
-    }
-    toast(
-      "success",
-      gt("Created {branch}", { branch: name }),
-      isLocalRepo ? gt("Claude is now on this branch.") : gt("Clone the repository to work on it."),
-    );
-    setForm(null);
-    setPickedBranch(name);
-    setRevision((value) => value + 1);
-  };
-
-  const backToList = () => {
-    setListMode(true);
-    setPullOpen(false);
-    setConfirmDelete(null);
-    setForm(null);
-    setCloneTarget(null);
-    setPath("");
-    setOpenFilePath(null);
-  };
   const deleteRepository = async () => {
-    if (!repo || confirmDelete !== repo) return;
-    setCreating(true);
+    if (!repo) return;
+    setBusy(true);
     const result = await callGh({ op: "deleteRepo", repo });
-    setCreating(false);
+    setBusy(false);
     if (!result.ok) {
       toast("error", gt("Could not delete the repository"), result.error);
       return;
     }
     toast("success", gt("Deleted {repo}", { repo }));
+    folderLinks.unlink(repo);
     setTypedRepo(null);
-    setRevision((value) => value + 1);
+    refresh();
     backToList();
   };
-  const crumbs = path ? path.split("/") : [];
-  const fileUrl =
-    githubUrl && openFilePath ? `https://github.com/${repo}/blob/${branch}/${openFilePath}` : null;
 
-  return (
-    <div className="flex min-h-0 flex-1 flex-col text-xs" data-cc3-github-panel>
-      <div className="flex shrink-0 flex-col gap-2 border-b border-border/60 p-2">
-        <div className="flex items-center gap-2">
-          {repo ? (
-            <Button
-              size="xs"
-              variant="ghost"
-              aria-label={gt("All repositories")}
-              onClick={backToList}
-            >
-              <ArrowLeftIcon className="size-3" />
-              {gt("All repositories")}
-            </Button>
-          ) : null}
-          <span className="min-w-0 flex-1 truncate text-muted-foreground">
-            {account.data
-              ? gt("Signed in as {login}", { login: account.data.login })
-              : account.loading
-                ? ""
-                : gt("Not signed in. Run `gh auth login` in a terminal.")}
-          </span>
-          <Button
-            size="xs"
-            variant="ghost"
-            aria-label={gt("New repository")}
-            onClick={() => openForm("repo")}
-          >
-            <PlusIcon className="size-3" />
-            {gt("Repository")}
-          </Button>
-          <Button
-            size="icon-xs"
-            variant="ghost"
-            aria-label={gt("Refresh")}
-            onClick={() => setRevision((value) => value + 1)}
-          >
-            <RefreshCwIcon className="size-3.5" />
-          </Button>
-        </div>
-        <div className="flex items-center gap-2">
-          <input
-            className={INPUT_CLASS}
-            list="cc3-github-repos"
-            value={repoInput}
-            placeholder={repo ?? gt("owner/name")}
-            spellCheck={false}
-            aria-label={gt("Repository")}
-            onChange={(event) => {
-              setRepoInput(event.target.value);
-              if (repos.data?.some((entry) => entry.nameWithOwner === event.target.value)) {
-                chooseRepo(event.target.value);
-              }
-            }}
-            onKeyDown={(event) => {
-              if (event.key === "Enter") chooseRepo(repoInput);
-            }}
-          />
-          <datalist id="cc3-github-repos">
-            {repos.data?.map((entry) => (
-              <option key={entry.nameWithOwner} value={entry.nameWithOwner}>
-                {entry.description ?? ""}
-              </option>
-            ))}
-          </datalist>
-        </div>
-        {repo ? (
-          <div className="flex items-center gap-2">
-            <GitBranchIcon className="size-3.5 shrink-0 text-muted-foreground" />
-            <select
-              className={SELECT_CLASS}
-              value={branch ?? ""}
-              aria-label={gt("Branch")}
-              onChange={(event) => {
-                setPickedBranch(event.target.value);
-                setPath("");
-                setOpenFilePath(null);
-              }}
-            >
-              {(branches.data ?? (branch ? [branch] : [])).map((name) => (
-                <option key={name} value={name}>
-                  {name}
-                  {name === defaultBranch ? ` (${gt("default")})` : ""}
-                  {isLocalRepo && name === local.data?.branch ? ` (${gt("checked out")})` : ""}
-                </option>
-              ))}
-            </select>
-            {isLocalRepo && branch && branch !== local.data?.branch ? (
-              <Button size="xs" disabled={switching} onClick={() => void switchBranch()}>
-                {switching ? <Spinner className="size-3" /> : gt("Switch")}
-              </Button>
-            ) : null}
-          </div>
-        ) : null}
-        {repo ? (
-          <div className="flex flex-wrap items-center gap-1.5">
-            {!isLocalRepo ? (
-              <Button
-                size="xs"
-                variant="outline"
-                onClick={() => setCloneTarget(`${home ?? ""}/${repo.split("/")[1] ?? "repo"}`)}
-              >
-                {gt("Clone")}
-              </Button>
-            ) : null}
-            <Button
-              size="xs"
-              variant="outline"
-              disabled={!branch}
-              onClick={() => setPullOpen(true)}
-            >
-              {gt("Pull into folder")}
-            </Button>
-            <Button size="xs" variant="ghost" onClick={() => openForm("branch")}>
-              <PlusIcon className="size-3" />
-              {gt("New branch")}
-            </Button>
-            <Button
-              size="xs"
-              variant="ghost"
-              onClick={() => githubUrl && void readLocalApi()?.shell.openExternal(githubUrl)}
-            >
-              <ExternalLinkIcon className="size-3" />
-              {gt("Open on GitHub")}
-            </Button>
-            <Button
-              size="xs"
-              variant="ghost"
-              onClick={() => void writeTextToClipboard(`https://github.com/${repo}.git`)}
-            >
-              {gt("Copy clone URL")}
-            </Button>
-            <Button size="xs" variant="ghost" onClick={() => setConfirmDelete("")}>
-              <Trash2Icon className="size-3" />
-              {gt("Delete")}
-            </Button>
-          </div>
-        ) : null}
-        {repo ? (
-          <div className="flex flex-wrap items-center gap-1.5">
-            <FolderIcon className="size-3.5 shrink-0 text-muted-foreground" />
-            <span
-              className="min-w-0 flex-1 truncate text-muted-foreground"
-              title={linkedFolder ?? ""}
-            >
-              {linkedFolder ?? gt("No folder linked")}
-            </span>
-            {linkedFolder && !chatOnLinked ? (
-              <Button size="xs" variant="outline" onClick={() => connectClaude(linkedFolder)}>
-                {gt("Use in this chat")}
-              </Button>
-            ) : linkedFolder ? (
-              <span className="text-muted-foreground">{gt("This chat is here")}</span>
-            ) : null}
-            <Button
-              size="xs"
-              variant="ghost"
-              onClick={() => setLinkForm(linkedFolder ?? `${home ?? ""}/${repoShortName}`)}
-            >
-              {linkedFolder ? gt("Change") : gt("Link folder")}
-            </Button>
-            {repo && folderLinks.links[repo] ? (
-              <Button size="xs" variant="ghost" onClick={() => repo && folderLinks.unlink(repo)}>
-                {gt("Unlink")}
-              </Button>
-            ) : null}
-          </div>
-        ) : null}
-        {linkForm !== null && repo ? (
-          <div className="flex flex-col gap-1.5 rounded-md border border-border/60 p-2">
-            <input
-              className={INPUT_CLASS}
-              value={linkForm}
-              spellCheck={false}
-              aria-label={gt("Folder")}
-              onChange={(event) => setLinkForm(event.target.value)}
-              onKeyDown={(event) => {
-                if (event.key === "Enter") void saveLink(false);
-                if (event.key === "Escape") setLinkForm(null);
-              }}
+  // ---------------------------------------------------------------- list of repositories
+  if (!repo) {
+    const needle = query.trim().toLowerCase();
+    const matches = (repos.data ?? []).filter(
+      (entry) =>
+        !needle ||
+        shortName(entry.nameWithOwner).toLowerCase().includes(needle) ||
+        (entry.description ?? "").toLowerCase().includes(needle),
+    );
+    const typedFull = /^(?:https:\/\/github\.com\/)?[\w.-]+\/[\w.-]+(?:\.git)?$/.test(query.trim());
+    return (
+      <div className="flex min-h-0 flex-1 flex-col text-xs" data-cc3-github-panel>
+        {dialog === "repo" ? (
+          <div className="overflow-auto">
+            <NewRepoForm
+              folderFree={folderIsFree}
+              parent={home ?? chatFolder ?? "~"}
+              busy={busy}
+              onCancel={() => setDialog(null)}
+              onSubmit={(input) => void createRepository(input)}
             />
-            <div className="flex flex-wrap items-center gap-2">
-              <Button size="xs" onClick={() => void saveLink(false)}>
-                {gt("Link")}
-              </Button>
-              <Button size="xs" variant="outline" onClick={() => void saveLink(true)}>
-                {gt("Link and use in this chat")}
-              </Button>
-              {chatFolder ? (
-                <Button size="xs" variant="ghost" onClick={() => setLinkForm(chatFolder)}>
-                  {gt("This chat's folder")}
+          </div>
+        ) : (
+          <>
+            <div className="flex shrink-0 flex-col gap-2 border-b border-border/60 p-3">
+              <div className="flex items-center gap-2">
+                <div className="min-w-0 flex-1">
+                  <div className="text-sm font-medium text-foreground">{gt("Repositories")}</div>
+                  <div className="truncate text-[11px] text-muted-foreground">
+                    {login
+                      ? gt("Signed in as {login}", { login })
+                      : account.loading
+                        ? ""
+                        : gt("Not signed in. Run `gh auth login` in a terminal.")}
+                  </div>
+                </div>
+                <Button size="sm" variant="outline" onClick={() => setDialog("repo")}>
+                  <PlusIcon className="size-3.5" />
+                  {gt("New")}
                 </Button>
-              ) : null}
-              <Button size="xs" variant="ghost" onClick={() => setLinkForm(null)}>
-                {gt("Cancel")}
-              </Button>
-            </div>
-          </div>
-        ) : null}
-        {confirmDelete !== null && repo ? (
-          <div className="flex flex-col gap-1.5 rounded-md border border-destructive/50 p-2">
-            <span className="text-destructive">
-              {gt("This deletes {repo} on GitHub for good. Type its name to confirm.", { repo })}
-            </span>
-            <input
-              className={INPUT_CLASS}
-              value={confirmDelete}
-              placeholder={repo}
-              spellCheck={false}
-              aria-label={gt("Repository name")}
-              onChange={(event) => setConfirmDelete(event.target.value)}
-              onKeyDown={(event) => {
-                if (event.key === "Enter") void deleteRepository();
-                if (event.key === "Escape") setConfirmDelete(null);
-              }}
-            />
-            <div className="flex items-center gap-2">
-              <Button
-                size="xs"
-                variant="destructive"
-                disabled={creating || confirmDelete !== repo}
-                onClick={() => void deleteRepository()}
-              >
-                {creating ? <Spinner className="size-3" /> : gt("Delete repository")}
-              </Button>
-              <Button size="xs" variant="ghost" onClick={() => setConfirmDelete(null)}>
-                {gt("Cancel")}
-              </Button>
-            </div>
-          </div>
-        ) : null}
-        {form === "repo" ? (
-          <div className="flex flex-col gap-1.5 rounded-md border border-border/60 p-2">
-            <input
-              className={INPUT_CLASS}
-              value={newName}
-              placeholder={gt("Repository name")}
-              spellCheck={false}
-              aria-label={gt("Repository name")}
-              onChange={(event) => setNewName(event.target.value)}
-              onKeyDown={(event) => {
-                if (event.key === "Enter") void createRepository();
-                if (event.key === "Escape") setForm(null);
-              }}
-            />
-            <input
-              className={INPUT_CLASS}
-              value={newDescription}
-              placeholder={gt("Description (optional)")}
-              aria-label={gt("Description")}
-              onChange={(event) => setNewDescription(event.target.value)}
-            />
-            <div className="flex items-center gap-2">
-              <select
-                className={SELECT_CLASS}
-                value={newVisibility}
-                aria-label={gt("Visibility")}
-                onChange={(event) => setNewVisibility(event.target.value as "private" | "public")}
-              >
-                <option value="private">{gt("Private")}</option>
-                <option value="public">{gt("Public")}</option>
-              </select>
-              <select
-                className={SELECT_CLASS}
-                value={newInFolder && folderIsFree ? "folder" : "new"}
-                aria-label={gt("Where")}
-                onChange={(event) => setNewInFolder(event.target.value === "folder")}
-              >
-                {folderIsFree ? (
-                  <option value="folder">{gt("Use this chat's folder")}</option>
-                ) : null}
-                <option value="new">
-                  {gt("New folder in {parent}", { parent: home ?? props.cwd ?? "~" })}
-                </option>
-              </select>
-            </div>
-            <div className="flex items-center gap-2">
-              <Button
-                size="xs"
-                disabled={creating || !newName.trim()}
-                onClick={() => void createRepository()}
-              >
-                {creating ? <Spinner className="size-3" /> : gt("Create")}
-              </Button>
-              <Button size="xs" variant="ghost" onClick={() => setForm(null)}>
-                {gt("Cancel")}
-              </Button>
-            </div>
-          </div>
-        ) : null}
-        {form === "branch" && repo && branch ? (
-          <div className="flex flex-col gap-1.5 rounded-md border border-border/60 p-2">
-            <input
-              className={INPUT_CLASS}
-              value={newName}
-              placeholder={gt("New branch from {branch}", { branch })}
-              spellCheck={false}
-              aria-label={gt("Branch name")}
-              onChange={(event) => setNewName(event.target.value)}
-              onKeyDown={(event) => {
-                if (event.key === "Enter") void createBranch();
-                if (event.key === "Escape") setForm(null);
-              }}
-            />
-            {isLocalRepo ? (
-              <label className="flex items-center gap-2 text-muted-foreground">
-                <input
-                  type="checkbox"
-                  checked={publish}
-                  onChange={(event) => setPublish(event.target.checked)}
+                <Button size="icon-xs" variant="ghost" aria-label={gt("Refresh")} onClick={refresh}>
+                  <RefreshCwIcon className="size-3.5" />
+                </Button>
+              </div>
+              <div className="relative">
+                <SearchIcon className="pointer-events-none absolute top-1/2 left-2.5 z-10 size-3.5 -translate-y-1/2 text-muted-foreground" />
+                <Input
+                  size="compact"
+                  className="[&_input]:pl-8"
+                  value={query}
+                  spellCheck={false}
+                  placeholder={gt("Search repositories")}
+                  aria-label={gt("Search repositories")}
+                  onChange={(event) => setQuery(event.target.value)}
+                  onKeyDown={(event) => {
+                    if (event.key === "Enter" && typedFull) chooseRepo(query);
+                  }}
                 />
-                {gt("Publish to GitHub")}
-              </label>
-            ) : (
-              <span className="text-muted-foreground">
-                {gt("Created on GitHub. Clone the repository to work on it.")}
-              </span>
-            )}
-            <div className="flex items-center gap-2">
-              <Button
-                size="xs"
-                disabled={creating || !newName.trim()}
-                onClick={() => void createBranch()}
-              >
-                {creating ? <Spinner className="size-3" /> : gt("Create")}
-              </Button>
-              <Button size="xs" variant="ghost" onClick={() => setForm(null)}>
-                {gt("Cancel")}
-              </Button>
+              </div>
             </div>
-          </div>
-        ) : null}
-        {cloneTarget !== null ? (
-          <div className="flex items-center gap-2">
-            <input
-              className={INPUT_CLASS}
-              value={cloneTarget}
-              spellCheck={false}
-              aria-label={gt("Clone into")}
-              onChange={(event) => setCloneTarget(event.target.value)}
-              onKeyDown={(event) => {
-                if (event.key === "Enter") void clone();
-                if (event.key === "Escape") setCloneTarget(null);
-              }}
-            />
-            <Button size="xs" onClick={() => void clone()}>
-              {gt("Clone")}
-            </Button>
-            <Button size="xs" variant="ghost" onClick={() => setCloneTarget(null)}>
-              {gt("Cancel")}
-            </Button>
-          </div>
-        ) : null}
-      </div>
-
-      <div className="min-h-0 flex-1 overflow-auto">
-        {repo && pullOpen && branch ? (
-          <Cc3GitHubPull
-            repo={repo}
-            branch={branch}
-            source={path}
-            defaultTarget={linkedFolder ?? chatFolder ?? home ?? ""}
-            currentChatFolder={chatFolder}
-            linkedFolder={linkedFolder}
-            onLink={(folder) => repo && folderLinks.link(repo, folder)}
-            onClose={() => setPullOpen(false)}
-            onPulled={(folder, moveClaude) => {
-              setPullOpen(false);
-              setRevision((value) => value + 1);
-              if (moveClaude) connectClaude(folder);
-            }}
-          />
-        ) : !repo ? (
-          <div className="p-3 text-muted-foreground">
-            {local.loading || repos.loading
-              ? ""
-              : gt("Pick one of your repositories or type owner/name to browse it.")}
-            {repos.data ? (
-              <ul className="mt-2 flex flex-col">
-                {repos.data.slice(0, 30).map((entry) => (
+            <div className="min-h-0 flex-1 overflow-auto">
+              {repos.loading && !repos.data ? (
+                <div className="p-3">
+                  <Spinner className="size-4" />
+                </div>
+              ) : null}
+              {repos.error ? <div className="p-3 text-destructive">{repos.error}</div> : null}
+              <ul className="flex flex-col py-1">
+                {matches.map((entry) => (
                   <li key={entry.nameWithOwner}>
                     <button
                       type="button"
-                      className="flex w-full flex-col items-start rounded-sm px-2 py-1 text-left hover:bg-accent"
+                      className="flex w-full flex-col items-start gap-0.5 px-3 py-2 text-left hover:bg-accent/60"
                       onClick={() => chooseRepo(entry.nameWithOwner)}
                     >
-                      <span className="text-foreground">{displayName(entry.nameWithOwner)}</span>
+                      <span className="flex w-full items-center gap-1.5 text-xs font-medium text-foreground">
+                        <span className="truncate">{displayName(entry.nameWithOwner)}</span>
+                        {entry.isPrivate ? (
+                          <LockIcon className="size-3 shrink-0 text-muted-foreground" />
+                        ) : null}
+                      </span>
                       {entry.description ? (
-                        <span className="w-full truncate text-muted-foreground">
+                        <span className="w-full truncate text-[11px] text-muted-foreground">
                           {entry.description}
                         </span>
                       ) : null}
@@ -748,12 +393,211 @@ export default function Cc3GitHubPanel(props: {
                   </li>
                 ))}
               </ul>
-            ) : null}
-            {repos.error ? <div className="mt-2 text-destructive">{repos.error}</div> : null}
-          </div>
+              {typedFull && !matches.length ? (
+                <button
+                  type="button"
+                  className="mx-3 my-2 rounded-md border border-border/70 px-3 py-2 text-left text-xs hover:bg-accent/60"
+                  onClick={() => chooseRepo(query)}
+                >
+                  {gt("Open {repo}", { repo: query.trim() })}
+                </button>
+              ) : null}
+              {!matches.length && !repos.loading && !typedFull && repos.data ? (
+                <div className="p-3 text-muted-foreground">
+                  {gt("No match. Type owner/name and press Enter to open any repository.")}
+                </div>
+              ) : null}
+            </div>
+          </>
+        )}
+      </div>
+    );
+  }
+
+  // ---------------------------------------------------------------- one repository
+  const crumbs = path ? path.split("/") : [];
+  const branchItems = (branches.data ?? (branch ? [branch] : [])).map((name) => ({
+    value: name,
+    label: `${name}${name === defaultBranch ? ` (${gt("default")})` : ""}${
+      isLocalRepo && name === local.data?.branch ? ` · ${gt("checked out")}` : ""
+    }`,
+  }));
+  const dialogView =
+    dialog === "branch" && branch ? (
+      <NewBranchForm
+        base={branch}
+        local={isLocalRepo}
+        busy={busy}
+        onCancel={() => setDialog(null)}
+        onSubmit={(input) => void createBranch(input)}
+      />
+    ) : dialog === "link" ? (
+      <LinkFolderForm
+        initial={linkedFolder ?? `${home ?? ""}/${shortName(repo)}`}
+        chatFolder={chatFolder}
+        onCancel={() => setDialog(null)}
+        onSubmit={(folder, useInChat) => void saveLink(folder, useInChat)}
+      />
+    ) : dialog === "clone" ? (
+      <CloneForm
+        repo={repo}
+        initial={`${home ?? ""}/${shortName(repo)}`}
+        onCancel={() => setDialog(null)}
+        onSubmit={(target) => void clone(target)}
+      />
+    ) : dialog === "delete" ? (
+      <DeleteForm
+        repo={repo}
+        busy={busy}
+        onCancel={() => setDialog(null)}
+        onSubmit={() => void deleteRepository()}
+      />
+    ) : null;
+
+  return (
+    <div className="flex min-h-0 flex-1 flex-col text-xs" data-cc3-github-panel>
+      <div className="flex shrink-0 flex-col gap-2 border-b border-border/60 p-3">
+        <div className="flex items-center gap-1.5">
+          <Button
+            size="icon-xs"
+            variant="ghost"
+            aria-label={gt("All repositories")}
+            onClick={backToList}
+          >
+            <ArrowLeftIcon className="size-3.5" />
+          </Button>
+          <span
+            className="min-w-0 flex-1 truncate text-sm font-medium text-foreground"
+            title={repo}
+          >
+            {displayName(repo)}
+          </span>
+          {repoInfo.data?.isPrivate ? (
+            <LockIcon className="size-3 shrink-0 text-muted-foreground" />
+          ) : null}
+          <Menu>
+            <MenuTrigger
+              render={
+                <Button size="icon-xs" variant="ghost" aria-label={gt("Repository actions")} />
+              }
+            >
+              <MoreHorizontalIcon className="size-4" />
+            </MenuTrigger>
+            <MenuPopup align="end">
+              <MenuItem disabled={!branch} onClick={() => setDialog("pull")}>
+                {gt("Pull into folder…")}
+              </MenuItem>
+              <MenuItem onClick={() => setDialog("branch")}>{gt("New branch…")}</MenuItem>
+              <MenuItem onClick={() => setDialog("link")}>
+                {linkedFolder ? gt("Change linked folder…") : gt("Link a folder…")}
+              </MenuItem>
+              {!isLocalRepo ? (
+                <MenuItem onClick={() => setDialog("clone")}>{gt("Clone…")}</MenuItem>
+              ) : null}
+              <MenuSeparator />
+              <MenuItem
+                onClick={() => githubUrl && void readLocalApi()?.shell.openExternal(githubUrl)}
+              >
+                {gt("Open on GitHub")}
+              </MenuItem>
+              <MenuItem onClick={() => void writeTextToClipboard(`https://github.com/${repo}.git`)}>
+                {gt("Copy clone URL")}
+              </MenuItem>
+              {folderLinks.links[repo] ? (
+                <MenuItem onClick={() => folderLinks.unlink(repo)}>{gt("Unlink folder")}</MenuItem>
+              ) : null}
+              <MenuSeparator />
+              <MenuItem variant="destructive" onClick={() => setDialog("delete")}>
+                {gt("Delete repository…")}
+              </MenuItem>
+            </MenuPopup>
+          </Menu>
+        </div>
+
+        <div className="flex items-center gap-2">
+          <SimpleSelect
+            ariaLabel={gt("Branch")}
+            value={branch ?? ""}
+            onChange={(value) => {
+              setPickedBranch(value);
+              setPath("");
+              setOpenFilePath(null);
+            }}
+            items={branchItems}
+            icon={<GitBranchIcon className="size-3.5 shrink-0 text-muted-foreground" />}
+            className="min-w-0 flex-1"
+          />
+          {isLocalRepo && branch && branch !== local.data?.branch ? (
+            <Button size="sm" disabled={busy} onClick={() => void switchBranch()}>
+              {busy ? <Spinner className="size-3.5" /> : gt("Switch")}
+            </Button>
+          ) : null}
+        </div>
+
+        <div className="flex items-center gap-2 text-[11px] text-muted-foreground">
+          <FolderIcon className="size-3.5 shrink-0" />
+          <span className="min-w-0 flex-1 truncate" title={linkedFolder ?? ""}>
+            {linkedFolder ?? gt("No folder linked")}
+          </span>
+          {linkedFolder && !chatOnLinked ? (
+            <Button size="xs" variant="outline" onClick={() => connectClaude(linkedFolder)}>
+              {gt("Use in this chat")}
+            </Button>
+          ) : linkedFolder ? (
+            <span>{gt("This chat is here")}</span>
+          ) : (
+            <Button size="xs" variant="outline" onClick={() => setDialog("link")}>
+              {gt("Link folder")}
+            </Button>
+          )}
+        </div>
+
+        <div className="flex items-center gap-1 rounded-md bg-muted/50 p-0.5">
+          {(["files", "commits"] as const).map((id) => (
+            <button
+              key={id}
+              type="button"
+              className={`flex-1 rounded-[5px] px-2 py-1 text-xs font-medium transition-colors ${
+                tab === id
+                  ? "bg-background text-foreground shadow-xs"
+                  : "text-muted-foreground hover:text-foreground"
+              }`}
+              onClick={() => {
+                setTab(id);
+                setOpenFilePath(null);
+                setDialog(null);
+              }}
+            >
+              {id === "files" ? gt("Files") : gt("Commits")}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      <div className="min-h-0 flex-1 overflow-auto">
+        {dialog === "pull" && branch ? (
+          <Cc3GitHubPull
+            repo={repo}
+            branch={branch}
+            source={path}
+            defaultTarget={linkedFolder ?? chatFolder ?? home ?? ""}
+            currentChatFolder={chatFolder}
+            linkedFolder={linkedFolder}
+            onLink={(folder) => folderLinks.link(repo, folder)}
+            onClose={() => setDialog(null)}
+            onPulled={(folder, moveClaude) => {
+              setDialog(null);
+              refresh();
+              if (moveClaude) connectClaude(folder);
+            }}
+          />
+        ) : dialogView ? (
+          dialogView
+        ) : tab === "commits" && branch ? (
+          <GitHubCommits key={`${repo}@${branch}`} repo={repo} branch={branch} refresh={revision} />
         ) : openFilePath ? (
           <div className="flex min-h-0 flex-col">
-            <div className="flex items-center gap-1 border-b border-border/60 px-2 py-1">
+            <div className="flex items-center gap-1 border-b border-border/60 px-2 py-1.5">
               <Button
                 size="icon-xs"
                 variant="ghost"
@@ -767,7 +611,7 @@ export default function Cc3GitHubPanel(props: {
                 size="icon-xs"
                 variant="ghost"
                 aria-label={gt("Ask Claude about this file")}
-                onClick={() => fileUrl && askClaude(`Look at ${fileUrl} `)}
+                onClick={() => fileUrl && sendToClaude(`\u001b[200~Look at ${fileUrl} \u001b[201~`)}
               >
                 <MessageSquarePlusIcon className="size-3.5" />
               </Button>
@@ -796,9 +640,9 @@ export default function Cc3GitHubPanel(props: {
           </div>
         ) : (
           <div className="flex flex-col">
-            <div className="flex flex-wrap items-center gap-1 px-2 py-1.5 text-muted-foreground">
+            <div className="flex flex-wrap items-center gap-1 px-3 py-1.5 text-muted-foreground">
               <button type="button" className="hover:text-foreground" onClick={() => setPath("")}>
-                {repo}
+                {shortName(repo)}
               </button>
               {crumbs.map((crumb, index) => (
                 <span key={crumb + index} className="flex items-center gap-1">
@@ -820,12 +664,12 @@ export default function Cc3GitHubPanel(props: {
             ) : tree.error ? (
               <div className="p-3 text-destructive">{tree.error}</div>
             ) : tree.data?.kind === "dir" ? (
-              <ul className="flex flex-col px-1">
+              <ul className="flex flex-col px-1 pb-2">
                 {tree.data.entries.map((entry) => (
                   <li key={entry.path}>
                     <button
                       type="button"
-                      className="flex w-full items-center gap-2 rounded-sm px-2 py-1 text-left hover:bg-accent"
+                      className="flex w-full items-center gap-2 rounded-sm px-2 py-1 text-left hover:bg-accent/60"
                       onClick={() =>
                         entry.type === "dir" ? setPath(entry.path) : setOpenFilePath(entry.path)
                       }

@@ -5,6 +5,8 @@ import { ArrowLeftIcon } from "lucide-react";
 import { useState } from "react";
 
 import { Button } from "~/components/ui/button";
+import { Checkbox } from "~/components/ui/checkbox";
+import { Input } from "~/components/ui/input";
 import { Spinner } from "~/components/ui/spinner";
 import { toastManager } from "~/components/ui/toast";
 
@@ -16,9 +18,6 @@ interface PlanFile {
   size: number;
   status: Status;
 }
-
-const INPUT_CLASS =
-  "h-7 min-w-0 flex-1 rounded-md border border-border/70 bg-background px-2 text-xs text-foreground outline-none focus:ring-1 focus:ring-ring";
 
 const BADGE: Record<Status, string> = {
   new: "text-emerald-500",
@@ -146,8 +145,8 @@ export function Cc3GitHubPull(props: {
           ) : null}
         </div>
         <div className="flex items-center gap-2">
-          <input
-            className={INPUT_CLASS}
+          <Input
+            size="compact"
             value={target}
             spellCheck={false}
             aria-label={gt("Into folder")}
@@ -180,8 +179,9 @@ export function Cc3GitHubPull(props: {
             <Button size="xs" variant="ghost" onClick={() => setSelected(new Set())}>
               {gt("None")}
             </Button>
-            <input
-              className={INPUT_CLASS}
+            <Input
+              size="compact"
+              className="min-w-24 flex-1"
               value={filter}
               placeholder={gt("Filter")}
               aria-label={gt("Filter files")}
@@ -192,11 +192,10 @@ export function Cc3GitHubPull(props: {
             {visible.slice(0, 500).map((file) => (
               <li key={file.rel}>
                 <label className="flex cursor-pointer items-center gap-2 rounded-sm px-2 py-0.5 hover:bg-accent">
-                  <input
-                    type="checkbox"
+                  <Checkbox
                     checked={selected.has(file.rel)}
                     disabled={file.status === "same"}
-                    onChange={() => toggle(file.rel)}
+                    onCheckedChange={() => toggle(file.rel)}
                   />
                   <span className="min-w-0 flex-1 truncate text-foreground">{file.rel}</span>
                   <span className={BADGE[file.status]}>
@@ -225,20 +224,18 @@ export function Cc3GitHubPull(props: {
           <div className="flex flex-wrap items-center gap-2 border-t border-border/60 p-2">
             {target.trim() !== props.linkedFolder ? (
               <label className="flex items-center gap-1.5 text-muted-foreground">
-                <input
-                  type="checkbox"
+                <Checkbox
                   checked={linkIt}
-                  onChange={(event) => setLinkIt(event.target.checked)}
+                  onCheckedChange={(checked) => setLinkIt(checked === true)}
                 />
                 {gt("Link this folder to the repository")}
               </label>
             ) : null}
             {target.trim() !== props.currentChatFolder ? (
               <label className="flex items-center gap-1.5 text-muted-foreground">
-                <input
-                  type="checkbox"
+                <Checkbox
                   checked={moveClaude}
-                  onChange={(event) => setMoveClaude(event.target.checked)}
+                  onCheckedChange={(checked) => setMoveClaude(checked === true)}
                 />
                 {gt("Move Claude to this folder")}
               </label>

@@ -274,7 +274,8 @@ async function handle(request: Record<string, unknown>): Promise<Success | Failu
       return ok({ binary: false, text: result.stdout });
     }
     case "local": {
-      if (!safeDir(request.cwd)) return ok({ exists: false, repo: null, branch: null, branches: [] });
+      if (!safeDir(request.cwd))
+        return ok({ exists: false, repo: null, branch: null, branches: [] });
       const cwd = request.cwd;
       const remote = await run("git", ["remote", "get-url", "origin"], { cwd });
       const branch = await run("git", ["branch", "--show-current"], { cwd });
@@ -491,6 +492,47 @@ async function handle(request: Record<string, unknown>): Promise<Success | Failu
       } finally {
         rmSync(work, { recursive: true, force: true });
       }
+    }
+    case "commits": {
+      const { repo, ref, page } = request;
+      if (!safeRepo(repo) || !safeRef(ref)) return fail("Invalid request.");
+      const pageNumber =
+        typeof page === "number" && page >= 1 && page <= 1000 ? Math.floor(page) : 1;
+      const result = await run("gh", [
+        "api",
+        `repos/${repo}/commits?sha=${encodeURIComponent(ref)}&per_page=30&page=${pageNumber}`,
+      ]);
+      if (isFailure(result)) return result;
+      const parsed = JSON.parse(result.stdout) as Array<{
+        sha: string;
+        commit: { message: string; author?: { name?: string; date?: string } };
+        author?: { login?: string } | null;
+      }>;
+      return ok(
+        parsed.map((entry) => ({
+          sha: entry.sha,
+          message: entry.commit.message,
+          author: entry.author?.login ?? entry.commit.author?.name ?? "",
+          date: entry.commit.author?.date ?? "",
+        })),
+      );
+    }
+    case "commit": {
+      const { repo, sha } = request;
+      if (!safeRepo(repo) || typeof sha !== "string" || !/^[0-9a-f]{7,40}$/.test(sha)) {
+        return fail("Invalid request.");
+      }
+      const result = await run(
+        "gh",
+        ["api", "-H", "Accept: application/vnd.github.diff", `repos/${repo}/commits/${sha}`],
+        { maxBuffer: 4 * 1024 * 1024 },
+      );
+      if (isFailure(result)) {
+        return fail(
+          result.error.includes("maxBuffer") ? "This commit is too large to show." : result.error,
+        );
+      }
+      return ok({ diff: result.stdout });
     }
     default:
       return fail("Unknown operation.");
