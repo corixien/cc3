@@ -1,7 +1,7 @@
 import type { EnvironmentId, ThreadId } from "@t3tools/contracts";
 import { useGT } from "gt-react";
 
-import { useClaudeTuiStatus } from "../../claudeTuiStatus";
+import { useClaudeTuiStatus, useClaudeTuiUnseen } from "../../claudeTuiStatus";
 import { cn } from "../../lib/utils";
 
 export function ClaudeTuiStatusDot({
@@ -13,7 +13,8 @@ export function ClaudeTuiStatusDot({
 }) {
   const gt = useGT();
   const status = useClaudeTuiStatus(environmentId, threadId);
-  if (status === null) return null;
+  const unseen = useClaudeTuiUnseen((state) => state.unseen.has(threadId));
+  if (status === null || (status === "done" && !unseen)) return null;
   const label =
     status === "working"
       ? gt("Claude is working")

@@ -1,10 +1,10 @@
 // CC3: shows the completion overlay when a Claude chat stops working while CC3 is in the background,
 // and opens the chat when the overlay is clicked.
-import { useNavigate } from "@tanstack/react-router";
+import { useNavigate, useParams } from "@tanstack/react-router";
 import { useGT } from "gt-react";
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 
-import { claudeTuiStatusFromTitle } from "../claudeTuiStatus";
+import { claudeTuiStatusFromTitle, useClaudeTuiUnseen } from "../claudeTuiStatus";
 import { useClaudeTuiTitles } from "../state/terminalSessions";
 import { usePrimaryEnvironmentId } from "../state/environments";
 import { buildThreadRouteParams } from "../threadRoutes";
@@ -19,6 +19,26 @@ export function Cc3CompletionNotifier() {
   const environmentId = usePrimaryEnvironmentId();
   const titles = useClaudeTuiTitles(environmentId);
   const previous = useRef(new Map<string, string | null>());
+  const activeThreadId = useParams({ strict: false, select: (params) => params.threadId });
+  const markUnseen = useClaudeTuiUnseen((state) => state.mark);
+  const clearUnseen = useClaudeTuiUnseen((state) => state.clear);
+  const [focused, setFocused] = useState(() => document.hasFocus());
+
+  // oxlint-disable-next-line t3code/no-unreasoned-state-sync -- window focus is an external signal
+  useEffect(() => {
+    const update = () => setFocused(document.hasFocus());
+    window.addEventListener("focus", update);
+    window.addEventListener("blur", update);
+    return () => {
+      window.removeEventListener("focus", update);
+      window.removeEventListener("blur", update);
+    };
+  }, []);
+
+  // oxlint-disable-next-line t3code/no-unreasoned-state-sync -- viewing a chat in the focused window clears its dot
+  useEffect(() => {
+    if (focused && activeThreadId) clearUnseen(activeThreadId);
+  }, [activeThreadId, clearUnseen, focused]);
 
   // oxlint-disable-next-line t3code/no-unreasoned-state-sync -- reacts to terminal title changes pushed by the server and talks to the desktop shell
   useEffect(() => {
@@ -27,6 +47,9 @@ export function Cc3CompletionNotifier() {
       const status = claudeTuiStatusFromTitle(title);
       const before = previous.current.get(threadId);
       previous.current.set(threadId, status);
+      if (status === "working") clearUnseen(threadId);
+      const viewing = document.hasFocus() && threadId === activeThreadId;
+      if (before === "working" && status === "done" && !viewing) markUnseen(threadId);
       if (before !== "working" || (status !== "done" && status !== "input")) continue;
       if (document.hasFocus()) continue;
       void window.desktopBridge?.showCompletionOverlay({
@@ -36,7 +59,7 @@ export function Cc3CompletionNotifier() {
         threadId,
       });
     }
-  }, [environmentId, gt, titles]);
+  }, [activeThreadId, clearUnseen, environmentId, gt, markUnseen, titles]);
 
   // oxlint-disable-next-line t3code/no-unreasoned-state-sync -- the desktop shell reports a click on the overlay as a window event
   useEffect(() => {

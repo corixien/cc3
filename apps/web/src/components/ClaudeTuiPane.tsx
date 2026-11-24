@@ -149,14 +149,31 @@ export function ClaudeTuiPane(props: ClaudeTuiPaneProps) {
     );
     if (!hasFiles) return;
     const root = props.cwd.replace(/\/+$/, "");
-    if (target === root) panel.openFile(ref, ".");
-    else
-      panel.openFile(ref, target.startsWith(`${root}/`) ? target.slice(root.length + 1) : target);
+    panel.openFile(ref, target === root ? "." : target);
   });
   const handleSubmitLine = useStableCallback((line: string) => {
-    if (line !== "/new") return false;
-    props.onNewChat();
-    return true;
+    if (line === "/new") {
+      props.onNewChat();
+      return true;
+    }
+    // A typed `!cd dir` or `/cd dir` runs without a hook, so move the file tree from the line itself.
+    const typed = /^(?:!\s*|\/)cd\s+(\S.*)$/.exec(line.trim());
+    if (typed) {
+      const dest = typed[1]!.replace(/^["']|["']$/g, "");
+      const home = /^\/home\/[^/]+/.exec(props.cwd)?.[0];
+      const absolute = dest.startsWith("/")
+        ? dest
+        : dest.startsWith("~") && home
+          ? `${home}${dest.slice(1)}`
+          : `${lastCwd.current}/${dest}`;
+      const parts: string[] = [];
+      for (const part of absolute.split("/")) {
+        if (part === "..") parts.pop();
+        else if (part !== "" && part !== ".") parts.push(part);
+      }
+      handleCwdChange(`/${parts.join("/")}`);
+    }
+    return false;
   });
 
   return (
