@@ -99,8 +99,7 @@ import { DelimitedTablePreview } from "./DelimitedTablePreview";
 import { PreviewImage } from "./PreviewImage";
 import FileBrowserPanel from "./FileBrowserPanel";
 import { FileExplorerPane } from "./FileExplorerPane";
-import { BreadcrumbPathField } from "./BreadcrumbPathField";
-import { FileBreadcrumbs } from "./FileBreadcrumbs";
+import { PathLocationField } from "./PathLocationField";
 import { breadcrumbPathOf, retainedBreadcrumbTrail, trailChildOf } from "./filePath";
 import { FileMarkdownPreview } from "./FileMarkdownPreview";
 import {
@@ -1355,6 +1354,24 @@ export default function FilePreviewPanel({
       : relativePath && attachment === undefined
         ? resolvePathLinkTarget(relativePath, cwd)
         : null;
+  // The location field shows the folder the user is in: a file's folder, or the folder itself.
+  const locationDirectory =
+    attachment !== undefined
+      ? null
+      : absolutePath === null
+        ? cwd
+        : isFolder || breadcrumbPath === ""
+          ? absolutePath
+          : absolutePath.slice(0, absolutePath.lastIndexOf("/")) || "/";
+  const handleLocationSubmit = (typed: string) => {
+    const home = /^\/home\/[^/]+/.exec(cwd)?.[0];
+    const expanded =
+      typed === "~" || typed.startsWith("~/") ? `${home ?? ""}${typed.slice(1)}` : typed;
+    const root = cwd.replace(/\/+$/, "");
+    const target = expanded.replace(/(.)\/+$/, "$1");
+    if (target === root) navigateToFolder("");
+    else navigateToFolder(target.startsWith(`${root}/`) ? target.slice(root.length + 1) : target);
+  };
   const onFilePostRender = useFileLineReveal(relativePath, revealLine, revealRequestId);
   // Mounting the file read under the workspace mutation id refetches it after each mutation.
   useAtomMount(
@@ -1447,7 +1464,7 @@ export default function FilePreviewPanel({
 
   return (
     <div className="flex min-h-0 flex-1 flex-col overflow-hidden bg-background">
-      {breadcrumbPath !== null && breadcrumbTrail !== null ? (
+      {locationDirectory !== null ? (
         <div className={FILE_SURFACE_SUBHEADER_CLASS} data-surface-subheader>
           <ScrollArea
             radius="none"
@@ -1457,18 +1474,7 @@ export default function FilePreviewPanel({
             className="min-w-0 flex-1"
             data-file-breadcrumbs
           >
-            <BreadcrumbPathField path={absolutePath}>
-              <FileBreadcrumbs
-                cwd={cwd}
-                environmentId={environmentId}
-                onNavigateFolder={navigateToFolder}
-                onOpenFile={onOpenFile}
-                projectName={projectName}
-                relativePath={breadcrumbPath}
-                trail={breadcrumbTrail}
-                workspaceMutationId={workspaceMutationId}
-              />
-            </BreadcrumbPathField>
+            <PathLocationField directory={locationDirectory} onSubmit={handleLocationSubmit} />
           </ScrollArea>
           {absolutePath &&
           (environmentId === primaryEnvironmentId ||
