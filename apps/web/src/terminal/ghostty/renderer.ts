@@ -10,6 +10,8 @@ export interface GhosttyCellMetrics {
   readonly width: number;
   readonly height: number;
   readonly baseline: number;
+  /** Extra advance per glyph so a run of text lands on the snapped cell grid. */
+  readonly letterSpacing?: number;
 }
 
 export interface GhosttyCellRange {
@@ -183,11 +185,16 @@ export function measureGhosttyCell(
   const ascent = verticalMeasurement.actualBoundingBoxAscent || fontSize;
   const descent = verticalMeasurement.actualBoundingBoxDescent;
   const glyphHeight = ascent + descent;
-  const height = Math.max(1, Math.round(fontSize * 1.35), Math.ceil(glyphHeight));
+  const ratio = (typeof window === "undefined" ? 1 : window.devicePixelRatio) || 1;
+  // Cells that start between device pixels make every glyph sit on a different subpixel offset, which blurs text.
+  const snap = (value: number) => Math.max(1 / ratio, Math.round(value * ratio) / ratio);
+  const height = snap(Math.max(1, Math.round(fontSize * 1.35), Math.ceil(glyphHeight)));
+  const width = snap(widthMeasurement.width);
   return {
-    width: Math.max(1, widthMeasurement.width),
+    width,
+    letterSpacing: width - widthMeasurement.width,
     height,
-    baseline: Math.round((height - glyphHeight) / 2 + ascent),
+    baseline: snap((height - glyphHeight) / 2 + ascent),
   };
 }
 
@@ -263,6 +270,7 @@ export function renderGhosttySnapshot(options: {
   }
 
   context.textBaseline = "alphabetic";
+  context.letterSpacing = `${metrics.letterSpacing ?? 0}px`;
   for (const rowIndex of rowsToDraw) {
     const row = snapshot.rowData[rowIndex];
     if (!row) continue;

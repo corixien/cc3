@@ -235,6 +235,40 @@ export function useKnownTerminalSessions(input: {
   return withoutClaudeTui(sessions);
 }
 
+/** The Claude TUI's terminal title (the server keeps it as the terminal's label), or null. */
+export function useClaudeTuiTitle(
+  environmentId: EnvironmentId | null,
+  threadId: ThreadId | null,
+): string | null {
+  const canRead = useEnvironmentScope(environmentId, AuthTerminalReadScope);
+  const sessions = useAtomValue(
+    environmentId === null || !canRead
+      ? NO_KNOWN_TERMINAL_SESSIONS_ATOM
+      : knownTerminalSessionsAtom(environmentId, threadId),
+  );
+  return (
+    sessions?.find((session) => session.target.terminalId === CLAUDE_TUI_TERMINAL_ID)?.state.summary
+      ?.label ?? null
+  );
+}
+
+/** Every chat's Claude TUI title in an environment, by thread id. */
+export function useClaudeTuiTitles(
+  environmentId: EnvironmentId | null,
+): ReadonlyArray<{ readonly threadId: ThreadId; readonly title: string }> {
+  const canRead = useEnvironmentScope(environmentId, AuthTerminalReadScope);
+  const sessions = useAtomValue(
+    environmentId === null || !canRead
+      ? NO_KNOWN_TERMINAL_SESSIONS_ATOM
+      : knownTerminalSessionsAtom(environmentId, null),
+  );
+  return (sessions ?? []).flatMap((session) =>
+    session.target.terminalId === CLAUDE_TUI_TERMINAL_ID && session.state.summary
+      ? [{ threadId: session.target.threadId, title: session.state.summary.label }]
+      : [],
+  );
+}
+
 const withoutTuiCache = new WeakMap<object, ReadonlyArray<KnownTerminalSession>>();
 function withoutClaudeTui(
   sessions: ReadonlyArray<KnownTerminalSession> | null,

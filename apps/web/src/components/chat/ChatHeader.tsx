@@ -372,7 +372,10 @@ export const ChatHeader = memo(function ChatHeader({
                 <h2 className="min-w-0 text-[13px]" dir={textDirection(activeThreadTitle)}>
                   <WorkspaceBreadcrumbText>{activeThreadTitle}</WorkspaceBreadcrumbText>
                 </h2>
-                <ClaudeTuiStatusDot threadId={activeThreadId} />
+                <ClaudeTuiStatusDot
+                  environmentId={activeThreadEnvironmentId}
+                  threadId={activeThreadId}
+                />
                 <ChevronDownIcon
                   aria-hidden
                   data-thread-title-chevron

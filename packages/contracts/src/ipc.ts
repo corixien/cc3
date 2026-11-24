@@ -1063,6 +1063,12 @@ export interface DesktopBridge {
   getPathForFile: (file: File) => string;
   getClientPlatform: () => string;
   restartAudioService?: () => Promise<boolean>;
+  showCompletionOverlay: (input: {
+    title: string;
+    message: string;
+    environmentId: string;
+    threadId: string;
+  }) => Promise<void>;
   setNotificationBadge: (badge: { count: number; image: string | null }) => Promise<void>;
   onNotificationBadgeClear: (listener: () => void) => () => void;
   onTrackpadScrollBegin: (listener: () => void) => () => void;

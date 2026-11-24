@@ -323,6 +323,8 @@ interface TerminalSessionState {
   unsubscribeExit: (() => void) | null;
   hasRunningSubprocess: boolean;
   childCommandLabel: string | null;
+  /** CC3: the Claude TUI's terminal title (OSC 0/2), which carries its working/idle state. */
+  ttyTitle: string | null;
   runtimeEnv: Record<string, string> | null;
   stopOnSettle: boolean;
   startupError: string | null;
@@ -358,6 +360,7 @@ type DrainProcessEventAction =
       sequence: number;
       history: BoundedTerminalHistory | null;
       data: string;
+      titleActivity: { sequence: number; label: string } | null;
     }
   | {
       type: "exit";
@@ -396,7 +399,12 @@ function normalizeChildCommandName(raw: string, platform: NodeJS.Platform): stri
   return withoutExe.length > 0 ? withoutExe : null;
 }
 
+const TTY_TITLE_PATTERN = /\u001b\][02];([^\u0007\u001b]*)(?:\u0007|\u001b\\)/g;
+
 function terminalWireLabel(session: TerminalSessionState): string {
+  if (session.terminalId === "claude-tui" && session.ttyTitle !== null) {
+    return truncateTerminalWireLabel(session.ttyTitle);
+  }
   if (session.hasRunningSubprocess && session.childCommandLabel) {
     const trimmed = session.childCommandLabel.trim();
     if (trimmed.length > 0) {
@@ -2641,6 +2649,18 @@ export const makeWithOptions = Effect.fn("TerminalManager.makeWithOptions")(func
             session.history.append(sanitized.visibleText);
           }
           const eventStamp = advanceEventSequence(session);
+          let titleActivity: { sequence: number; label: string } | null = null;
+          if (session.terminalId === "claude-tui") {
+            let title: string | undefined;
+            for (const match of nextEvent.data.matchAll(TTY_TITLE_PATTERN)) title = match[1];
+            if (title !== undefined && title !== session.ttyTitle) {
+              session.ttyTitle = title;
+              titleActivity = {
+                sequence: advanceEventSequence(session).sequence,
+                label: terminalWireLabel(session),
+              };
+            }
+          }
 
           return {
             type: "output",
@@ -2649,6 +2669,7 @@ export const makeWithOptions = Effect.fn("TerminalManager.makeWithOptions")(func
             sequence: eventStamp.sequence,
             history: sanitized.visibleText.length > 0 ? session.history : null,
             data: nextEvent.data,
+            titleActivity,
           } as const;
         }
 
@@ -2698,6 +2719,16 @@ export const makeWithOptions = Effect.fn("TerminalManager.makeWithOptions")(func
           sequence: action.sequence,
           data: action.data,
         });
+        if (action.titleActivity !== null) {
+          yield* publishEvent({
+            type: "activity",
+            threadId: action.threadId,
+            terminalId: action.terminalId,
+            sequence: action.titleActivity.sequence,
+            hasRunningSubprocess: false,
+            label: action.titleActivity.label,
+          });
+        }
         continue;
       }
 
@@ -3335,6 +3366,7 @@ export const makeWithOptions = Effect.fn("TerminalManager.makeWithOptions")(func
         unsubscribeExit: null,
         hasRunningSubprocess: false,
         childCommandLabel: null,
+        ttyTitle: null,
         runtimeEnv: normalizedRuntimeEnv(input.env),
         stopOnSettle: input.stopOnSettle ?? false,
         startupError: null,

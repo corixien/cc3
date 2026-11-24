@@ -1,5 +1,8 @@
 // CC3: the thread sidebar. A flat list of chats (title and a live status only) that can be sorted
 // into collapsible folders. Replaces the project-grouped upstream sidebar in the app layout.
+import { Cc3CompletionNotifier } from "./Cc3CompletionNotifier";
+import { ClaudeTuiStatusDot } from "./chat/ClaudeTuiStatusDot";
+import { useClaudeTuiStatus } from "../claudeTuiStatus";
 import { scopeThreadRef } from "@t3tools/client-runtime/environment";
 import {
   threadRuntimeIsActive,
@@ -73,6 +76,15 @@ function statusOf(thread: EnvironmentThreadShell): ChatStatus {
   if (thread.hasPendingApprovals || thread.hasPendingUserInput) return "needs-input";
   if (threadRuntimeIsActive(thread.runtime)) return "working";
   return null;
+}
+
+function RowStatus({ thread, status }: { thread: EnvironmentThreadShell; status: ChatStatus }) {
+  const tuiStatus = useClaudeTuiStatus(thread.environmentId, thread.id);
+  return tuiStatus === null ? (
+    <StatusMark status={status} />
+  ) : (
+    <ClaudeTuiStatusDot environmentId={thread.environmentId} threadId={thread.id} />
+  );
 }
 
 function StatusMark({ status }: { status: ChatStatus }) {
@@ -299,12 +311,12 @@ export default function Cc3Sidebar() {
             setMenu({ x: event.clientX, y: event.clientY, kind: "thread", thread });
           }}
           className={cn(
-            "flex h-8 w-full items-center gap-2 rounded-md px-2.5 text-left text-sm text-sidebar-foreground/90 transition-colors hover:bg-sidebar-row-hover hover:text-sidebar-foreground",
+            "flex h-8 w-full items-center gap-2 rounded-md px-2.5 text-left text-[13px] text-sidebar-foreground/90 transition-colors hover:bg-sidebar-row-hover hover:text-sidebar-foreground",
             selected && "bg-sidebar-row-selected text-sidebar-foreground",
           )}
         >
           <span className="min-w-0 flex-1 truncate">{thread.title}</span>
-          <StatusMark status={status} />
+          <RowStatus thread={thread} status={status} />
         </button>
       </li>
     );
@@ -312,6 +324,7 @@ export default function Cc3Sidebar() {
 
   return (
     <>
+      <Cc3CompletionNotifier />
       <SidebarChromeHeader isElectron={isElectron} />
       <SidebarContent className="min-h-0 gap-0 px-2 pt-2">
         <div className="flex items-center gap-1 pb-3">
@@ -413,7 +426,7 @@ export default function Cc3Sidebar() {
                     folderId: folder.id,
                   });
                 }}
-                className="mb-1 flex h-8 items-center gap-1 rounded-md px-2.5 text-base font-medium text-sidebar-foreground hover:bg-sidebar-row-hover"
+                className="mb-1 flex h-8 items-center gap-1 rounded-md px-2.5 text-[17px] font-medium text-sidebar-foreground hover:bg-sidebar-row-hover"
               >
                 {editing === folder.id ? (
                   <input

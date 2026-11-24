@@ -88,3 +88,8 @@ Open: Claude process still starts with the first message (adapter startTurn woul
 - Header: smaller title, status dot (`claudeTuiStatus.ts`, from terminal title prefix), split right pane has no sidebar inset.
 - Settings: pages chat/voice/providers/scheduled-tasks and default-model/text-generation rows hidden; new "Claude Code" section in General.
 - TUI shims (`terminal/cc3TuiShims.ts`): `cc3-terminal` types a command into the drawer terminal (OSC cc3-term), `cc3-terminal-output` reads its history file; `--append-system-prompt` tells Claude about CC3.
+- Sidebar: chat titles 13px, folder names 17px, status dot per chat from the claude-tui terminal title (server keeps it as the terminal label: `Manager.ts` ttyTitle, client `useClaudeTuiTitle`).
+- Terminal canvas: cell width snapped to device pixels with letterSpacing compensation (`renderer.ts`) against blurry text.
+- Completion overlay: `Cc3CompletionNotifier` (web) -> `showCompletionOverlay` bridge -> `desktop/src/cc3CompletionOverlay.ts` (always-on-top dim window with sound, click opens chat via `cc3-open-thread` window event).
+- Claude shims: `cc3-open-file` (OSC cc3-file -> right panel file viewer), prompt says use `preview_open open:true`.
+- Provider update candidates limited to the claudeAgent driver.

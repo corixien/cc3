@@ -1,11 +1,18 @@
+import type { EnvironmentId, ThreadId } from "@t3tools/contracts";
 import { useGT } from "gt-react";
 
 import { useClaudeTuiStatus } from "../../claudeTuiStatus";
 import { cn } from "../../lib/utils";
 
-export function ClaudeTuiStatusDot({ threadId }: { threadId: string }) {
+export function ClaudeTuiStatusDot({
+  environmentId,
+  threadId,
+}: {
+  environmentId: EnvironmentId;
+  threadId: ThreadId;
+}) {
   const gt = useGT();
-  const status = useClaudeTuiStatus(threadId);
+  const status = useClaudeTuiStatus(environmentId, threadId);
   if (status === null) return null;
   const label =
     status === "working"

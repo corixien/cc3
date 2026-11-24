@@ -132,7 +132,7 @@ describe("provider update launch notification logic", () => {
 
   it("keeps the inline update action available while a provider update is already running", () => {
     const candidate = updateCandidate({
-      driver: driver("codex"),
+      driver: driver("claudeAgent"),
       updateState: {
         status: "running",
         startedAt: checkedAt,
@@ -277,7 +277,8 @@ describe("provider update launch notification logic", () => {
 });
 
 it("does not offer incompatible latest versions and restores suggestions after policy relaxation", () => {
-  const installed = provider({ driver: driver("codex") });
+  const installed = provider({ driver: driver("claudeAgent") });
+  expect(isProviderUpdateCandidate(provider({ driver: driver("codex") }))).toBe(false);
   for (const latestVersionStatus of ["broken", "unsupported", "supported", "unknown"] as const) {
     const snapshot: ServerProvider = {
       ...installed,

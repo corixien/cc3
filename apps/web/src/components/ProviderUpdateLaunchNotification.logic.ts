@@ -132,10 +132,16 @@ function getProviderFailedUpdateTitle(
     : resolve(msg("{provider} update failed", { provider: providerName }));
 }
 
+// CC3 only runs Claude Code, so updates of the other providers are neither offered nor announced.
+function isClaudeCodeProvider(provider: Pick<ServerProvider, "driver">): boolean {
+  return String(provider.driver) === "claudeAgent";
+}
+
 export function isProviderUpdateCandidate(
   provider: ServerProvider,
 ): provider is ProviderUpdateCandidate {
   return (
+    isClaudeCodeProvider(provider) &&
     provider.enabled &&
     provider.compatibilityAdvisory?.latestVersionStatus !== "broken" &&
     provider.compatibilityAdvisory?.latestVersionStatus !== "unsupported" &&
@@ -158,6 +164,7 @@ export function isProviderSettingsUpdateCandidate(
   provider: ServerProvider,
 ): provider is ProviderSettingsUpdateCandidate {
   return (
+    isClaudeCodeProvider(provider) &&
     provider.enabled &&
     provider.compatibilityAdvisory?.latestVersionStatus !== "broken" &&
     provider.compatibilityAdvisory?.latestVersionStatus !== "unsupported" &&

@@ -17,13 +17,13 @@ import {
   DEFAULT_INTERACTION_MODE,
   DEFAULT_THREAD_TERMINAL_ID,
 } from "../types";
+import { useRightPanelStore } from "../rightPanelStore";
 import { revealThreadTerminal } from "../lib/revealThreadTerminal";
 import { terminalEnvironment } from "../state/terminal";
 import { useAtomCommand } from "../state/use-atom-command";
 import { finalizePromotedDraftThreadByRef } from "../composerDraftStore";
 import { threadEnvironment } from "../state/threads";
 import { useOrchestrationCommand } from "../state/use-orchestration-command";
-import { claudeTuiStatusFromTitle, setClaudeTuiStatus } from "../claudeTuiStatus";
 import { useStableCallback } from "../hooks/useStableCallback";
 import { useClientSettings } from "../hooks/useSettings";
 import { Button } from "./ui/button";
@@ -104,8 +104,6 @@ export function ClaudeTuiPane(props: ClaudeTuiPaneProps) {
 
   // Claude sets the terminal title to its session summary; the chat list shows it.
   const handleTitle = useStableCallback((raw: string) => {
-    const status = claudeTuiStatusFromTitle(raw);
-    if (status !== null) setClaudeTuiStatus(threadId, status);
     const title = raw
       .replace(/^[^\p{L}\p{N}]+/u, "")
       .trim()
@@ -131,6 +129,12 @@ export function ClaudeTuiPane(props: ClaudeTuiPaneProps) {
       });
     };
     window.setTimeout(() => attempt(6), 300);
+  });
+  // `cc3-open-file` (run by Claude) shows a file in the right panel's file viewer.
+  const handleOpenFile = useStableCallback((path: string) => {
+    const root = props.cwd.replace(/\/+$/, "");
+    const relative = path.startsWith(`${root}/`) ? path.slice(root.length + 1) : path;
+    useRightPanelStore.getState().openFile(scopeThreadRef(environmentId, threadId), relative);
   });
   const handleSubmitLine = useStableCallback((line: string) => {
     if (line !== "/new") return false;
@@ -162,6 +166,7 @@ export function ClaudeTuiPane(props: ClaudeTuiPaneProps) {
           onSessionExited={() => setExited(true)}
           onTitleChange={handleTitle}
           onTerminalCommand={handleTerminalCommand}
+          onOpenFile={handleOpenFile}
           onSubmitLine={handleSubmitLine}
           autoFocus
           visible

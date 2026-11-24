@@ -199,12 +199,14 @@ function replaceClaudeMascot(data: string): string {
 // CC3: the xdg-open shim of the Claude TUI prints this OSC; only live output counts, never a replay.
 const CC3_OPEN_URL_PATTERN = /\u001b\]777;cc3-open;([^\u0007\u001b]+)\u0007/g;
 const CC3_TERMINAL_COMMAND_PATTERN = /\u001b\]777;cc3-term;([A-Za-z0-9+/=]+)\u0007/g;
+const CC3_OPEN_FILE_PATTERN = /\u001b\]777;cc3-file;([A-Za-z0-9+/=]+)\u0007/g;
 const TERMINAL_TITLE_PATTERN = /\u001b\][02];([^\u0007\u001b]*)(?:\u0007|\u001b\\)/g;
 
 export interface TerminalOutputHooks {
   readonly onOpenUrl?: (url: string) => void;
   readonly onTitle?: (title: string) => void;
   readonly onTerminalCommand?: (command: string) => void;
+  readonly onOpenFile?: (path: string) => void;
   readonly transform?: (data: string) => string;
 }
 
@@ -219,6 +221,12 @@ export function writeTerminalOutputUpdate(
     terminal.write(hooks?.transform ? hooks.transform(update.data) : update.data);
     if (hooks?.onOpenUrl) {
       for (const match of update.data.matchAll(CC3_OPEN_URL_PATTERN)) hooks.onOpenUrl(match[1]!);
+    }
+    if (hooks?.onOpenFile) {
+      for (const match of update.data.matchAll(CC3_OPEN_FILE_PATTERN)) {
+        const bytes = Uint8Array.from(atob(match[1]!), (char) => char.charCodeAt(0));
+        hooks.onOpenFile(new TextDecoder().decode(bytes));
+      }
     }
     if (hooks?.onTerminalCommand) {
       for (const match of update.data.matchAll(CC3_TERMINAL_COMMAND_PATTERN)) {
@@ -545,6 +553,7 @@ interface TerminalViewportProps {
   onSessionExited: () => void;
   onTitleChange?: (title: string) => void;
   onTerminalCommand?: (command: string) => void;
+  onOpenFile?: (path: string) => void;
   /** Return true to consume a submitted input line. */
   onSubmitLine?: (line: string) => boolean;
   onAddTerminalContext?: (selection: TerminalContextSelection) => void;
@@ -585,6 +594,7 @@ function TerminalSessionViewport({
   onSessionExited,
   onTitleChange,
   onTerminalCommand,
+  onOpenFile,
   onSubmitLine,
   onAddTerminalContext,
   autoFocus = false,
@@ -883,6 +893,7 @@ function TerminalSessionViewport({
               },
               ...(onTitleChange ? { onTitle: onTitleChange, transform: replaceClaudeMascot } : {}),
               ...(onTerminalCommand ? { onTerminalCommand } : {}),
+              ...(onOpenFile ? { onOpenFile } : {}),
             },
           );
         }),
@@ -1308,6 +1319,7 @@ function TerminalSessionViewport({
     cwd,
     environmentId,
     onSubmitLine,
+    onOpenFile,
     onTerminalCommand,
     onTitleChange,
     terminalId,
