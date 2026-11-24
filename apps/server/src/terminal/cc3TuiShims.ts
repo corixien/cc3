@@ -2,7 +2,7 @@
 // They talk to CC3 through an OSC sequence on the TTY (client side) or the terminal history files.
 export const CC3_TUI_SHIMS: Readonly<Record<string, string>> = {
   "cc3-tty": String.raw`#!/bin/sh
-p=$$
+p=$PPID
 while [ -n "$p" ] && [ "$p" -gt 1 ]; do
   for fd in 0 1 2; do
     t=$(readlink "/proc/$p/fd/$fd" 2>/dev/null)
