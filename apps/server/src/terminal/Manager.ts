@@ -627,6 +627,9 @@ export const CC3_CLAUDE_TUI_SCRIPT = [
   ]),
   'ln -sf xdg-open "$shim/cc3-browser"',
   'export BROWSER="$shim/cc3-browser" PATH="$shim:$PATH"',
+  // Claude's own /cd changes the process cwd without any hook, so a watcher reports it to CC3's file tree.
+  "me=$(sh -c 'echo $PPID')",
+  'cc3-cwd-watch "$me" "$(cc3-tty)" >/dev/null 2>&1 </dev/null &',
   `CC3_PROMPT='${CC3_TUI_SYSTEM_PROMPT.replaceAll("'", "'\\''")}'`,
   "set --",
   'set -- --append-system-prompt "$CC3_PROMPT"',

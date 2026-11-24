@@ -30,6 +30,17 @@ fi
 [ -n "$c" ] || exit 0
 printf '\033]777;cc3-cwd;%s\007' "$(printf %s "$c" | base64 -w0)" > "$(cc3-tty)"
 `,
+  "cc3-cwd-watch": String.raw`#!/bin/sh
+pid="$1"; tty="$2"; last=
+while [ -d "/proc/$pid" ]; do
+  c=$(readlink "/proc/$pid/cwd")
+  if [ "$c" != "$last" ]; then
+    last="$c"
+    printf '\033]777;cc3-cwd;%s\007' "$(printf %s "$c" | base64 -w0)" > "$tty"
+  fi
+  sleep 1
+done
+`,
   "xdg-open": String.raw`#!/bin/sh
 printf '\033]777;cc3-open;%s\007' "$1" > "$(cc3-tty)"
 `,

@@ -1,108 +1,55 @@
 <p align="center">
-  <a href="https://t3.codes">
-    <img src="./assets/prod/t3-black-web-icon-192x192.png" width="80" height="80" alt="T3 Code logo" />
-  </a>
+  <img src="./assets/prod/t3-black-web-icon-192x192.png" width="80" height="80" alt="CC3 logo" />
 </p>
 
-<h1 align="center">T3 Code</h1>
+<h1 align="center">CC3</h1>
 
-<p align="center">The open-source control plane for coding agents.</p>
+<p align="center">The real Claude Code, in a desktop app with a browser, files and a terminal next to it.</p>
 
-<p align="center">
-  <a href="https://t3.codes/download"><strong>Download</strong></a> ·
-  <a href="https://apps.apple.com/us/app/t3-code-remote-claude-more/id6787819824">iOS</a> ·
-  <a href="https://play.google.com/store/apps/details?id=com.t3tools.t3code">Android</a> ·
-  <a href="https://app.t3.codes">Web</a> ·
-  <a href="./docs/README.md">Docs</a> ·
-  <a href="https://discord.gg/jn4EGJjrvv">Discord</a>
-</p>
+CC3 runs the actual Claude Code terminal UI in every chat. Next to it you get a built-in browser, a file explorer with previews, a terminal drawer and a chat list with live status. Claude knows it is running inside CC3 and uses these panels to show you things.
 
-<p align="center">
-  <a href="https://t3.codes">
-    <img src="./.github/readme/hero.webp" width="100%" alt="T3 Code on desktop with a finished Claude thread, next to the phone app asking to approve a command from Codex" />
-  </a>
-</p>
-
-T3 Code runs the coding agents on your machine and gives them one fast interface. Start a thread at your desk, then approve the next step from your phone.
-
-It works with Claude Code, Codex, Cursor, OpenCode, Grok Build, Antigravity, Kiro, Pi, Muse Code, fx, and any [ACP](./docs/user/providers-acp.md) agent. If an agent is set up on your computer, T3 Code can control it.
+CC3 is a fork of [T3 Code](https://github.com/pingdotgg/t3code) (MIT) for the Linux desktop and Android. It stays mergeable with upstream.
 
 ## What you get
 
-- **Your subscriptions.** T3 Code does not resell tokens. It drives the agents you are already signed in to.
-- **Every agent in one place.** Change models in the middle of a thread. Let Claude hand a task to Codex.
-- **Desktop, web, and phone.** One server, and every client shows the same threads. There are apps for iOS and Android.
-- **Remote ready.** Run agents on any machine. Connect over your local network, Tailscale, or [T3 Connect](./docs/user/remote-access.md).
-- **Git built in.** Each thread can work in its own worktree. Review the diff, then commit, push, and open a pull request with one button.
-- **Fast.** Performance is a feature here. We measure it, and we treat a dropped frame as a bug.
-- **Open.** MIT licensed. If you don't like something, fork it.
+- **The real Claude Code.** Each chat is the Claude Code TUI, with its own theme, font and CC3 logo. Your subscription, your `~/.claude` settings, skills and MCP servers all apply. New chats can start in skip-permissions mode (a setting).
+- **Chat list with status.** Folders for your chats, a spinner while Claude works, a yellow dot when it needs you, and a green dot when a chat finished while you were away. The dot goes away once you look at the chat.
+- **Completion notification.** When a chat finishes while CC3 is in the background, a large card with a sound appears in the middle of the screen. Click it to open the chat, click outside to dismiss it.
+- **Claude can use CC3.** It opens websites in the built-in browser, types commands that need you (such as `sudo`) into the terminal drawer and reads the result, and opens files in the file explorer. The matching panel comes to the front by itself.
+- **File explorer.** Previews for code, Markdown, images, video, audio, PDF, HTML, fonts, SQLite, archives, notebooks and Office and OpenDocument files. The tree follows Claude when it changes directory with `cd` or `/cd`.
+- **Terminal drawer.** A normal shell per chat, with split, new and hide buttons.
+- **Split view.** Show two chats side by side.
+- **Zoom.** `Ctrl` + `+`, `-` and `0` zoom the terminal. The window zoom is separate and stays remembered.
+- **Android.** The Android app connects to the same server.
 
-## Install
+## Run it
 
-### Desktop app
-
-[Download T3 Code](https://t3.codes/download) for macOS, Windows, or Linux. You can also use a package manager:
-
-| Platform       | Command                                                              |
-| -------------- | -------------------------------------------------------------------- |
-| macOS          | `brew install --cask t3-code`                                        |
-| Windows        | `winget install T3Tools.T3Code` or `scoop install extras/t3code`     |
-| Arch Linux     | `yay -S t3code-bin`                                                  |
-| Nix            | `nix profile add github:NixOS/nixpkgs/nixos-unstable#t3code`         |
-| Debian, Ubuntu | `.deb` from [Releases](https://github.com/pingdotgg/t3code/releases) |
-
-### Command line
-
-This installs the `t3` command. Run `t3` to start the server and open the web app.
+CC3 is built from source. You need Node, pnpm and an installed, signed-in [Claude Code](https://claude.com/product/claude-code) (`claude auth login`).
 
 ```bash
-curl -fsSL https://t3.codes/install.sh | sh
+pnpm install
+pnpm build:desktop
+pnpm start:desktop
 ```
 
-On Windows, in PowerShell:
-
-```powershell
-irm https://t3.codes/install.ps1 | iex
-```
-
-To try it once without an install, run `npx t3@latest`.
-
-### Phone
-
-Get the app from the [App Store](https://apps.apple.com/us/app/t3-code-remote-claude-more/id6787819824) or [Google Play](https://play.google.com/store/apps/details?id=com.t3tools.t3code). Then follow [remote access](./docs/user/remote-access.md) to connect it to your computer.
-
-### Sign in to an agent
-
-T3 Code needs one agent that is installed and signed in. For example, install [Claude Code](https://claude.com/product/claude-code) and run `claude auth login`, or install [Codex CLI](https://developers.openai.com/codex/cli) and run `codex login`.
-
-[Provider setup](./docs/user/install.md#providers) has the steps for each agent. [Install T3 Code](./docs/user/install.md) covers nightly builds, AppImage, WSL, and NixOS.
-
-## "Wait, what are you selling me?"
-
-Nothing. We built T3 Code because we wanted the best possible development experience with agents. We were inspired by existing solutions like the Codex desktop app, Conductor, Claude Desktop and Cursor Glass, but none met our bar.
-
-We wanted something performant, remote-ready, and truly open. If we ever go the wrong direction, we want you to have everything you need to fork and build the tool that you want.
+Run `pnpm build:desktop` again after you change the sources. Chats and settings live in the CC3 data directory (`T3CODE_HOME`).
 
 ## Documentation
 
 - [Install and first run](./docs/user/install.md)
 - [Remote access from a phone or another machine](./docs/user/remote-access.md)
 - [Permission modes](./docs/user/permission-modes.md)
-- [Source control](./docs/user/source-control.md)
 - [Connect outside agents over MCP](./docs/user/outside-agents.md)
 - [FAQ](./docs/user/faq.md)
 
-[All docs](./docs/README.md) has the full list.
+These pages come from T3 Code and may still mention features CC3 removed. [All docs](./docs/README.md) has the full list.
 
-## Contributing
+## Development
 
-We have limited review capacity. Small, focused fixes are the most likely to be merged. Features need an approved discussion first.
-
-- Read [CONTRIBUTING.md](./CONTRIBUTING.md) before you report a bug or open a pull request.
-- Put feature requests in [Ideas](https://github.com/pingdotgg/t3code/discussions/categories/ideas).
-- Build from source with the [development runbook](./docs/operations/development.md#first-checkout). The [architecture overview](./docs/internals/overview.md) explains how it works.
-- Get help in [Discord](https://discord.gg/jn4EGJjrvv).
+- Work happens on `main` of this repository. `upstream` is T3 Code, and `git fetch upstream && git merge upstream/main` brings its changes in. CC3 behavior and branding win on conflicts.
+- CC3 features live in new files where possible (for example `apps/desktop/src/cc3*.ts`, `apps/web/src/components/Cc3*.tsx`, `apps/server/src/terminal/cc3*.ts`). Edits to upstream files stay small.
+- Read [AGENTS.md](./AGENTS.md) and the [development runbook](./docs/operations/development.md#first-checkout) before you change code.
 
 ## License
 
-[MIT](./LICENSE)
+[MIT](./LICENSE). CC3 is based on T3 Code by T3 Tools.

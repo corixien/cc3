@@ -96,3 +96,5 @@ Open: Claude process still starts with the first message (adapter startTurn woul
 
 - Claude shims (`cc3-terminal`, `cc3-open-file`, `xdg-open`) now write their OSC 777 to the pty found by `cc3-tty` (walks ancestors for a /dev/pts fd), because Claude's Bash tool has no controlling tty and `/dev/tty` failed silently.
 - Terminal drawer has an X (hide) button (`onMinimize`). Claude's `--settings` now carries a PostToolUse(Bash) hook running shim `cc3-cwd` -> OSC 777 `cc3-cwd` -> `ClaudeTuiPane.handleCwdChange` moves the file tree (only if a files/file surface is already open; outside workspace uses host-folder browsing).
+- Claude's own `/cd` changes the claude process cwd without any hook, so the TUI launch script starts `cc3-cwd-watch` (polls /proc/<pid>/cwd, emits OSC 777 `cc3-cwd`); the PostToolUse hook still covers Bash `cd`. The file tree switches to an absolute host-folder surface (shows only that folder, with breadcrumbs).
+- Green dot = finished while unseen (`useClaudeTuiUnseen` in `claudeTuiStatus.ts`, set/cleared in `Cc3CompletionNotifier`). Thread-details toggle hidden for TUI chats also in the right-panel header. README rewritten for CC3.
