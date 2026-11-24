@@ -122,6 +122,7 @@ contextBridge.exposeInMainWorld("desktopBridge", {
   getClientPlatform: () => clientPlatform,
   restartAudioService: () => ipcRenderer.invoke(IpcChannels.RESTART_AUDIO_SERVICE_CHANNEL),
   showCompletionOverlay: (input) => ipcRenderer.invoke("cc3:completion-overlay", input),
+  github: (request) => ipcRenderer.invoke("cc3:github", request),
   setNotificationBadge: (badge) =>
     ipcRenderer.invoke(IpcChannels.SET_NOTIFICATION_BADGE_CHANNEL, badge),
   onNotificationBadgeClear: (listener) => {

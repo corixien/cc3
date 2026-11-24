@@ -47,6 +47,7 @@ import {
   Columns2,
   FileDiff,
   Files,
+  Github,
   Globe2,
   MessagesSquare,
   Plus,
@@ -154,6 +155,8 @@ export interface RightPanelTabsProps {
   onAddPullRequest: () => void;
   onAddPullRequests: () => void;
   onAddDevice: () => void;
+  /** CC3: the GitHub surface; absent where it is not offered. */
+  onAddGithub?: (() => void) | undefined;
   /** Absent where side chats are not offered. */
   onAddSideChat?: (() => void) | undefined;
   browserAvailable: boolean;
@@ -401,6 +404,8 @@ function RightPanelEmptyState(props: {
   onAddPullRequest: () => void;
   onAddPullRequests: () => void;
   onAddDevice: () => void;
+  /** CC3: the GitHub surface; absent where it is not offered. */
+  onAddGithub?: (() => void) | undefined;
   /** Absent where side chats are not offered. */
   onAddSideChat?: (() => void) | undefined;
   browserAvailable: boolean;
@@ -475,6 +480,19 @@ function RightPanelEmptyState(props: {
       disabledReason: messages(SURFACE_UNAVAILABLE_HINTS.device),
       onClick: props.onAddDevice,
     },
+    ...(props.onAddGithub
+      ? [
+          {
+            label: msg("GitHub"),
+            description: msg("Browse repositories and branches, switch branch or clone."),
+            icon: Github,
+            shortcut: "G",
+            available: true,
+            disabledReason: "",
+            onClick: props.onAddGithub,
+          },
+        ]
+      : []),
     ...(props.onAddSideChat
       ? [
           {
@@ -710,6 +728,8 @@ function surfaceTitle(
       return `#${surface.number}`;
     case "pull-requests":
       return resolve(msg("Pull requests"));
+    case "github":
+      return "GitHub";
     case "issue":
       // A git host numbers its issues; a tracker with keys of its own, such as Linear, names them.
       return /^\d+$/.test(surface.key) ? `#${surface.key}` : surface.key;
@@ -805,6 +825,8 @@ function SurfaceIcon({
       );
     case "pull-requests":
       return <PullRequestGlyph.link className="size-3 shrink-0" />;
+    case "github":
+      return <Github className="size-3 shrink-0" />;
     case "issue":
       return <IssueSurfaceIcon surface={surface} environmentId={environmentId} />;
     case "side-chat":
@@ -1331,6 +1353,19 @@ export function RightPanelTabs(props: RightPanelTabsProps) {
       disabledReason: messages(SURFACE_DISABLED_REASONS.device),
       onClick: props.onAddDevice,
     },
+    ...(props.onAddGithub
+      ? [
+          {
+            label: msg("GitHub"),
+            description: msg("Browse repositories and branches, switch branch or clone."),
+            icon: Github,
+            shortcut: "G",
+            available: true,
+            disabledReason: "",
+            onClick: props.onAddGithub,
+          },
+        ]
+      : []),
     ...(props.onAddSideChat
       ? [
           {
@@ -1859,6 +1894,7 @@ export function RightPanelTabs(props: RightPanelTabsProps) {
             onAddPullRequest={props.onAddPullRequest}
             onAddPullRequests={props.onAddPullRequests}
             onAddDevice={props.onAddDevice}
+            onAddGithub={props.onAddGithub}
             onAddSideChat={props.onAddSideChat}
             browserAvailable={props.browserAvailable}
             terminalAvailable={props.terminalAvailable}

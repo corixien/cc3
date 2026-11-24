@@ -1069,6 +1069,10 @@ export interface DesktopBridge {
     environmentId: string;
     threadId: string;
   }) => Promise<void>;
+  /** CC3: read-only GitHub and git operations of the GitHub panel, run in the desktop host. */
+  github: (
+    request: Record<string, unknown>,
+  ) => Promise<{ ok: true; data: unknown } | { ok: false; error: string }>;
   setNotificationBadge: (badge: { count: number; image: string | null }) => Promise<void>;
   onNotificationBadgeClear: (listener: () => void) => () => void;
   onTrackpadScrollBegin: (listener: () => void) => () => void;
