@@ -93,3 +93,5 @@ Open: Claude process still starts with the first message (adapter startTurn woul
 - Completion overlay: `Cc3CompletionNotifier` (web) -> `showCompletionOverlay` bridge -> `desktop/src/cc3CompletionOverlay.ts` (always-on-top dim window with sound, click opens chat via `cc3-open-thread` window event).
 - Claude shims: `cc3-open-file` (OSC cc3-file -> right panel file viewer), prompt says use `preview_open open:true`.
 - Provider update candidates limited to the claudeAgent driver.
+
+- Claude shims (`cc3-terminal`, `cc3-open-file`, `xdg-open`) now write their OSC 777 to the pty found by `cc3-tty` (walks ancestors for a /dev/pts fd), because Claude's Bash tool has no controlling tty and `/dev/tty` failed silently.

@@ -1,18 +1,29 @@
 // CC3: helper commands the Claude TUI gets on its PATH, plus the instructions that tell Claude about them.
 // They talk to CC3 through an OSC sequence on the TTY (client side) or the terminal history files.
 export const CC3_TUI_SHIMS: Readonly<Record<string, string>> = {
+  "cc3-tty": String.raw`#!/bin/sh
+p=$$
+while [ -n "$p" ] && [ "$p" -gt 1 ]; do
+  for fd in 0 1 2; do
+    t=$(readlink "/proc/$p/fd/$fd" 2>/dev/null)
+    case "$t" in /dev/pts/*) echo "$t"; exit 0 ;; esac
+  done
+  p=$(awk '{print $4}' "/proc/$p/stat" 2>/dev/null)
+done
+echo /dev/tty
+`,
   "xdg-open": String.raw`#!/bin/sh
-printf '\033]777;cc3-open;%s\007' "$1" > /dev/tty
+printf '\033]777;cc3-open;%s\007' "$1" > "$(cc3-tty)"
 `,
   "cc3-terminal": String.raw`#!/bin/sh
 [ $# -gt 0 ] || { echo "usage: cc3-terminal <command>" >&2; exit 2; }
-printf '\033]777;cc3-term;%s\007' "$(printf %s "$*" | base64 -w0)" > /dev/tty
+printf '\033]777;cc3-term;%s\007' "$(printf %s "$*" | base64 -w0)" > "$(cc3-tty)"
 echo "Command typed into CC3's terminal. It is not run until the user presses Enter. Read the result with cc3-terminal-output."
 `,
   "cc3-open-file": String.raw`#!/bin/sh
 [ $# -gt 0 ] || { echo "usage: cc3-open-file <path>[:line]" >&2; exit 2; }
 case "$1" in /*) p="$1" ;; *) p="$PWD/$1" ;; esac
-printf '\033]777;cc3-file;%s\007' "$(printf %s "$p" | base64 -w0)" > /dev/tty
+printf '\033]777;cc3-file;%s\007' "$(printf %s "$p" | base64 -w0)" > "$(cc3-tty)"
 echo "Opened in CC3's file viewer."
 `,
   "cc3-terminal-output": String.raw`#!/bin/sh
