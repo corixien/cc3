@@ -3,7 +3,7 @@
 // with every argument validated; nothing here takes a free-form command.
 import * as Electron from "electron";
 import { execFile } from "node:child_process";
-import { statSync } from "node:fs";
+import { existsSync, statSync } from "node:fs";
 
 export const CC3_GITHUB_CHANNEL = "cc3:github";
 
@@ -177,6 +177,109 @@ async function handle(request: Record<string, unknown>): Promise<Success | Failu
       if (!safeDir(request.cwd) || !safeRef(request.branch)) return fail("Invalid request.");
       const result = await run("git", ["switch", request.branch], { cwd: request.cwd });
       return isFailure(result) ? result : ok(null);
+    }
+    case "createBranch": {
+      const { cwd, name, base, push } = request;
+      if (!safeDir(cwd) || !safeRef(name) || (base !== undefined && !safeRef(base))) {
+        return fail("Invalid request.");
+      }
+      const locals = await run("git", ["for-each-ref", "--format=%(refname:short)", "refs/heads"], {
+        cwd,
+      });
+      if (isFailure(locals)) return locals;
+      const names = locals.stdout.split("\n");
+      if (names.includes(name)) return fail("A local branch with this name exists.");
+      const start = base === undefined ? [] : [names.includes(base) ? base : `origin/${base}`];
+      const created = await run("git", ["switch", "--no-track", "-c", name, ...start], { cwd });
+      if (isFailure(created)) return created;
+      if (push === true) {
+        const pushed = await run("git", ["push", "-u", "origin", name], { cwd, timeout: 120_000 });
+        if (isFailure(pushed))
+          return fail(`Branch created, but publishing failed: ${pushed.error}`);
+      }
+      return ok(null);
+    }
+    case "createRemoteBranch": {
+      const { repo, name, base } = request;
+      if (!safeRepo(repo) || !safeRef(name) || !safeRef(base)) return fail("Invalid request.");
+      const sha = await run("gh", [
+        "api",
+        `repos/${repo}/branches/${encodeURIComponent(base)}`,
+        "--jq",
+        ".commit.sha",
+      ]);
+      if (isFailure(sha)) return sha;
+      const created = await run("gh", [
+        "api",
+        `repos/${repo}/git/refs`,
+        "-f",
+        `ref=refs/heads/${name}`,
+        "-f",
+        `sha=${sha.stdout.trim()}`,
+      ]);
+      return isFailure(created) ? created : ok(null);
+    }
+    case "createRepo": {
+      const { name, visibility, description, cwd, parent } = request;
+      if (typeof name !== "string" || !OWNER.test(name) || name.startsWith("-")) {
+        return fail("Use letters, digits, dots, dashes and underscores for the name.");
+      }
+      if (visibility !== "public" && visibility !== "private") return fail("Invalid visibility.");
+      const text =
+        typeof description === "string" && description.trim()
+          ? [`--description=${description.trim().slice(0, 300)}`]
+          : [];
+      if (cwd !== undefined) {
+        if (!safeDir(cwd)) return fail("Not a folder.");
+        const origin = await run("git", ["remote", "get-url", "origin"], { cwd });
+        if (!isFailure(origin)) return fail("This folder already has an origin remote.");
+        const inside = await run("git", ["rev-parse", "--git-dir"], { cwd });
+        if (isFailure(inside)) {
+          const init = await run("git", ["init"], { cwd });
+          if (isFailure(init)) return init;
+        }
+        const hasCommit = !isFailure(await run("git", ["rev-parse", "HEAD"], { cwd }));
+        const created = await run(
+          "gh",
+          [
+            "repo",
+            "create",
+            name,
+            `--${visibility}`,
+            `--source=${cwd}`,
+            "--remote=origin",
+            ...(hasCommit ? ["--push"] : []),
+            ...text,
+          ],
+          { timeout: 120_000 },
+        );
+        if (isFailure(created)) return created;
+        const view = await run(
+          "gh",
+          ["repo", "view", "--json", "nameWithOwner", "--jq", ".nameWithOwner"],
+          {
+            cwd,
+          },
+        );
+        return ok({ repo: isFailure(view) ? null : view.stdout.trim(), path: cwd });
+      }
+      if (!safeDir(parent)) return fail("Not a folder.");
+      if (existsSync(`${parent}/${name}`)) return fail("A folder with this name already exists.");
+      const created = await run(
+        "gh",
+        ["repo", "create", name, `--${visibility}`, "--add-readme", "--clone", ...text],
+        { cwd: parent, timeout: 120_000 },
+      );
+      if (isFailure(created)) return created;
+      const path = `${parent}/${name}`;
+      const view = await run(
+        "gh",
+        ["repo", "view", "--json", "nameWithOwner", "--jq", ".nameWithOwner"],
+        {
+          cwd: path,
+        },
+      );
+      return ok({ repo: isFailure(view) ? null : view.stdout.trim(), path });
     }
     default:
       return fail("Unknown operation.");

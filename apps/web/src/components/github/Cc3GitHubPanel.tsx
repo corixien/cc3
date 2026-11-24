@@ -1,5 +1,6 @@
 // CC3: GitHub panel of the right sidebar. Browse any repository and branch through the user's own `gh`,
 // switch the chat's checkout, clone a repository as a project, and hand files to Claude.
+import { scopedThreadKey } from "@t3tools/client-runtime/environment";
 import {
   isAtomCommandInterrupted,
   squashAtomCommandFailure,
@@ -12,6 +13,7 @@ import {
   FileIcon,
   FolderIcon,
   GitBranchIcon,
+  PlusIcon,
   MessageSquarePlusIcon,
   RefreshCwIcon,
 } from "lucide-react";
@@ -22,6 +24,7 @@ import { Spinner } from "~/components/ui/spinner";
 import { toastManager } from "~/components/ui/toast";
 import { writeTextToClipboard } from "~/hooks/useCopyToClipboard";
 import { readLocalApi } from "~/localApi";
+import { setClaudeCwd } from "~/claudeCwd";
 import { newProjectId } from "~/lib/utils";
 import { sourceControlEnvironment } from "~/state/sourceControl";
 import { terminalEnvironment } from "~/state/terminal";
@@ -121,6 +124,13 @@ export default function Cc3GitHubPanel(props: {
   );
   const [switching, setSwitching] = useState(false);
   const [cloneTarget, setCloneTarget] = useState<string | null>(null);
+  const [form, setForm] = useState<"repo" | "branch" | null>(null);
+  const [newName, setNewName] = useState("");
+  const [newDescription, setNewDescription] = useState("");
+  const [newVisibility, setNewVisibility] = useState<"private" | "public">("private");
+  const [newInFolder, setNewInFolder] = useState(true);
+  const [publish, setPublish] = useState(true);
+  const [creating, setCreating] = useState(false);
   const startProjectClone = useAtomCommand(sourceControlEnvironment.startProjectClone, {
     reportFailure: false,
   });
@@ -186,13 +196,13 @@ export default function Cc3GitHubPanel(props: {
     setCloneTarget(null);
   };
 
-  const askClaude = (text: string) => {
+  const sendToClaude = (data: string) => {
     void writeTerminal({
       environmentId: props.threadRef.environmentId,
       input: {
         threadId: props.threadRef.threadId,
         terminalId: CLAUDE_TUI_TERMINAL_ID,
-        data: `\u001b[200~${text}\u001b[201~`,
+        data,
       },
     }).then((result) => {
       if (result._tag === "Failure" && !isAtomCommandInterrupted(result)) {
@@ -203,6 +213,72 @@ export default function Cc3GitHubPanel(props: {
         );
       }
     });
+  };
+
+  const askClaude = (text: string) => sendToClaude(`\u001b[200~${text}\u001b[201~`);
+  // Moves the Claude session into a folder, as if the user had typed /cd there.
+  const connectClaude = (folder: string) => {
+    setClaudeCwd(scopedThreadKey(props.threadRef), folder);
+    sendToClaude(`\u0015/cd ${folder}\r`);
+  };
+
+  const folderIsFree = props.cwd !== null && local.data !== null && local.data.repo === null;
+  const openForm = (kind: "repo" | "branch") => {
+    setForm(kind);
+    setNewName("");
+    setNewDescription("");
+    setNewInFolder(folderIsFree);
+    setCloneTarget(null);
+  };
+  const createRepository = async () => {
+    const name = newName.trim();
+    if (!name) return;
+    setCreating(true);
+    const useFolder = newInFolder && folderIsFree && props.cwd;
+    const result = await callGh({
+      op: "createRepo",
+      name,
+      visibility: newVisibility,
+      description: newDescription,
+      ...(useFolder ? { cwd: props.cwd } : { parent: home ?? props.cwd }),
+    });
+    setCreating(false);
+    if (!result.ok) {
+      toast("error", gt("Could not create the repository"), result.error);
+      return;
+    }
+    const created = result.data as { repo: string | null; path: string };
+    toast("success", gt("Created {repo}", { repo: created.repo ?? name }), created.path);
+    setForm(null);
+    setTypedRepo(useFolder ? null : created.repo);
+    setPickedBranch(null);
+    setPath("");
+    setOpenFilePath(null);
+    setRevision((value) => value + 1);
+    if (!useFolder) connectClaude(created.path);
+  };
+  const createBranch = async () => {
+    const name = newName.trim();
+    if (!name || !repo || !branch) return;
+    setCreating(true);
+    const result = await callGh(
+      isLocalRepo && props.cwd
+        ? { op: "createBranch", cwd: props.cwd, name, base: branch, push: publish }
+        : { op: "createRemoteBranch", repo, name, base: branch },
+    );
+    setCreating(false);
+    if (!result.ok) {
+      toast("error", gt("Could not create the branch"), result.error);
+      return;
+    }
+    toast(
+      "success",
+      gt("Created {branch}", { branch: name }),
+      isLocalRepo ? gt("Claude is now on this branch.") : gt("Clone the repository to work on it."),
+    );
+    setForm(null);
+    setPickedBranch(name);
+    setRevision((value) => value + 1);
   };
 
   const crumbs = path ? path.split("/") : [];
@@ -220,6 +296,15 @@ export default function Cc3GitHubPanel(props: {
                 ? ""
                 : gt("Not signed in. Run `gh auth login` in a terminal.")}
           </span>
+          <Button
+            size="xs"
+            variant="ghost"
+            aria-label={gt("New repository")}
+            onClick={() => openForm("repo")}
+          >
+            <PlusIcon className="size-3" />
+            {gt("Repository")}
+          </Button>
           <Button
             size="icon-xs"
             variant="ghost"
@@ -294,6 +379,10 @@ export default function Cc3GitHubPanel(props: {
                 {gt("Clone")}
               </Button>
             ) : null}
+            <Button size="xs" variant="ghost" onClick={() => openForm("branch")}>
+              <PlusIcon className="size-3" />
+              {gt("New branch")}
+            </Button>
             <Button
               size="xs"
               variant="ghost"
@@ -309,6 +398,107 @@ export default function Cc3GitHubPanel(props: {
             >
               {gt("Copy clone URL")}
             </Button>
+          </div>
+        ) : null}
+        {form === "repo" ? (
+          <div className="flex flex-col gap-1.5 rounded-md border border-border/60 p-2">
+            <input
+              className={INPUT_CLASS}
+              value={newName}
+              placeholder={gt("Repository name")}
+              spellCheck={false}
+              aria-label={gt("Repository name")}
+              onChange={(event) => setNewName(event.target.value)}
+              onKeyDown={(event) => {
+                if (event.key === "Enter") void createRepository();
+                if (event.key === "Escape") setForm(null);
+              }}
+            />
+            <input
+              className={INPUT_CLASS}
+              value={newDescription}
+              placeholder={gt("Description (optional)")}
+              aria-label={gt("Description")}
+              onChange={(event) => setNewDescription(event.target.value)}
+            />
+            <div className="flex items-center gap-2">
+              <select
+                className={SELECT_CLASS}
+                value={newVisibility}
+                aria-label={gt("Visibility")}
+                onChange={(event) => setNewVisibility(event.target.value as "private" | "public")}
+              >
+                <option value="private">{gt("Private")}</option>
+                <option value="public">{gt("Public")}</option>
+              </select>
+              <select
+                className={SELECT_CLASS}
+                value={newInFolder && folderIsFree ? "folder" : "new"}
+                aria-label={gt("Where")}
+                onChange={(event) => setNewInFolder(event.target.value === "folder")}
+              >
+                {folderIsFree ? (
+                  <option value="folder">{gt("Use this chat's folder")}</option>
+                ) : null}
+                <option value="new">
+                  {gt("New folder in {parent}", { parent: home ?? props.cwd ?? "~" })}
+                </option>
+              </select>
+            </div>
+            <div className="flex items-center gap-2">
+              <Button
+                size="xs"
+                disabled={creating || !newName.trim()}
+                onClick={() => void createRepository()}
+              >
+                {creating ? <Spinner className="size-3" /> : gt("Create")}
+              </Button>
+              <Button size="xs" variant="ghost" onClick={() => setForm(null)}>
+                {gt("Cancel")}
+              </Button>
+            </div>
+          </div>
+        ) : null}
+        {form === "branch" && repo && branch ? (
+          <div className="flex flex-col gap-1.5 rounded-md border border-border/60 p-2">
+            <input
+              className={INPUT_CLASS}
+              value={newName}
+              placeholder={gt("New branch from {branch}", { branch })}
+              spellCheck={false}
+              aria-label={gt("Branch name")}
+              onChange={(event) => setNewName(event.target.value)}
+              onKeyDown={(event) => {
+                if (event.key === "Enter") void createBranch();
+                if (event.key === "Escape") setForm(null);
+              }}
+            />
+            {isLocalRepo ? (
+              <label className="flex items-center gap-2 text-muted-foreground">
+                <input
+                  type="checkbox"
+                  checked={publish}
+                  onChange={(event) => setPublish(event.target.checked)}
+                />
+                {gt("Publish to GitHub")}
+              </label>
+            ) : (
+              <span className="text-muted-foreground">
+                {gt("Created on GitHub. Clone the repository to work on it.")}
+              </span>
+            )}
+            <div className="flex items-center gap-2">
+              <Button
+                size="xs"
+                disabled={creating || !newName.trim()}
+                onClick={() => void createBranch()}
+              >
+                {creating ? <Spinner className="size-3" /> : gt("Create")}
+              </Button>
+              <Button size="xs" variant="ghost" onClick={() => setForm(null)}>
+                {gt("Cancel")}
+              </Button>
+            </div>
           </div>
         ) : null}
         {cloneTarget !== null ? (
