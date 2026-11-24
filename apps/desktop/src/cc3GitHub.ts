@@ -2,8 +2,21 @@
 // CC3: backend of the GitHub panel. Runs a fixed set of read operations through the user's own `gh` and `git`,
 // with every argument validated; nothing here takes a free-form command.
 import * as Electron from "electron";
-import { execFile } from "node:child_process";
-import { existsSync, statSync } from "node:fs";
+import { execFile, spawn } from "node:child_process";
+import { createHash } from "node:crypto";
+import {
+  closeSync,
+  existsSync,
+  mkdtempSync,
+  openSync,
+  readFileSync,
+  realpathSync,
+  rmSync,
+  statSync,
+  writeFileSync,
+} from "node:fs";
+import { tmpdir } from "node:os";
+import { dirname, join, resolve, sep } from "node:path";
 
 export const CC3_GITHUB_CHANNEL = "cc3:github";
 
@@ -17,7 +30,7 @@ type Success = { readonly ok: true; readonly data: unknown };
 const fail = (error: string): Failure => ({ ok: false, error });
 
 function run(
-  command: "gh" | "git",
+  command: "gh" | "git" | "tar",
   args: readonly string[],
   options: { cwd?: string; maxBuffer?: number; timeout?: number } = {},
 ): Promise<{ stdout: string } | Failure> {
@@ -67,6 +80,117 @@ const contentsUrl = (repo: string, path: string, ref: string) =>
 function repoFromRemote(url: string): string | null {
   const match = /github\.com[:/]([\w.-]+)\/([\w.-]+?)(?:\.git)?\/?$/.exec(url.trim());
   return match ? `${match[1]}/${match[2]}` : null;
+}
+
+interface RemoteFile {
+  readonly path: string;
+  readonly rel: string;
+  readonly size: number;
+  readonly sha: string;
+}
+
+/** A relative path from the repository that is safe to write below a folder. */
+const safeRel = (value: unknown): value is string =>
+  typeof value === "string" &&
+  value !== "" &&
+  !value.startsWith("/") &&
+  !value.includes("\0") &&
+  !value
+    .split("/")
+    .some((part) => part === "" || part === ".." || part === "." || part.toLowerCase() === ".git");
+
+const blobSha = (file: string, size: number): string | null => {
+  try {
+    const content = readFileSync(file);
+    return createHash("sha1").update(`blob ${size}\0`).update(content).digest("hex");
+  } catch {
+    return null;
+  }
+};
+
+async function resolveCommit(repo: string, ref: string) {
+  const result = await run("gh", [
+    "api",
+    `repos/${repo}/branches/${encodeURIComponent(ref)}`,
+    "--jq",
+    '.commit.sha + " " + .commit.commit.tree.sha',
+  ]);
+  if (isFailure(result)) return result;
+  const [commit, tree] = result.stdout.trim().split(" ");
+  return { commit: commit ?? "", tree: tree ?? "" };
+}
+
+async function remoteFiles(repo: string, ref: string, source: string) {
+  const resolved = await resolveCommit(repo, ref);
+  if (isFailure(resolved)) return resolved;
+  const result = await run("gh", ["api", `repos/${repo}/git/trees/${resolved.tree}?recursive=1`], {
+    maxBuffer: 64 * 1024 * 1024,
+    timeout: 90_000,
+  });
+  if (isFailure(result)) return result;
+  const parsed = JSON.parse(result.stdout) as {
+    truncated?: boolean;
+    tree: Array<{ path: string; type: string; mode: string; size?: number; sha: string }>;
+  };
+  const prefix = source ? `${source}/` : "";
+  const files: RemoteFile[] = [];
+  for (const entry of parsed.tree) {
+    if (entry.type !== "blob" || (entry.mode !== "100644" && entry.mode !== "100755")) continue;
+    if (!entry.path.startsWith(prefix)) continue;
+    const rel = entry.path.slice(prefix.length);
+    if (!safeRel(rel)) continue;
+    files.push({ path: entry.path, rel, size: entry.size ?? 0, sha: entry.sha });
+    if (files.length >= 20_000) break;
+  }
+  return { files, truncated: parsed.truncated === true, commit: resolved.commit };
+}
+
+/** Every folder of `target` that already exists must stay inside `root`, so a symlink cannot redirect a write. */
+function staysInside(root: string, rel: string): boolean {
+  const target = resolve(root, rel);
+  let existing = target;
+  while (!existsSync(existing)) existing = dirname(existing);
+  try {
+    const real = realpathSync(existing);
+    return real === root || real.startsWith(root + sep);
+  } catch {
+    return false;
+  }
+}
+
+function downloadTarball(repo: string, commit: string, file: string): Promise<Failure | null> {
+  return new Promise((resolvePromise) => {
+    const fd = openSync(file, "w");
+    const child = spawn("gh", ["api", `repos/${repo}/tarball/${commit}`], {
+      stdio: ["ignore", fd, "pipe"],
+      env: { ...process.env, GH_PROMPT_DISABLED: "1" },
+    });
+    let stderr = "";
+    child.stderr?.on("data", (chunk: Buffer) => (stderr += chunk.toString()));
+    // @effect-diagnostics-next-line globalTimers:off
+    const timer = setTimeout(() => child.kill(), 180_000);
+    child.on("close", (code) => {
+      clearTimeout(timer);
+      closeSync(fd);
+      resolvePromise(code === 0 ? null : fail(stderr.trim() || "Download failed."));
+    });
+  });
+}
+
+function firstTarMember(file: string): Promise<string | null> {
+  return new Promise((resolvePromise) => {
+    const child = spawn("tar", ["-tzf", file], { stdio: ["ignore", "pipe", "ignore"] });
+    let buffer = "";
+    child.stdout.on("data", (chunk: Buffer) => {
+      buffer += chunk.toString();
+      const end = buffer.indexOf("\n");
+      if (end >= 0) {
+        resolvePromise(buffer.slice(0, end).replace(/\/$/, ""));
+        child.kill();
+      }
+    });
+    child.on("close", () => resolvePromise(null));
+  });
 }
 
 async function handle(request: Record<string, unknown>): Promise<Success | Failure> {
@@ -280,6 +404,92 @@ async function handle(request: Record<string, unknown>): Promise<Success | Failu
         },
       );
       return ok({ repo: isFailure(view) ? null : view.stdout.trim(), path });
+    }
+    case "deleteRepo": {
+      if (!safeRepo(request.repo)) return fail("Use owner/name.");
+      const result = await run("gh", ["repo", "delete", request.repo, "--yes"]);
+      if (isFailure(result)) {
+        return fail(
+          /delete_repo/.test(result.error)
+            ? "GitHub needs the delete permission. Run `gh auth refresh -h github.com -s delete_repo` in a terminal, then try again."
+            : result.error,
+        );
+      }
+      return ok(null);
+    }
+    case "importPlan": {
+      const { repo, ref, source, cwd } = request;
+      if (!safeRepo(repo) || !safeRef(ref) || !safePath(source ?? "") || !safeDir(cwd)) {
+        return fail("Invalid request.");
+      }
+      const listing = await remoteFiles(repo, ref, String(source ?? "").replace(/\/+$/, ""));
+      if (isFailure(listing)) return listing;
+      const files = listing.files.map((file) => {
+        const local = join(cwd, file.rel);
+        let status: "new" | "same" | "changed" = "new";
+        try {
+          const stat = statSync(local);
+          if (stat.isFile()) {
+            status =
+              stat.size === file.size && blobSha(local, file.size) === file.sha
+                ? "same"
+                : "changed";
+          } else status = "changed";
+        } catch {
+          status = "new";
+        }
+        return { rel: file.rel, size: file.size, status };
+      });
+      return ok({ files, truncated: listing.truncated });
+    }
+    case "importFiles": {
+      const { repo, ref, source, cwd, paths } = request;
+      if (!safeRepo(repo) || !safeRef(ref) || !safePath(source ?? "") || !safeDir(cwd)) {
+        return fail("Invalid request.");
+      }
+      if (
+        !Array.isArray(paths) ||
+        paths.length === 0 ||
+        paths.length > 20_000 ||
+        !paths.every(safeRel)
+      ) {
+        return fail("Nothing valid to pull.");
+      }
+      const root = realpathSync(cwd);
+      if (!paths.every((rel) => staysInside(root, rel))) return fail("A path leaves the folder.");
+      const sourcePath = String(source ?? "").replace(/\/+$/, "");
+      const resolved = await resolveCommit(repo, ref);
+      if (isFailure(resolved)) return resolved;
+      const work = mkdtempSync(join(tmpdir(), "cc3-pull-"));
+      try {
+        const archive = join(work, "repo.tar.gz");
+        const downloaded = await downloadTarball(repo, resolved.commit, archive);
+        if (downloaded) return downloaded;
+        const top = await firstTarMember(archive);
+        if (!top) return fail("The download was empty.");
+        const members = paths.map((rel) => `${top}/${sourcePath ? `${sourcePath}/` : ""}${rel}`);
+        const list = join(work, "members.txt");
+        writeFileSync(list, members.join("\n") + "\n");
+        const strip = 1 + (sourcePath ? sourcePath.split("/").length : 0);
+        const extracted = await run(
+          "tar",
+          [
+            "-xzf",
+            archive,
+            "-C",
+            root,
+            `--strip-components=${strip}`,
+            "--no-same-owner",
+            "-T",
+            list,
+          ],
+          { timeout: 120_000 },
+        );
+        if (isFailure(extracted)) return extracted;
+        return ok({ count: paths.length });
+      } finally {
+        rmSync(work, { recursive: true, force: true });
+      }
     }
     default:
       return fail("Unknown operation.");

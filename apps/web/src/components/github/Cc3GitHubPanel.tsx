@@ -14,6 +14,7 @@ import {
   FolderIcon,
   GitBranchIcon,
   PlusIcon,
+  Trash2Icon,
   MessageSquarePlusIcon,
   RefreshCwIcon,
 } from "lucide-react";
@@ -31,11 +32,8 @@ import { terminalEnvironment } from "~/state/terminal";
 import { useAtomCommand } from "~/state/use-atom-command";
 import { CLAUDE_TUI_TERMINAL_ID } from "~/types";
 
-type GhResult = { ok: true; data: unknown } | { ok: false; error: string };
-
-const callGh = (request: Record<string, unknown>): Promise<GhResult> =>
-  window.desktopBridge?.github(request) ??
-  Promise.resolve({ ok: false, error: "GitHub needs the CC3 desktop app." });
+import { Cc3GitHubPull } from "./Cc3GitHubPull";
+import { callGh } from "./ghBridge";
 
 interface Query<T> {
   readonly data: T | null;
@@ -103,9 +101,12 @@ export default function Cc3GitHubPanel(props: {
   const [revision, setRevision] = useState(0);
   const local = useGh<LocalInfo>(props.cwd ? { op: "local", cwd: props.cwd } : null, revision);
   const account = useGh<{ login: string }>({ op: "status" });
-  const repos = useGh<RepoSummary[]>({ op: "repos" });
+  const repos = useGh<RepoSummary[]>({ op: "repos" }, revision);
+  const [listMode, setListMode] = useState(false);
+  const [pullOpen, setPullOpen] = useState(false);
+  const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
   const [typedRepo, setTypedRepo] = useState<string | null>(null);
-  const repo = typedRepo ?? local.data?.repo ?? null;
+  const repo = listMode ? null : (typedRepo ?? local.data?.repo ?? null);
   const [repoInput, setRepoInput] = useState("");
   const repoInfo = useGh<RepoSummary>(repo ? { op: "repo", repo } : null);
   const branches = useGh<string[]>(repo ? { op: "branches", repo } : null, revision);
@@ -148,6 +149,8 @@ export default function Cc3GitHubPanel(props: {
       .replace(/\.git$/, "");
     if (!/^[\w.-]+\/[\w.-]+$/.test(next)) return;
     setTypedRepo(next);
+    setListMode(false);
+    setPullOpen(false);
     setRepoInput("");
     setPickedBranch(null);
     setPath("");
@@ -251,6 +254,7 @@ export default function Cc3GitHubPanel(props: {
     toast("success", gt("Created {repo}", { repo: created.repo ?? name }), created.path);
     setForm(null);
     setTypedRepo(useFolder ? null : created.repo);
+    setListMode(false);
     setPickedBranch(null);
     setPath("");
     setOpenFilePath(null);
@@ -281,6 +285,29 @@ export default function Cc3GitHubPanel(props: {
     setRevision((value) => value + 1);
   };
 
+  const backToList = () => {
+    setListMode(true);
+    setPullOpen(false);
+    setConfirmDelete(null);
+    setForm(null);
+    setCloneTarget(null);
+    setPath("");
+    setOpenFilePath(null);
+  };
+  const deleteRepository = async () => {
+    if (!repo || confirmDelete !== repo) return;
+    setCreating(true);
+    const result = await callGh({ op: "deleteRepo", repo });
+    setCreating(false);
+    if (!result.ok) {
+      toast("error", gt("Could not delete the repository"), result.error);
+      return;
+    }
+    toast("success", gt("Deleted {repo}", { repo }));
+    setTypedRepo(null);
+    setRevision((value) => value + 1);
+    backToList();
+  };
   const crumbs = path ? path.split("/") : [];
   const fileUrl =
     githubUrl && openFilePath ? `https://github.com/${repo}/blob/${branch}/${openFilePath}` : null;
@@ -289,6 +316,17 @@ export default function Cc3GitHubPanel(props: {
     <div className="flex min-h-0 flex-1 flex-col text-xs" data-cc3-github-panel>
       <div className="flex shrink-0 flex-col gap-2 border-b border-border/60 p-2">
         <div className="flex items-center gap-2">
+          {repo ? (
+            <Button
+              size="xs"
+              variant="ghost"
+              aria-label={gt("All repositories")}
+              onClick={backToList}
+            >
+              <ArrowLeftIcon className="size-3" />
+              {gt("All repositories")}
+            </Button>
+          ) : null}
           <span className="min-w-0 flex-1 truncate text-muted-foreground">
             {account.data
               ? gt("Signed in as {login}", { login: account.data.login })
@@ -379,6 +417,14 @@ export default function Cc3GitHubPanel(props: {
                 {gt("Clone")}
               </Button>
             ) : null}
+            <Button
+              size="xs"
+              variant="outline"
+              disabled={!branch}
+              onClick={() => setPullOpen(true)}
+            >
+              {gt("Pull into folder")}
+            </Button>
             <Button size="xs" variant="ghost" onClick={() => openForm("branch")}>
               <PlusIcon className="size-3" />
               {gt("New branch")}
@@ -398,6 +444,42 @@ export default function Cc3GitHubPanel(props: {
             >
               {gt("Copy clone URL")}
             </Button>
+            <Button size="xs" variant="ghost" onClick={() => setConfirmDelete("")}>
+              <Trash2Icon className="size-3" />
+              {gt("Delete")}
+            </Button>
+          </div>
+        ) : null}
+        {confirmDelete !== null && repo ? (
+          <div className="flex flex-col gap-1.5 rounded-md border border-destructive/50 p-2">
+            <span className="text-destructive">
+              {gt("This deletes {repo} on GitHub for good. Type its name to confirm.", { repo })}
+            </span>
+            <input
+              className={INPUT_CLASS}
+              value={confirmDelete}
+              placeholder={repo}
+              spellCheck={false}
+              aria-label={gt("Repository name")}
+              onChange={(event) => setConfirmDelete(event.target.value)}
+              onKeyDown={(event) => {
+                if (event.key === "Enter") void deleteRepository();
+                if (event.key === "Escape") setConfirmDelete(null);
+              }}
+            />
+            <div className="flex items-center gap-2">
+              <Button
+                size="xs"
+                variant="destructive"
+                disabled={creating || confirmDelete !== repo}
+                onClick={() => void deleteRepository()}
+              >
+                {creating ? <Spinner className="size-3" /> : gt("Delete repository")}
+              </Button>
+              <Button size="xs" variant="ghost" onClick={() => setConfirmDelete(null)}>
+                {gt("Cancel")}
+              </Button>
+            </div>
           </div>
         ) : null}
         {form === "repo" ? (
@@ -525,7 +607,21 @@ export default function Cc3GitHubPanel(props: {
       </div>
 
       <div className="min-h-0 flex-1 overflow-auto">
-        {!repo ? (
+        {repo && pullOpen && branch ? (
+          <Cc3GitHubPull
+            repo={repo}
+            branch={branch}
+            source={path}
+            defaultTarget={props.cwd ?? home ?? ""}
+            currentChatFolder={props.cwd}
+            onClose={() => setPullOpen(false)}
+            onPulled={(folder, moveClaude) => {
+              setPullOpen(false);
+              setRevision((value) => value + 1);
+              if (moveClaude) connectClaude(folder);
+            }}
+          />
+        ) : !repo ? (
           <div className="p-3 text-muted-foreground">
             {local.loading || repos.loading
               ? ""
