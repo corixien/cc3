@@ -5,9 +5,9 @@ import type {
   ContextMenuItem as TreeContextMenuItem,
   ContextMenuOpenContext as TreeContextMenuOpenContext,
 } from "@pierre/trees";
-import type { EnvironmentId, ProjectEntry } from "@t3tools/contracts";
+import type { EnvironmentId, ProjectEntry, ScopedThreadRef } from "@t3tools/contracts";
 import { FileTree, useFileTree, useFileTreeSearch, useFileTreeSelector } from "@pierre/trees/react";
-import { settlePromise } from "@t3tools/client-runtime/state/runtime";
+import { isAtomCommandInterrupted, settlePromise } from "@t3tools/client-runtime/state/runtime";
 import { serializeComposerFileLink } from "@t3tools/shared/composerTrigger";
 import * as AsyncResult from "effect/reactivity/AsyncResult";
 import * as Cause from "effect/Cause";
@@ -24,12 +24,20 @@ import { writeTextToClipboard } from "~/hooks/useCopyToClipboard";
 import { useStableCallback } from "~/hooks/useStableCallback";
 import { useTheme } from "~/hooks/useTheme";
 import { useWorkspaceMutationRefresh } from "~/hooks/useWorkspaceMutationRefresh";
-import { useFileContextMenu, type FileContextMenuAction } from "~/fileContextMenu";
+import {
+  resolveFileContextMenuAbsolutePath,
+  useFileContextMenu,
+  type FileContextMenuAction,
+} from "~/fileContextMenu";
+import { useAtomCommand } from "~/state/use-atom-command";
+import { terminalEnvironment } from "~/state/terminal";
+import { CLAUDE_TUI_TERMINAL_ID } from "~/types";
 import { readLocalApi } from "~/localApi";
 import { T3_PIERRE_ICONS } from "~/pierre-icons";
 import { PIERRE_TREE_UNSAFE_CSS, pierreTreeStyle } from "~/pierre-tree-theme";
 
 import { joinHostPath } from "./filePath";
+import { useTreeScrollMemory } from "./useTreeScrollMemory";
 import { createFileTreeDragMentionController } from "./fileTreeDragMention";
 import {
   areAllDirectoriesExpanded,
@@ -58,6 +66,8 @@ interface FileBrowserPanelProps {
   onRefreshSelectedFile?: () => void;
   workspaceMutationId: string | null;
   answersPanelFind?: boolean;
+  /** CC3: the chat whose Claude terminal receives "Suggest changes". */
+  threadRef?: ScopedThreadRef;
 }
 
 function treePath(entry: ProjectEntry): string {
@@ -162,6 +172,7 @@ export default function FileBrowserPanel({
   workspaceMutationId,
   hostFolder = false,
   answersPanelFind = false,
+  threadRef,
 }: FileBrowserPanelProps) {
   const panelPath = (relativePath: string) =>
     hostFolder ? joinHostPath(cwd, relativePath) : relativePath;
@@ -170,6 +181,9 @@ export default function FileBrowserPanel({
   const { resolvedTheme } = useTheme();
   const composerRef = useComposerHandleContext();
   const fileContextMenu = useFileContextMenu(environmentId);
+  const panelRootRef = useRef<HTMLDivElement>(null);
+  useTreeScrollMemory(panelRootRef, `${environmentId}:${cwd}`);
+  const writeTerminal = useAtomCommand(terminalEnvironment.write, { reportFailure: false });
   const {
     entries: directoryEntries,
     load,
@@ -221,6 +235,9 @@ export default function FileBrowserPanel({
         const clicked = await api.contextMenu.show(
           [
             ...fileMenuItems,
+            { id: "copy-path", label: gt("Copy path") },
+            ...(hostFolder ? [] : [{ id: "copy-relative-path", label: gt("Copy relative path") }]),
+            ...(threadRef ? [{ id: "suggest-changes", label: gt("Suggest changes") }] : []),
             { id: "copy-mention", label: gt("Copy mention") },
             { id: "add-to-chat", label: gt("Add to chat") },
           ],
@@ -232,6 +249,41 @@ export default function FileBrowserPanel({
           fileMenuItems.some((entry) => entry.id === clicked) || clicked.startsWith("editor:");
         if (isFileMenuAction) {
           await fileContextMenu.activate(clicked as FileContextMenuAction, fileTarget);
+          return;
+        }
+        if (clicked === "copy-path" || clicked === "copy-relative-path") {
+          const text =
+            clicked === "copy-relative-path"
+              ? relativePath
+              : (resolveFileContextMenuAbsolutePath(fileTarget) ?? panelPath(relativePath));
+          try {
+            await writeTextToClipboard(text);
+          } catch (error) {
+            toastManager.add({
+              type: "error",
+              title: gt("Failed to copy path"),
+              description: thrownErrorMessage(error, m) ?? gt("An error occurred."),
+            });
+          }
+          return;
+        }
+        if (clicked === "suggest-changes" && threadRef) {
+          // The chat is the Claude TUI, so the request is pasted into its terminal input.
+          const result = await writeTerminal({
+            environmentId: threadRef.environmentId,
+            input: {
+              threadId: threadRef.threadId,
+              terminalId: CLAUDE_TUI_TERMINAL_ID,
+              data: `\u001b[200~Suggest changes for @${panelPath(relativePath)}: \u001b[201~`,
+            },
+          });
+          if (result._tag === "Failure" && !isAtomCommandInterrupted(result)) {
+            toastManager.add({
+              type: "error",
+              title: gt("Unable to add to chat"),
+              description: gt("Open a Claude chat for this project and try again."),
+            });
+          }
           return;
         }
         if (clicked === "copy-mention") {
@@ -529,6 +581,7 @@ export default function FileBrowserPanel({
 
   return (
     <div
+      ref={panelRootRef}
       className="flex min-h-0 flex-1 flex-col bg-background"
       data-file-browser-panel={`${environmentId}:${cwd}`}
       // Capture runs before the tree's shadow-internal row handler opens the menu.

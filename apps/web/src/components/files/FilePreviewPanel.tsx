@@ -99,6 +99,7 @@ import { DelimitedTablePreview } from "./DelimitedTablePreview";
 import { PreviewImage } from "./PreviewImage";
 import FileBrowserPanel from "./FileBrowserPanel";
 import { FileExplorerPane } from "./FileExplorerPane";
+import { BreadcrumbPathField } from "./BreadcrumbPathField";
 import { FileBreadcrumbs } from "./FileBreadcrumbs";
 import { breadcrumbPathOf, retainedBreadcrumbTrail, trailChildOf } from "./filePath";
 import { FileMarkdownPreview } from "./FileMarkdownPreview";
@@ -1456,7 +1457,7 @@ export default function FilePreviewPanel({
             className="min-w-0 flex-1"
             data-file-breadcrumbs
           >
-            <div className="flex h-full w-max min-w-full items-center text-xs">
+            <BreadcrumbPathField path={absolutePath}>
               <FileBreadcrumbs
                 cwd={cwd}
                 environmentId={environmentId}
@@ -1467,7 +1468,7 @@ export default function FilePreviewPanel({
                 trail={breadcrumbTrail}
                 workspaceMutationId={workspaceMutationId}
               />
-            </div>
+            </BreadcrumbPathField>
           </ScrollArea>
           {absolutePath &&
           (environmentId === primaryEnvironmentId ||
@@ -1760,6 +1761,7 @@ export default function FilePreviewPanel({
               }}
             >
               <FileBrowserPanel
+                threadRef={threadRef}
                 key={`${environmentId}:${hostFolderPath ?? cwd}`}
                 environmentId={environmentId}
                 cwd={hostFolderPath ?? cwd}
