@@ -99,7 +99,9 @@ import { DelimitedTablePreview } from "./DelimitedTablePreview";
 import { PreviewImage } from "./PreviewImage";
 import FileBrowserPanel from "./FileBrowserPanel";
 import { FileExplorerPane } from "./FileExplorerPane";
+import { scopedThreadKey } from "@t3tools/client-runtime/environment";
 import { PathLocationField } from "./PathLocationField";
+import { getClaudeCwd, normalizeCwd, resolveTypedPath, setClaudeCwd } from "~/claudeCwd";
 import { breadcrumbPathOf, retainedBreadcrumbTrail, trailChildOf } from "./filePath";
 import { FileMarkdownPreview } from "./FileMarkdownPreview";
 import {
@@ -1363,14 +1365,23 @@ export default function FilePreviewPanel({
         : isFolder || breadcrumbPath === ""
           ? absolutePath
           : absolutePath.slice(0, absolutePath.lastIndexOf("/")) || "/";
+  // A typed folder becomes the tree's root, and Claude follows with `/cd`.
   const handleLocationSubmit = (typed: string) => {
     const home = /^\/home\/[^/]+/.exec(cwd)?.[0];
-    const expanded =
-      typed === "~" || typed.startsWith("~/") ? `${home ?? ""}${typed.slice(1)}` : typed;
-    const root = cwd.replace(/\/+$/, "");
-    const target = expanded.replace(/(.)\/+$/, "$1");
-    if (target === root) navigateToFolder("");
-    else navigateToFolder(target.startsWith(`${root}/`) ? target.slice(root.length + 1) : target);
+    const root = normalizeCwd(cwd);
+    const target = resolveTypedPath(typed, locationDirectory ?? root, home);
+    navigateToFolder(target === root ? "" : target);
+    const threadKey = scopedThreadKey(threadRef);
+    if ((getClaudeCwd(threadKey) ?? root) === target) return;
+    setClaudeCwd(threadKey, target);
+    void writeTerminal({
+      environmentId,
+      input: {
+        threadId: threadRef.threadId,
+        terminalId: CLAUDE_TUI_TERMINAL_ID,
+        data: `\u0015/cd ${target}\r`,
+      },
+    });
   };
   const onFilePostRender = useFileLineReveal(relativePath, revealLine, revealRequestId);
   // Mounting the file read under the workspace mutation id refetches it after each mutation.

@@ -8,7 +8,8 @@ import {
   type RuntimeMode,
   type ThreadId,
 } from "@t3tools/contracts";
-import { scopeThreadRef } from "@t3tools/client-runtime/environment";
+import { scopedThreadKey, scopeThreadRef } from "@t3tools/client-runtime/environment";
+import { getClaudeCwd, normalizeCwd, setClaudeCwd } from "../claudeCwd";
 import { useGT } from "gt-react";
 import { useEffect, useRef, useState } from "react";
 
@@ -136,21 +137,34 @@ export function ClaudeTuiPane(props: ClaudeTuiPaneProps) {
     const relative = path.startsWith(`${root}/`) ? path.slice(root.length + 1) : path;
     useRightPanelStore.getState().openFile(scopeThreadRef(environmentId, threadId), relative);
   });
-  // Claude's `cd` (reported by a hook) moves the file tree, but only while a file view is already open.
-  const lastCwd = useRef(props.cwd.replace(/\/+$/, ""));
+  // Claude's `cd` (reported by the launch script's watcher and hook) moves the file tree. A file panel
+  // opened later starts in the folder Claude is in.
+  const threadRef = scopeThreadRef(environmentId, threadId);
+  const threadKey = scopedThreadKey(threadRef);
+  const root = normalizeCwd(props.cwd);
+  const showClaudeCwd = (target: string) =>
+    useRightPanelStore.getState().openFile(threadRef, target === root ? "." : target);
   const handleCwdChange = useStableCallback((cwd: string) => {
-    const target = cwd.replace(/\/+$/, "");
-    if (lastCwd.current === target) return;
-    lastCwd.current = target;
-    const ref = scopeThreadRef(environmentId, threadId);
+    const target = normalizeCwd(cwd);
+    if ((getClaudeCwd(threadKey) ?? root) === target) return;
+    setClaudeCwd(threadKey, target);
     const panel = useRightPanelStore.getState();
-    const hasFiles = selectThreadRightPanelState(panel.byThreadKey, ref).surfaces.some(
+    const hasFiles = selectThreadRightPanelState(panel.byThreadKey, threadRef).surfaces.some(
       (surface) => surface.kind === "files" || surface.kind === "file",
     );
-    if (!hasFiles) return;
-    const root = props.cwd.replace(/\/+$/, "");
-    panel.openFile(ref, target === root ? "." : target);
+    if (hasFiles) showClaudeCwd(target);
   });
+  const hasPlainFiles = useRightPanelStore((state) =>
+    selectThreadRightPanelState(state.byThreadKey, threadRef).surfaces.some(
+      (surface) => surface.kind === "files",
+    ),
+  );
+  // oxlint-disable-next-line t3code/no-unreasoned-state-sync -- a newly opened file panel shows Claude's current folder instead of the project root
+  useEffect(() => {
+    const target = getClaudeCwd(threadKey);
+    if (hasPlainFiles && target !== undefined && target !== root) showClaudeCwd(target);
+    // oxlint-disable-next-line react/exhaustive-effect-dependencies -- only the panel appearing matters
+  }, [hasPlainFiles]);
   const handleSubmitLine = useStableCallback((line: string) => {
     if (line === "/new") {
       props.onNewChat();
@@ -165,7 +179,7 @@ export function ClaudeTuiPane(props: ClaudeTuiPaneProps) {
         ? dest
         : dest.startsWith("~") && home
           ? `${home}${dest.slice(1)}`
-          : `${lastCwd.current}/${dest}`;
+          : `${getClaudeCwd(threadKey) ?? root}/${dest}`;
       const parts: string[] = [];
       for (const part of absolute.split("/")) {
         if (part === "..") parts.pop();
