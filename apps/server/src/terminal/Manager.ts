@@ -603,6 +603,13 @@ const POWERSHELL_UTF8_SETUP =
 
 // CC3: runs `claude` for the session id in CC3_TUI_SESSION, resuming it when its transcript exists.
 // The theme comes from --settings, so it applies to CC3 only and never touches the user's settings.
+const CC3_TUI_SETTINGS = JSON.stringify({
+  theme: "custom:cc3",
+  hooks: {
+    PostToolUse: [{ matcher: "Bash", hooks: [{ type: "command", command: "cc3-cwd" }] }],
+  },
+});
+
 export const CC3_CLAUDE_TUI_SCRIPT = [
   'id="$CC3_TUI_SESSION"',
   'bin="${CC3_TUI_BIN:-claude}"',
@@ -625,10 +632,12 @@ export const CC3_CLAUDE_TUI_SCRIPT = [
   'set -- --append-system-prompt "$CC3_PROMPT"',
   '[ -n "$CC3_TUI_MCP_CONFIG" ] && set -- "$@" --mcp-config "$CC3_TUI_MCP_CONFIG"',
   '[ "$CC3_TUI_SKIP_PERMISSIONS" = "1" ] && set -- "$@" --dangerously-skip-permissions',
+  // PostToolUse hook reports the working directory after each Bash call, so CC3's file tree can follow `cd`.
+  `CC3_SETTINGS='${CC3_TUI_SETTINGS}'`,
   'if ls "${CLAUDE_CONFIG_DIR:-$HOME/.claude}"/projects/*/"$id".jsonl >/dev/null 2>&1; then',
-  '  exec "$bin" "$@" --resume "$id" --settings \'{"theme":"custom:cc3"}\'',
+  '  exec "$bin" "$@" --resume "$id" --settings "$CC3_SETTINGS"',
   "else",
-  '  exec "$bin" "$@" --session-id "$id" --settings \'{"theme":"custom:cc3"}\'',
+  '  exec "$bin" "$@" --session-id "$id" --settings "$CC3_SETTINGS"',
   "fi",
 ].join("\n");
 

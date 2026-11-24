@@ -22,6 +22,7 @@ import {
   SquareSplitVertical,
   TerminalSquare,
   Trash2,
+  X,
 } from "lucide-react";
 import {
   AuthPreviewOperateScope,
@@ -199,6 +200,7 @@ function replaceClaudeMascot(data: string): string {
 // CC3: the xdg-open shim of the Claude TUI prints this OSC; only live output counts, never a replay.
 const CC3_OPEN_URL_PATTERN = /\u001b\]777;cc3-open;([^\u0007\u001b]+)\u0007/g;
 const CC3_TERMINAL_COMMAND_PATTERN = /\u001b\]777;cc3-term;([A-Za-z0-9+/=]+)\u0007/g;
+const CC3_CWD_PATTERN = /\u001b\]777;cc3-cwd;([A-Za-z0-9+/=]+)\u0007/g;
 const CC3_OPEN_FILE_PATTERN = /\u001b\]777;cc3-file;([A-Za-z0-9+/=]+)\u0007/g;
 const TERMINAL_TITLE_PATTERN = /\u001b\][02];([^\u0007\u001b]*)(?:\u0007|\u001b\\)/g;
 
@@ -206,6 +208,7 @@ export interface TerminalOutputHooks {
   readonly onOpenUrl?: (url: string) => void;
   readonly onTitle?: (title: string) => void;
   readonly onTerminalCommand?: (command: string) => void;
+  readonly onCwdChange?: (cwd: string) => void;
   readonly onOpenFile?: (path: string) => void;
   readonly transform?: (data: string) => string;
 }
@@ -227,6 +230,15 @@ export function writeTerminalOutputUpdate(
         const bytes = Uint8Array.from(atob(match[1]!), (char) => char.charCodeAt(0));
         hooks.onOpenFile(new TextDecoder().decode(bytes));
       }
+    }
+    if (hooks?.onCwdChange) {
+      let cwd: string | undefined;
+      for (const match of update.data.matchAll(CC3_CWD_PATTERN)) {
+        cwd = new TextDecoder().decode(
+          Uint8Array.from(atob(match[1]!), (char) => char.charCodeAt(0)),
+        );
+      }
+      if (cwd !== undefined) hooks.onCwdChange(cwd);
     }
     if (hooks?.onTerminalCommand) {
       for (const match of update.data.matchAll(CC3_TERMINAL_COMMAND_PATTERN)) {
@@ -553,6 +565,7 @@ interface TerminalViewportProps {
   onSessionExited: () => void;
   onTitleChange?: (title: string) => void;
   onTerminalCommand?: (command: string) => void;
+  onCwdChange?: (cwd: string) => void;
   onOpenFile?: (path: string) => void;
   /** Return true to consume a submitted input line. */
   onSubmitLine?: (line: string) => boolean;
@@ -594,6 +607,7 @@ function TerminalSessionViewport({
   onSessionExited,
   onTitleChange,
   onTerminalCommand,
+  onCwdChange,
   onOpenFile,
   onSubmitLine,
   onAddTerminalContext,
@@ -893,6 +907,7 @@ function TerminalSessionViewport({
               },
               ...(onTitleChange ? { onTitle: onTitleChange, transform: replaceClaudeMascot } : {}),
               ...(onTerminalCommand ? { onTerminalCommand } : {}),
+              ...(onCwdChange ? { onCwdChange } : {}),
               ...(onOpenFile ? { onOpenFile } : {}),
             },
           );
@@ -1321,6 +1336,7 @@ function TerminalSessionViewport({
     onSubmitLine,
     onOpenFile,
     onTerminalCommand,
+    onCwdChange,
     onTitleChange,
     terminalId,
     terminalSessionAtom,
@@ -1381,6 +1397,7 @@ interface ThreadTerminalDrawerProps {
   onSplitTerminal: () => void;
   onSplitTerminalVertical: () => void;
   onNewTerminal: () => void;
+  onMinimize?: (() => void) | undefined;
   splitShortcutLabel?: string | undefined;
   splitVerticalShortcutLabel?: string | undefined;
   newShortcutLabel?: string | undefined;
@@ -1643,6 +1660,7 @@ export default function ThreadTerminalDrawer({
   onSplitTerminal,
   onSplitTerminalVertical,
   onNewTerminal,
+  onMinimize,
   splitShortcutLabel,
   splitVerticalShortcutLabel,
   newShortcutLabel,
@@ -2044,6 +2062,18 @@ export default function ThreadTerminalDrawer({
             >
               <Trash2 className="size-3.25" />
             </TerminalActionButton>
+            {onMinimize ? (
+              <>
+                <div className="h-4 w-px bg-border/80" />
+                <TerminalActionButton
+                  className="p-1 text-foreground/90 transition-colors hover:bg-accent"
+                  onClick={onMinimize}
+                  label={gt("Hide terminal")}
+                >
+                  <X className="size-3.25" />
+                </TerminalActionButton>
+              </>
+            ) : null}
           </div>
         </div>
       )}
@@ -2118,6 +2148,15 @@ export default function ThreadTerminalDrawer({
                   >
                     <Trash2 className="size-3.25" />
                   </TerminalActionButton>
+                  {onMinimize ? (
+                    <TerminalActionButton
+                      className="inline-flex h-full items-center border-l border-border/70 px-1 text-foreground/90 transition-colors hover:bg-accent/70"
+                      onClick={onMinimize}
+                      label={gt("Hide terminal")}
+                    >
+                      <X className="size-3.25" />
+                    </TerminalActionButton>
+                  ) : null}
                 </div>
               </div>
 

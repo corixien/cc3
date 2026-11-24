@@ -12,6 +12,11 @@ while [ -n "$p" ] && [ "$p" -gt 1 ]; do
 done
 echo /dev/tty
 `,
+  "cc3-cwd": String.raw`#!/bin/sh
+c=$(sed -n 's/.*"cwd" *: *"\([^"]*\)".*/\1/p' | head -n 1)
+[ -n "$c" ] || exit 0
+printf '\033]777;cc3-cwd;%s\007' "$(printf %s "$c" | base64 -w0)" > "$(cc3-tty)"
+`,
   "xdg-open": String.raw`#!/bin/sh
 printf '\033]777;cc3-open;%s\007' "$1" > "$(cc3-tty)"
 `,

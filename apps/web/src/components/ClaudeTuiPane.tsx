@@ -17,7 +17,7 @@ import {
   DEFAULT_INTERACTION_MODE,
   DEFAULT_THREAD_TERMINAL_ID,
 } from "../types";
-import { useRightPanelStore } from "../rightPanelStore";
+import { selectThreadRightPanelState, useRightPanelStore } from "../rightPanelStore";
 import { revealThreadTerminal } from "../lib/revealThreadTerminal";
 import { terminalEnvironment } from "../state/terminal";
 import { useAtomCommand } from "../state/use-atom-command";
@@ -136,6 +136,20 @@ export function ClaudeTuiPane(props: ClaudeTuiPaneProps) {
     const relative = path.startsWith(`${root}/`) ? path.slice(root.length + 1) : path;
     useRightPanelStore.getState().openFile(scopeThreadRef(environmentId, threadId), relative);
   });
+  // Claude's `cd` (reported by a hook) moves the file tree, but only while a file view is already open.
+  const handleCwdChange = useStableCallback((cwd: string) => {
+    const ref = scopeThreadRef(environmentId, threadId);
+    const panel = useRightPanelStore.getState();
+    const hasFiles = selectThreadRightPanelState(panel.byThreadKey, ref).surfaces.some(
+      (surface) => surface.kind === "files" || surface.kind === "file",
+    );
+    if (!hasFiles) return;
+    const root = props.cwd.replace(/\/+$/, "");
+    const target = cwd.replace(/\/+$/, "");
+    if (target === root) panel.openFile(ref, ".");
+    else
+      panel.openFile(ref, target.startsWith(`${root}/`) ? target.slice(root.length + 1) : target);
+  });
   const handleSubmitLine = useStableCallback((line: string) => {
     if (line !== "/new") return false;
     props.onNewChat();
@@ -167,6 +181,7 @@ export function ClaudeTuiPane(props: ClaudeTuiPaneProps) {
           onTitleChange={handleTitle}
           onTerminalCommand={handleTerminalCommand}
           onOpenFile={handleOpenFile}
+          onCwdChange={handleCwdChange}
           onSubmitLine={handleSubmitLine}
           autoFocus
           visible

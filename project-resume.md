@@ -95,3 +95,4 @@ Open: Claude process still starts with the first message (adapter startTurn woul
 - Provider update candidates limited to the claudeAgent driver.
 
 - Claude shims (`cc3-terminal`, `cc3-open-file`, `xdg-open`) now write their OSC 777 to the pty found by `cc3-tty` (walks ancestors for a /dev/pts fd), because Claude's Bash tool has no controlling tty and `/dev/tty` failed silently.
+- Terminal drawer has an X (hide) button (`onMinimize`). Claude's `--settings` now carries a PostToolUse(Bash) hook running shim `cc3-cwd` -> OSC 777 `cc3-cwd` -> `ClaudeTuiPane.handleCwdChange` moves the file tree (only if a files/file surface is already open; outside workspace uses host-folder browsing).

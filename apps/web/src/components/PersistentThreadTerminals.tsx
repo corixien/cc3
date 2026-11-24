@@ -162,6 +162,7 @@ export const PersistentThreadTerminalDrawer = memo(function PersistentThreadTerm
   const storeNewTerminal = useTerminalUiStateStore((state) => state.newTerminal);
   const storeSetActiveTerminal = useTerminalUiStateStore((state) => state.setActiveTerminal);
   const storeCloseTerminal = useTerminalUiStateStore((state) => state.closeTerminal);
+  const storeSetTerminalOpen = useTerminalUiStateStore((state) => state.setTerminalOpen);
   const reconcileTerminalIds = useTerminalUiStateStore((state) => state.reconcileTerminalIds);
 
   // oxlint-disable-next-line t3code/no-unreasoned-state-sync -- reconciles the terminal UI store's ids with the server's terminal list when they diverge
@@ -268,6 +269,7 @@ export const PersistentThreadTerminalDrawer = memo(function PersistentThreadTerm
           onSplitTerminal={splitTerminal}
           onSplitTerminalVertical={splitTerminalVertical}
           onNewTerminal={createNewTerminal}
+          onMinimize={() => storeSetTerminalOpen(threadRef, false)}
           splitShortcutLabel={visible ? splitShortcutLabel : undefined}
           splitVerticalShortcutLabel={visible ? splitVerticalShortcutLabel : undefined}
           newShortcutLabel={visible ? newShortcutLabel : undefined}
