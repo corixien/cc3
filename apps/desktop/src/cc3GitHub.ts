@@ -274,7 +274,7 @@ async function handle(request: Record<string, unknown>): Promise<Success | Failu
       return ok({ binary: false, text: result.stdout });
     }
     case "local": {
-      if (!safeDir(request.cwd)) return ok({ repo: null, branch: null, branches: [] });
+      if (!safeDir(request.cwd)) return ok({ exists: false, repo: null, branch: null, branches: [] });
       const cwd = request.cwd;
       const remote = await run("git", ["remote", "get-url", "origin"], { cwd });
       const branch = await run("git", ["branch", "--show-current"], { cwd });
@@ -284,6 +284,7 @@ async function handle(request: Record<string, unknown>): Promise<Success | Failu
         { cwd },
       );
       return ok({
+        exists: true,
         repo: isFailure(remote) ? null : repoFromRemote(remote.stdout),
         branch: isFailure(branch) ? null : branch.stdout.trim() || null,
         branches: isFailure(branches) ? [] : branches.stdout.split("\n").filter(Boolean),

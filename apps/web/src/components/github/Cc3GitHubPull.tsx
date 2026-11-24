@@ -32,6 +32,8 @@ export function Cc3GitHubPull(props: {
   readonly source: string;
   readonly defaultTarget: string;
   readonly currentChatFolder: string | null;
+  readonly linkedFolder: string | null;
+  readonly onLink: (folder: string) => void;
   readonly onClose: () => void;
   readonly onPulled: (target: string, moveClaude: boolean) => void;
 }) {
@@ -43,6 +45,7 @@ export function Cc3GitHubPull(props: {
   const [selected, setSelected] = useState<ReadonlySet<string>>(new Set());
   const [filter, setFilter] = useState("");
   const [moveClaude, setMoveClaude] = useState(true);
+  const [linkIt, setLinkIt] = useState(props.linkedFolder === null);
 
   const loadPlan = async () => {
     setLoading(true);
@@ -90,6 +93,7 @@ export function Cc3GitHubPull(props: {
       title: gt("Pulled {count} files", { count: selected.size }),
       description: target.trim(),
     });
+    if (linkIt && target.trim() !== props.linkedFolder) props.onLink(target.trim());
     props.onPulled(target.trim(), moveClaude && target.trim() !== props.currentChatFolder);
   };
 
@@ -124,6 +128,22 @@ export function Cc3GitHubPull(props: {
               branch: props.branch,
             })}
           </span>
+        </div>
+        <div className="flex flex-wrap items-center gap-1.5">
+          {props.linkedFolder ? (
+            <Button size="xs" variant="outline" onClick={() => setTarget(props.linkedFolder ?? "")}>
+              {gt("Linked folder")}
+            </Button>
+          ) : null}
+          {props.currentChatFolder ? (
+            <Button
+              size="xs"
+              variant="outline"
+              onClick={() => setTarget(props.currentChatFolder ?? "")}
+            >
+              {gt("This chat's folder")}
+            </Button>
+          ) : null}
         </div>
         <div className="flex items-center gap-2">
           <input
@@ -203,6 +223,16 @@ export function Cc3GitHubPull(props: {
             ) : null}
           </ul>
           <div className="flex flex-wrap items-center gap-2 border-t border-border/60 p-2">
+            {target.trim() !== props.linkedFolder ? (
+              <label className="flex items-center gap-1.5 text-muted-foreground">
+                <input
+                  type="checkbox"
+                  checked={linkIt}
+                  onChange={(event) => setLinkIt(event.target.checked)}
+                />
+                {gt("Link this folder to the repository")}
+              </label>
+            ) : null}
             {target.trim() !== props.currentChatFolder ? (
               <label className="flex items-center gap-1.5 text-muted-foreground">
                 <input

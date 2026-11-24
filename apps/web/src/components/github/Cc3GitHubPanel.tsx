@@ -25,7 +25,7 @@ import { Spinner } from "~/components/ui/spinner";
 import { toastManager } from "~/components/ui/toast";
 import { writeTextToClipboard } from "~/hooks/useCopyToClipboard";
 import { readLocalApi } from "~/localApi";
-import { setClaudeCwd } from "~/claudeCwd";
+import { setClaudeCwd, useClaudeCwd } from "~/claudeCwd";
 import { newProjectId } from "~/lib/utils";
 import { sourceControlEnvironment } from "~/state/sourceControl";
 import { terminalEnvironment } from "~/state/terminal";
@@ -34,6 +34,7 @@ import { CLAUDE_TUI_TERMINAL_ID } from "~/types";
 
 import { Cc3GitHubPull } from "./Cc3GitHubPull";
 import { callGh } from "./ghBridge";
+import { useRepoFolderLinks } from "./repoFolderLinks";
 
 interface Query<T> {
   readonly data: T | null;
@@ -98,8 +99,12 @@ export default function Cc3GitHubPanel(props: {
   readonly cwd: string | null;
 }) {
   const gt = useGT();
+  const threadKey = scopedThreadKey(props.threadRef);
+  const chatFolder = useClaudeCwd(threadKey) ?? props.cwd;
+  const folderLinks = useRepoFolderLinks();
+  const [linkForm, setLinkForm] = useState<string | null>(null);
   const [revision, setRevision] = useState(0);
-  const local = useGh<LocalInfo>(props.cwd ? { op: "local", cwd: props.cwd } : null, revision);
+  const local = useGh<LocalInfo>(chatFolder ? { op: "local", cwd: chatFolder } : null, revision);
   const account = useGh<{ login: string }>({ op: "status" });
   const repos = useGh<RepoSummary[]>({ op: "repos" }, revision);
   const [listMode, setListMode] = useState(false);
@@ -137,10 +142,43 @@ export default function Cc3GitHubPanel(props: {
   });
   const writeTerminal = useAtomCommand(terminalEnvironment.write, { reportFailure: false });
 
+  const displayName = (full: string) =>
+    full.startsWith(`${account.data?.login ?? ""}/`) ? full.slice(full.indexOf("/") + 1) : full;
   const home = props.cwd ? /^\/home\/[^/]+/.exec(props.cwd)?.[0] : undefined;
   const githubUrl = repo
     ? `https://github.com/${repo}${branch ? `/tree/${branch}${path ? `/${path}` : ""}` : ""}`
     : null;
+
+  const repoShortName = repo ? (repo.split("/")[1] ?? repo) : "";
+  const linkedFolder = repo ? (folderLinks.links[repo] ?? (isLocalRepo ? chatFolder : null)) : null;
+  const chatOnLinked = linkedFolder !== null && linkedFolder === chatFolder;
+  const saveLink = async (useInChat: boolean) => {
+    if (!repo || linkForm === null) return;
+    const folder = linkForm.trim().replace(/(.)\/+$/, "$1");
+    if (!folder) return;
+    const result = await callGh({ op: "local", cwd: folder });
+    if (!result.ok) {
+      toast("error", gt("Could not link the folder"), result.error);
+      return;
+    }
+    const info = result.data as { exists: boolean; repo: string | null };
+    if (!info.exists) {
+      toast("error", gt("Could not link the folder"), gt("This folder does not exist."));
+      return;
+    }
+    if (info.repo && info.repo !== repo) {
+      toast(
+        "error",
+        gt("Could not link the folder"),
+        gt("This folder belongs to {repo}.", { repo: info.repo }),
+      );
+      return;
+    }
+    folderLinks.link(repo, folder);
+    setLinkForm(null);
+    toast("success", gt("Linked {folder}", { folder }));
+    if (useInChat) connectClaude(folder);
+  };
 
   const chooseRepo = (value: string) => {
     const next = value
@@ -160,12 +198,12 @@ export default function Cc3GitHubPanel(props: {
     toastManager.add({ type, title, ...(description ? { description } : {}) });
 
   const switchBranch = async () => {
-    if (!props.cwd || !branch) return;
+    if (!chatFolder || !branch) return;
     setSwitching(true);
     const needsFetch = !local.data?.branches.includes(branch);
-    const fetched = needsFetch ? await callGh({ op: "fetch", cwd: props.cwd }) : null;
+    const fetched = needsFetch ? await callGh({ op: "fetch", cwd: chatFolder }) : null;
     const result =
-      fetched && !fetched.ok ? fetched : await callGh({ op: "switch", cwd: props.cwd, branch });
+      fetched && !fetched.ok ? fetched : await callGh({ op: "switch", cwd: chatFolder, branch });
     setSwitching(false);
     if (result.ok) {
       toast("success", gt("Switched to {branch}", { branch }));
@@ -195,6 +233,7 @@ export default function Cc3GitHubPanel(props: {
       }
       return;
     }
+    folderLinks.link(repo, cloneTarget);
     toast("success", gt("Cloning {repo}", { repo }), cloneTarget);
     setCloneTarget(null);
   };
@@ -221,11 +260,11 @@ export default function Cc3GitHubPanel(props: {
   const askClaude = (text: string) => sendToClaude(`\u001b[200~${text}\u001b[201~`);
   // Moves the Claude session into a folder, as if the user had typed /cd there.
   const connectClaude = (folder: string) => {
-    setClaudeCwd(scopedThreadKey(props.threadRef), folder);
+    setClaudeCwd(threadKey, folder);
     sendToClaude(`\u0015/cd ${folder}\r`);
   };
 
-  const folderIsFree = props.cwd !== null && local.data !== null && local.data.repo === null;
+  const folderIsFree = chatFolder !== null && local.data !== null && local.data.repo === null;
   const openForm = (kind: "repo" | "branch") => {
     setForm(kind);
     setNewName("");
@@ -237,13 +276,13 @@ export default function Cc3GitHubPanel(props: {
     const name = newName.trim();
     if (!name) return;
     setCreating(true);
-    const useFolder = newInFolder && folderIsFree && props.cwd;
+    const useFolder = newInFolder && folderIsFree && chatFolder;
     const result = await callGh({
       op: "createRepo",
       name,
       visibility: newVisibility,
       description: newDescription,
-      ...(useFolder ? { cwd: props.cwd } : { parent: home ?? props.cwd }),
+      ...(useFolder ? { cwd: chatFolder } : { parent: home ?? chatFolder }),
     });
     setCreating(false);
     if (!result.ok) {
@@ -252,6 +291,7 @@ export default function Cc3GitHubPanel(props: {
     }
     const created = result.data as { repo: string | null; path: string };
     toast("success", gt("Created {repo}", { repo: created.repo ?? name }), created.path);
+    if (created.repo) folderLinks.link(created.repo, created.path);
     setForm(null);
     setTypedRepo(useFolder ? null : created.repo);
     setListMode(false);
@@ -266,8 +306,8 @@ export default function Cc3GitHubPanel(props: {
     if (!name || !repo || !branch) return;
     setCreating(true);
     const result = await callGh(
-      isLocalRepo && props.cwd
-        ? { op: "createBranch", cwd: props.cwd, name, base: branch, push: publish }
+      isLocalRepo && chatFolder
+        ? { op: "createBranch", cwd: chatFolder, name, base: branch, push: publish }
         : { op: "createRemoteBranch", repo, name, base: branch },
     );
     setCreating(false);
@@ -450,6 +490,67 @@ export default function Cc3GitHubPanel(props: {
             </Button>
           </div>
         ) : null}
+        {repo ? (
+          <div className="flex flex-wrap items-center gap-1.5">
+            <FolderIcon className="size-3.5 shrink-0 text-muted-foreground" />
+            <span
+              className="min-w-0 flex-1 truncate text-muted-foreground"
+              title={linkedFolder ?? ""}
+            >
+              {linkedFolder ?? gt("No folder linked")}
+            </span>
+            {linkedFolder && !chatOnLinked ? (
+              <Button size="xs" variant="outline" onClick={() => connectClaude(linkedFolder)}>
+                {gt("Use in this chat")}
+              </Button>
+            ) : linkedFolder ? (
+              <span className="text-muted-foreground">{gt("This chat is here")}</span>
+            ) : null}
+            <Button
+              size="xs"
+              variant="ghost"
+              onClick={() => setLinkForm(linkedFolder ?? `${home ?? ""}/${repoShortName}`)}
+            >
+              {linkedFolder ? gt("Change") : gt("Link folder")}
+            </Button>
+            {repo && folderLinks.links[repo] ? (
+              <Button size="xs" variant="ghost" onClick={() => repo && folderLinks.unlink(repo)}>
+                {gt("Unlink")}
+              </Button>
+            ) : null}
+          </div>
+        ) : null}
+        {linkForm !== null && repo ? (
+          <div className="flex flex-col gap-1.5 rounded-md border border-border/60 p-2">
+            <input
+              className={INPUT_CLASS}
+              value={linkForm}
+              spellCheck={false}
+              aria-label={gt("Folder")}
+              onChange={(event) => setLinkForm(event.target.value)}
+              onKeyDown={(event) => {
+                if (event.key === "Enter") void saveLink(false);
+                if (event.key === "Escape") setLinkForm(null);
+              }}
+            />
+            <div className="flex flex-wrap items-center gap-2">
+              <Button size="xs" onClick={() => void saveLink(false)}>
+                {gt("Link")}
+              </Button>
+              <Button size="xs" variant="outline" onClick={() => void saveLink(true)}>
+                {gt("Link and use in this chat")}
+              </Button>
+              {chatFolder ? (
+                <Button size="xs" variant="ghost" onClick={() => setLinkForm(chatFolder)}>
+                  {gt("This chat's folder")}
+                </Button>
+              ) : null}
+              <Button size="xs" variant="ghost" onClick={() => setLinkForm(null)}>
+                {gt("Cancel")}
+              </Button>
+            </div>
+          </div>
+        ) : null}
         {confirmDelete !== null && repo ? (
           <div className="flex flex-col gap-1.5 rounded-md border border-destructive/50 p-2">
             <span className="text-destructive">
@@ -612,8 +713,10 @@ export default function Cc3GitHubPanel(props: {
             repo={repo}
             branch={branch}
             source={path}
-            defaultTarget={props.cwd ?? home ?? ""}
-            currentChatFolder={props.cwd}
+            defaultTarget={linkedFolder ?? chatFolder ?? home ?? ""}
+            currentChatFolder={chatFolder}
+            linkedFolder={linkedFolder}
+            onLink={(folder) => repo && folderLinks.link(repo, folder)}
             onClose={() => setPullOpen(false)}
             onPulled={(folder, moveClaude) => {
               setPullOpen(false);
@@ -635,7 +738,7 @@ export default function Cc3GitHubPanel(props: {
                       className="flex w-full flex-col items-start rounded-sm px-2 py-1 text-left hover:bg-accent"
                       onClick={() => chooseRepo(entry.nameWithOwner)}
                     >
-                      <span className="text-foreground">{entry.nameWithOwner}</span>
+                      <span className="text-foreground">{displayName(entry.nameWithOwner)}</span>
                       {entry.description ? (
                         <span className="w-full truncate text-muted-foreground">
                           {entry.description}
