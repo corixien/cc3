@@ -9,6 +9,7 @@ import {
   type ThreadId,
 } from "@t3tools/contracts";
 import { scopedThreadKey, scopeThreadRef } from "@t3tools/client-runtime/environment";
+import { bumpGitActivity } from "../githubActivity";
 import { getClaudeCwd, normalizeCwd, setClaudeCwd } from "../claudeCwd";
 import { useGT } from "gt-react";
 import { useEffect, useRef, useState } from "react";
@@ -216,6 +217,7 @@ export function ClaudeTuiPane(props: ClaudeTuiPaneProps) {
           onTerminalCommand={handleTerminalCommand}
           onOpenFile={handleOpenFile}
           onCwdChange={handleCwdChange}
+          onGitActivity={bumpGitActivity}
           onSubmitLine={handleSubmitLine}
           autoFocus
           visible

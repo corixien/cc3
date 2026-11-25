@@ -28,6 +28,7 @@ import { Menu, MenuItem, MenuPopup, MenuSeparator, MenuTrigger } from "~/compone
 import { Spinner } from "~/components/ui/spinner";
 import { toastManager } from "~/components/ui/toast";
 import { setClaudeCwd, useClaudeCwd } from "~/claudeCwd";
+import { useGitActivity } from "~/githubActivity";
 import { writeTextToClipboard } from "~/hooks/useCopyToClipboard";
 import { readLocalApi } from "~/localApi";
 import { newProjectId } from "~/lib/utils";
@@ -61,7 +62,8 @@ export default function Cc3GitHubPanel(props: {
   const threadKey = scopedThreadKey(props.threadRef);
   const chatFolder = useClaudeCwd(threadKey) ?? props.cwd;
   const folderLinks = useRepoFolderLinks();
-  const [revision, setRevision] = useState(0);
+  const [manualRevision, setRevision] = useState(0);
+  const revision = manualRevision + useGitActivity();
   const local = useGh<LocalInfo>(chatFolder ? { op: "local", cwd: chatFolder } : null, revision);
   const account = useGh<{ login: string }>({ op: "status" });
   const repos = useGh<RepoSummary[]>({ op: "repos" }, revision);
@@ -103,6 +105,8 @@ export default function Cc3GitHubPanel(props: {
   const folderIsFree = chatFolder !== null && local.data !== null && local.data.repo === null;
   const linkedFolder = repo ? (folderLinks.links[repo] ?? (isLocalRepo ? chatFolder : null)) : null;
   const chatOnLinked = linkedFolder !== null && linkedFolder === chatFolder;
+  // Taking the chat out of a repository returns it to the chat's own project folder, or the home folder.
+  const leaveTarget = (props.cwd !== chatFolder ? props.cwd : home) ?? null;
   const githubUrl = repo
     ? `https://github.com/${repo}${branch ? `/tree/${branch}${path ? `/${path}` : ""}` : ""}`
     : null;
@@ -544,7 +548,14 @@ export default function Cc3GitHubPanel(props: {
               {gt("Use in this chat")}
             </Button>
           ) : linkedFolder ? (
-            <span>{gt("This chat is here")}</span>
+            <>
+              <span>{gt("This chat is here")}</span>
+              {leaveTarget ? (
+                <Button size="xs" variant="outline" onClick={() => connectClaude(leaveTarget)}>
+                  {gt("Leave")}
+                </Button>
+              ) : null}
+            </>
           ) : (
             <Button size="xs" variant="outline" onClick={() => setDialog("link")}>
               {gt("Link folder")}

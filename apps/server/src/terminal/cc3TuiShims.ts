@@ -27,6 +27,9 @@ if printf %s "$cmd" | grep -qE '(^|[;&| ])cd( |$|;|&|[|])'; then
   esac
   [ -d "$d" ] && c=$(cd "$d" && pwd -P)
 fi
+if printf %s "$cmd" | grep -qE '(^|[;&|( ])(git|gh)( |$)'; then
+  printf '\033]777;cc3-git;1\007' > "$(cc3-tty)"
+fi
 [ -n "$c" ] || exit 0
 printf '\033]777;cc3-cwd;%s\007' "$(printf %s "$c" | base64 -w0)" > "$(cc3-tty)"
 `,

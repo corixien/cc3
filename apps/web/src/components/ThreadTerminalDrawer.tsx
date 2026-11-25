@@ -201,6 +201,7 @@ function replaceClaudeMascot(data: string): string {
 const CC3_OPEN_URL_PATTERN = /\u001b\]777;cc3-open;([^\u0007\u001b]+)\u0007/g;
 const CC3_TERMINAL_COMMAND_PATTERN = /\u001b\]777;cc3-term;([A-Za-z0-9+/=]+)\u0007/g;
 const CC3_CWD_PATTERN = /\u001b\]777;cc3-cwd;([A-Za-z0-9+/=]+)\u0007/g;
+const CC3_GIT_PATTERN = /\u001b\]777;cc3-git;1\u0007/;
 const CC3_OPEN_FILE_PATTERN = /\u001b\]777;cc3-file;([A-Za-z0-9+/=]+)\u0007/g;
 const TERMINAL_TITLE_PATTERN = /\u001b\][02];([^\u0007\u001b]*)(?:\u0007|\u001b\\)/g;
 
@@ -209,6 +210,7 @@ export interface TerminalOutputHooks {
   readonly onTitle?: (title: string) => void;
   readonly onTerminalCommand?: (command: string) => void;
   readonly onCwdChange?: (cwd: string) => void;
+  readonly onGitActivity?: () => void;
   readonly onOpenFile?: (path: string) => void;
   readonly transform?: (data: string) => string;
 }
@@ -231,6 +233,7 @@ export function writeTerminalOutputUpdate(
         hooks.onOpenFile(new TextDecoder().decode(bytes));
       }
     }
+    if (hooks?.onGitActivity && CC3_GIT_PATTERN.test(update.data)) hooks.onGitActivity();
     if (hooks?.onCwdChange) {
       let cwd: string | undefined;
       for (const match of update.data.matchAll(CC3_CWD_PATTERN)) {
@@ -566,6 +569,7 @@ interface TerminalViewportProps {
   onTitleChange?: (title: string) => void;
   onTerminalCommand?: (command: string) => void;
   onCwdChange?: (cwd: string) => void;
+  onGitActivity?: () => void;
   onOpenFile?: (path: string) => void;
   /** Return true to consume a submitted input line. */
   onSubmitLine?: (line: string) => boolean;
@@ -608,6 +612,7 @@ function TerminalSessionViewport({
   onTitleChange,
   onTerminalCommand,
   onCwdChange,
+  onGitActivity,
   onOpenFile,
   onSubmitLine,
   onAddTerminalContext,
@@ -908,6 +913,7 @@ function TerminalSessionViewport({
               ...(onTitleChange ? { onTitle: onTitleChange, transform: replaceClaudeMascot } : {}),
               ...(onTerminalCommand ? { onTerminalCommand } : {}),
               ...(onCwdChange ? { onCwdChange } : {}),
+              ...(onGitActivity ? { onGitActivity } : {}),
               ...(onOpenFile ? { onOpenFile } : {}),
             },
           );
@@ -1337,6 +1343,7 @@ function TerminalSessionViewport({
     onOpenFile,
     onTerminalCommand,
     onCwdChange,
+    onGitActivity,
     onTitleChange,
     terminalId,
     terminalSessionAtom,
