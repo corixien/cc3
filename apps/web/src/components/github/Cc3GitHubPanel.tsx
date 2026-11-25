@@ -104,7 +104,9 @@ export default function Cc3GitHubPanel(props: {
   const home = props.cwd ? /^\/home\/[^/]+/.exec(props.cwd)?.[0] : undefined;
   const folderIsFree = chatFolder !== null && local.data !== null && local.data.repo === null;
   const linkedFolder = repo ? (folderLinks.links[repo] ?? (isLocalRepo ? chatFolder : null)) : null;
-  const chatOnLinked = linkedFolder !== null && linkedFolder === chatFolder;
+  // The chat counts as being in the repository only when that folder is the repository's checkout.
+  const chatOnLinked =
+    linkedFolder !== null && linkedFolder === chatFolder && local.data?.repo === repo;
   // Taking the chat out of a repository returns it to the chat's own project folder, or the home folder.
   const leaveTarget = (props.cwd !== chatFolder ? props.cwd : home) ?? null;
   const githubUrl = repo
@@ -137,6 +139,20 @@ export default function Cc3GitHubPanel(props: {
     setClaudeCwd(threadKey, folder);
     sendToClaude(`\u0015/cd ${folder}\r`);
   };
+
+  /** A linked folder must be the checkout itself: a parent folder of it is resolved to the repository inside. */
+  const resolveRepoFolder = async (folder: string): Promise<string> => {
+    if (!repo) return folder;
+    const checked = await callGh({ op: "local", cwd: folder });
+    if (checked.ok && (checked.data as LocalInfo).repo === repo) return folder;
+    const found = await callGh({ op: "findRepoFolder", cwd: folder, repo });
+    const path = found.ok ? (found.data as { path: string | null }).path : null;
+    if (!path) return folder;
+    folderLinks.link(repo, path);
+    toast("success", gt("Using the repository folder {folder}", { folder: path }));
+    return path;
+  };
+  const useFolderInChat = async (folder: string) => connectClaude(await resolveRepoFolder(folder));
 
   const chooseRepo = (value: string) => {
     const next = value
@@ -285,10 +301,11 @@ export default function Cc3GitHubPanel(props: {
       );
       return;
     }
-    folderLinks.link(repo, folder);
+    const resolved = info.repo === repo ? folder : await resolveRepoFolder(folder);
+    folderLinks.link(repo, resolved);
     setDialog(null);
-    toast("success", gt("Linked {folder}", { folder }));
-    if (useInChat) connectClaude(folder);
+    if (resolved === folder) toast("success", gt("Linked {folder}", { folder }));
+    if (useInChat) connectClaude(resolved);
   };
 
   const deleteRepository = async () => {
@@ -544,7 +561,7 @@ export default function Cc3GitHubPanel(props: {
             {linkedFolder ?? gt("No folder linked")}
           </span>
           {linkedFolder && !chatOnLinked ? (
-            <Button size="xs" variant="outline" onClick={() => connectClaude(linkedFolder)}>
+            <Button size="xs" variant="outline" onClick={() => void useFolderInChat(linkedFolder)}>
               {gt("Use in this chat")}
             </Button>
           ) : linkedFolder ? (

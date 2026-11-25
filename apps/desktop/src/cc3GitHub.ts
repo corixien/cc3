@@ -7,6 +7,7 @@ import { createHash } from "node:crypto";
 import {
   closeSync,
   existsSync,
+  readdirSync,
   mkdtempSync,
   openSync,
   readFileSync,
@@ -191,6 +192,35 @@ function firstTarMember(file: string): Promise<string | null> {
     });
     child.on("close", () => resolvePromise(null));
   });
+}
+
+/** Looks up to two levels below `root` for the checkout of `repo`, so a parent folder of the repo can be resolved. */
+async function findRepoFolder(root: string, repo: string): Promise<string | null> {
+  const queue: Array<{ dir: string; depth: number }> = [{ dir: root, depth: 0 }];
+  let visited = 0;
+  while (queue.length > 0 && visited < 300) {
+    const { dir, depth } = queue.shift()!;
+    visited += 1;
+    if (existsSync(join(dir, ".git"))) {
+      const origin = await run("git", ["remote", "get-url", "origin"], { cwd: dir });
+      if (!isFailure(origin) && repoFromRemote(origin.stdout) === repo) return dir;
+      continue;
+    }
+    if (depth >= 2) continue;
+    let children: string[] = [];
+    try {
+      children = readdirSync(dir, { withFileTypes: true })
+        .filter(
+          (entry) =>
+            entry.isDirectory() && !entry.isSymbolicLink() && entry.name !== "node_modules",
+        )
+        .map((entry) => entry.name);
+    } catch {
+      continue;
+    }
+    for (const name of children) queue.push({ dir: join(dir, name), depth: depth + 1 });
+  }
+  return null;
 }
 
 async function handle(request: Record<string, unknown>): Promise<Success | Failure> {
@@ -492,6 +522,10 @@ async function handle(request: Record<string, unknown>): Promise<Success | Failu
       } finally {
         rmSync(work, { recursive: true, force: true });
       }
+    }
+    case "findRepoFolder": {
+      if (!safeDir(request.cwd) || !safeRepo(request.repo)) return fail("Invalid request.");
+      return ok({ path: await findRepoFolder(request.cwd, request.repo) });
     }
     case "commits": {
       const { repo, ref, page } = request;
