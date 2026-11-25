@@ -33,7 +33,7 @@ const fail = (error: string): Failure => ({ ok: false, error });
 function run(
   command: "gh" | "git" | "tar",
   args: readonly string[],
-  options: { cwd?: string; maxBuffer?: number; timeout?: number } = {},
+  options: { cwd?: string; maxBuffer?: number; timeout?: number; okExit?: readonly number[] } = {},
 ): Promise<{ stdout: string } | Failure> {
   return new Promise((resolve) => {
     execFile(
@@ -46,6 +46,10 @@ function run(
         env: { ...process.env, GH_PROMPT_DISABLED: "1", GIT_TERMINAL_PROMPT: "0", NO_COLOR: "1" },
       },
       (error, stdout, stderr) => {
+        if (error && typeof error.code === "number" && options.okExit?.includes(error.code)) {
+          resolve({ stdout });
+          return;
+        }
         if (error)
           resolve(fail((stderr || error.message).trim().split("\n").slice(0, 4).join("\n")));
         else resolve({ stdout });
@@ -221,6 +225,15 @@ async function findRepoFolder(root: string, repo: string): Promise<string | null
     for (const name of children) queue.push({ dir: join(dir, name), depth: depth + 1 });
   }
   return null;
+}
+
+/** Publishes the current branch; a branch without upstream is pushed with `-u origin`. */
+async function pushCurrent(cwd: string) {
+  const upstream = await run("git", ["rev-parse", "--abbrev-ref", "@{u}"], { cwd });
+  if (!isFailure(upstream)) return run("git", ["push"], { cwd, timeout: 120_000 });
+  const branch = await run("git", ["branch", "--show-current"], { cwd });
+  if (isFailure(branch) || !branch.stdout.trim()) return fail("No branch to publish.");
+  return run("git", ["push", "-u", "origin", branch.stdout.trim()], { cwd, timeout: 120_000 });
 }
 
 async function handle(request: Record<string, unknown>): Promise<Success | Failure> {
@@ -567,6 +580,265 @@ async function handle(request: Record<string, unknown>): Promise<Success | Failu
         );
       }
       return ok({ diff: result.stdout });
+    }
+    case "wtStatus": {
+      if (!safeDir(request.cwd)) return fail("Not a folder.");
+      const result = await run(
+        "git",
+        ["status", "--porcelain=v1", "-z", "-b", "--untracked-files=all"],
+        { cwd: request.cwd },
+      );
+      if (isFailure(result)) return result;
+      const records = result.stdout.split("\0");
+      const head = records.shift() ?? "";
+      const branchLine = head.replace(/^## /, "");
+      const track = /\[(?:ahead (\d+))?(?:, )?(?:behind (\d+))?\]/.exec(branchLine);
+      const name = branchLine.replace(/ \[.*\]$/, "").split("...");
+      const files: Array<{ path: string; x: string; y: string }> = [];
+      for (let index = 0; index < records.length; index += 1) {
+        const record = records[index] ?? "";
+        if (record.length < 4) continue;
+        const x = record[0] ?? " ";
+        const y = record[1] ?? " ";
+        files.push({ path: record.slice(3), x, y });
+        if (x === "R" || x === "C") index += 1;
+      }
+      return ok({
+        branch: /^HEAD \(no branch\)|^No commits yet on /.test(name[0] ?? "")
+          ? (name[0] ?? "").replace(/^No commits yet on /, "")
+          : (name[0] ?? ""),
+        upstream: name[1] ?? null,
+        ahead: Number(track?.[1] ?? 0),
+        behind: Number(track?.[2] ?? 0),
+        files,
+      });
+    }
+    case "wtDiff": {
+      const { cwd, path, untracked } = request;
+      if (!safeDir(cwd) || !safePath(path) || path === "") return fail("Invalid request.");
+      const args =
+        untracked === true
+          ? ["diff", "--no-color", "--no-index", "--", "/dev/null", path]
+          : ["diff", "--no-color", "HEAD", "--", path];
+      const result = await run("git", args, {
+        cwd,
+        okExit: [1],
+        maxBuffer: 4 * 1024 * 1024,
+      });
+      if (isFailure(result)) {
+        // A repository without commits has no HEAD to compare with.
+        const fallback = await run("git", ["diff", "--no-color", "--cached", "--", path], { cwd });
+        return isFailure(fallback) ? result : ok({ diff: fallback.stdout });
+      }
+      return ok({ diff: result.stdout });
+    }
+    case "wtCommit": {
+      const { cwd, message, paths, push } = request;
+      if (!safeDir(cwd) || typeof message !== "string" || !message.trim()) {
+        return fail("Write a commit message.");
+      }
+      if (
+        !Array.isArray(paths) ||
+        paths.length === 0 ||
+        !paths.every((p) => safePath(p) && p !== "")
+      ) {
+        return fail("Select the files to commit.");
+      }
+      await run("git", ["reset", "-q"], { cwd });
+      const added = await run("git", ["add", "-A", "--", ...(paths as string[])], { cwd });
+      if (isFailure(added)) return added;
+      const committed = await run("git", ["commit", "-m", message.trim()], {
+        cwd,
+        timeout: 120_000,
+      });
+      if (isFailure(committed)) return committed;
+      if (push === true) {
+        const pushed = await pushCurrent(cwd);
+        if (isFailure(pushed)) return fail(`Committed, but pushing failed: ${pushed.error}`);
+      }
+      return ok(null);
+    }
+    case "push": {
+      if (!safeDir(request.cwd)) return fail("Not a folder.");
+      const pushed = await pushCurrent(request.cwd);
+      return isFailure(pushed) ? pushed : ok(null);
+    }
+    case "pull": {
+      if (!safeDir(request.cwd)) return fail("Not a folder.");
+      const result = await run("git", ["pull", "--ff-only"], {
+        cwd: request.cwd,
+        timeout: 120_000,
+      });
+      return isFailure(result)
+        ? result
+        : ok({ message: result.stdout.trim().split("\n")[0] ?? "" });
+    }
+    case "localBranches": {
+      if (!safeDir(request.cwd)) return fail("Not a folder.");
+      const result = await run(
+        "git",
+        [
+          "for-each-ref",
+          "--format=%(HEAD)\t%(refname:short)\t%(upstream:short)\t%(upstream:track)\t%(committerdate:relative)\t%(subject)",
+          "refs/heads",
+        ],
+        { cwd: request.cwd },
+      );
+      if (isFailure(result)) return result;
+      return ok(
+        result.stdout
+          .split("\n")
+          .filter(Boolean)
+          .map((line) => {
+            const [head, name, upstream, track, when, subject] = line.split("\t");
+            return {
+              current: head === "*",
+              name: name ?? "",
+              upstream: upstream || null,
+              track: track ?? "",
+              when: when ?? "",
+              subject: subject ?? "",
+            };
+          }),
+      );
+    }
+    case "worktrees": {
+      if (!safeDir(request.cwd)) return fail("Not a folder.");
+      const result = await run("git", ["worktree", "list", "--porcelain"], { cwd: request.cwd });
+      if (isFailure(result)) return result;
+      const list: Array<{ path: string; branch: string | null; main: boolean }> = [];
+      for (const block of result.stdout.split("\n\n")) {
+        const lines = block.split("\n");
+        const path = lines.find((line) => line.startsWith("worktree "))?.slice(9);
+        if (!path) continue;
+        const branch = lines.find((line) => line.startsWith("branch "))?.slice(7) ?? null;
+        list.push({
+          path,
+          branch: branch ? branch.replace(/^refs\/heads\//, "") : null,
+          main: list.length === 0,
+        });
+      }
+      return ok(list);
+    }
+    case "worktreeAdd": {
+      const { cwd, branch, base, create, path } = request;
+      if (
+        !safeDir(cwd) ||
+        !safeRef(branch) ||
+        (base !== undefined && !safeRef(base)) ||
+        typeof path !== "string" ||
+        !path.startsWith("/") ||
+        path.split("/").includes("..") ||
+        existsSync(path) ||
+        !safeDir(dirname(path))
+      ) {
+        return fail("Choose a new folder inside an existing one.");
+      }
+      const args =
+        create === true
+          ? ["worktree", "add", "-b", branch, path, ...(base ? [base] : [])]
+          : ["worktree", "add", path, branch];
+      const result = await run("git", args, { cwd, timeout: 120_000 });
+      return isFailure(result) ? result : ok({ path });
+    }
+    case "worktreeRemove": {
+      const { cwd, path } = request;
+      if (!safeDir(cwd) || typeof path !== "string" || !path.startsWith("/")) {
+        return fail("Invalid request.");
+      }
+      const listed = await run("git", ["worktree", "list", "--porcelain"], { cwd });
+      if (isFailure(listed)) return listed;
+      const known = listed.stdout
+        .split("\n")
+        .filter((line) => line.startsWith("worktree "))
+        .map((line) => line.slice(9));
+      if (known[0] === path || !known.includes(path)) return fail("Not a linked worktree.");
+      const result = await run("git", ["worktree", "remove", path], { cwd });
+      return isFailure(result) ? result : ok(null);
+    }
+    case "deleteBranch": {
+      const { cwd, name, remote } = request;
+      if (!safeDir(cwd) || !safeRef(name)) return fail("Invalid request.");
+      const local = await run("git", ["branch", "-d", name], { cwd });
+      if (isFailure(local)) return local;
+      if (remote === true) {
+        const gone = await run("git", ["push", "origin", "--delete", name], {
+          cwd,
+          timeout: 120_000,
+        });
+        if (isFailure(gone)) return fail(`Deleted locally, but not on GitHub: ${gone.error}`);
+      }
+      return ok(null);
+    }
+    case "prs": {
+      const { repo, state } = request;
+      if (!safeRepo(repo)) return fail("Use owner/name.");
+      const wanted = state === "closed" || state === "merged" || state === "all" ? state : "open";
+      const result = await run("gh", [
+        "pr",
+        "list",
+        "-R",
+        repo,
+        "--state",
+        wanted,
+        "--limit",
+        "30",
+        "--json",
+        "number,title,state,isDraft,headRefName,baseRefName,author,url,reviewDecision,statusCheckRollup,updatedAt",
+      ]);
+      return isFailure(result) ? result : ok(JSON.parse(result.stdout));
+    }
+    case "prCreate": {
+      const { cwd, title, body, base, draft } = request;
+      if (!safeDir(cwd) || typeof title !== "string" || !title.trim() || !safeRef(base)) {
+        return fail("Give the pull request a title.");
+      }
+      const pushed = await pushCurrent(cwd);
+      if (isFailure(pushed)) return fail(`Publishing the branch failed: ${pushed.error}`);
+      const result = await run(
+        "gh",
+        [
+          "pr",
+          "create",
+          `--title=${title.trim()}`,
+          `--body=${typeof body === "string" ? body : ""}`,
+          `--base=${base}`,
+          ...(draft === true ? ["--draft"] : []),
+        ],
+        { cwd, timeout: 120_000 },
+      );
+      return isFailure(result)
+        ? result
+        : ok({ url: result.stdout.trim().split("\n").at(-1) ?? "" });
+    }
+    case "prCheckout": {
+      const { cwd, number } = request;
+      if (!safeDir(cwd) || !Number.isInteger(number) || (number as number) < 1) {
+        return fail("Invalid request.");
+      }
+      const result = await run("gh", ["pr", "checkout", String(number)], { cwd, timeout: 120_000 });
+      return isFailure(result) ? result : ok(null);
+    }
+    case "prMerge": {
+      const { repo, number, method, deleteBranch } = request;
+      if (!safeRepo(repo) || !Number.isInteger(number) || (number as number) < 1) {
+        return fail("Invalid request.");
+      }
+      const flag = method === "merge" ? "--merge" : method === "rebase" ? "--rebase" : "--squash";
+      const result = await run(
+        "gh",
+        [
+          "pr",
+          "merge",
+          String(number),
+          "-R",
+          repo,
+          flag,
+          ...(deleteBranch === true ? ["--delete-branch"] : []),
+        ],
+        { timeout: 120_000 },
+      );
+      return isFailure(result) ? result : ok(null);
     }
     default:
       return fail("Unknown operation.");

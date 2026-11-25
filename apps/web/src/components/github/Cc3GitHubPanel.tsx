@@ -44,15 +44,22 @@ import {
   type LocalInfo,
   type RepoSummary,
   type Tree,
+  type WorkCtx,
+  type WtStatus,
   shortName,
   useGh,
 } from "./ghHooks";
 import { GitHubCommits } from "./GitHubCommits";
-import { CloneForm, DeleteForm, LinkFolderForm, NewBranchForm, NewRepoForm } from "./GitHubForms";
+import { CloneForm, DeleteForm, LinkFolderForm, NewRepoForm } from "./GitHubForms";
+import { GitHubBranches } from "./GitHubBranches";
+import { GitHubChanges } from "./GitHubChanges";
+import { GitHubPullRequests } from "./GitHubPullRequests";
+import { WorkspaceCard } from "./GitHubWorkspace";
 import { SimpleSelect } from "./GitHubUi";
 import { useRepoFolderLinks } from "./repoFolderLinks";
 
-type Dialog = "repo" | "branch" | "link" | "clone" | "delete" | "pull" | null;
+type Dialog = "repo" | "link" | "clone" | "delete" | "pull" | null;
+type Tab = "changes" | "branches" | "commits" | "prs" | "files";
 
 export default function Cc3GitHubPanel(props: {
   readonly threadRef: ScopedThreadRef;
@@ -82,13 +89,18 @@ export default function Cc3GitHubPanel(props: {
       ? pickedBranch
       : ((isLocalRepo ? local.data?.branch : null) ?? defaultBranch ?? branches.data?.[0] ?? null);
 
-  const [tab, setTab] = useState<"files" | "commits">("files");
+  const [pickedTab, setTab] = useState<Tab | null>(null);
+  // The checkout Claude works in: the chat's own folder when it is this repository, otherwise the linked folder.
+  const workDir = repo ? (isLocalRepo ? chatFolder : (folderLinks.links[repo] ?? null)) : null;
+  const wt = useGh<WtStatus>(workDir ? { op: "wtStatus", cwd: workDir } : null, revision);
+  const effectiveTab: Tab = pickedTab ?? (workDir ? "changes" : "files");
+
   const [dialog, setDialog] = useState<Dialog>(null);
   const [busy, setBusy] = useState(false);
   const [path, setPath] = useState("");
   const [openFilePath, setOpenFilePath] = useState<string | null>(null);
   const tree = useGh<Tree>(
-    repo && branch && tab === "files" ? { op: "tree", repo, ref: branch, path } : null,
+    repo && branch && effectiveTab === "files" ? { op: "tree", repo, ref: branch, path } : null,
   );
   const file = useGh<FileData>(
     repo && branch && openFilePath ? { op: "file", repo, ref: branch, path: openFilePath } : null,
@@ -167,29 +179,13 @@ export default function Cc3GitHubPanel(props: {
     setPickedBranch(null);
     setPath("");
     setOpenFilePath(null);
-    setTab("files");
+    setTab(null);
   };
   const backToList = () => {
     setListMode(true);
     setDialog(null);
     setPath("");
     setOpenFilePath(null);
-  };
-
-  const switchBranch = async () => {
-    if (!chatFolder || !branch) return;
-    setBusy(true);
-    const needsFetch = !local.data?.branches.includes(branch);
-    const fetched = needsFetch ? await callGh({ op: "fetch", cwd: chatFolder }) : null;
-    const result =
-      fetched && !fetched.ok ? fetched : await callGh({ op: "switch", cwd: chatFolder, branch });
-    setBusy(false);
-    if (result.ok) {
-      toast("success", gt("Switched to {branch}", { branch }));
-      refresh();
-    } else {
-      toast("error", gt("Could not switch branch"), result.error);
-    }
   };
 
   const clone = async (target: string) => {
@@ -249,35 +245,6 @@ export default function Cc3GitHubPanel(props: {
     setOpenFilePath(null);
     refresh();
     if (!useFolder) connectClaude(created.path);
-  };
-
-  const createBranch = async (input: { name: string; publish: boolean }) => {
-    if (!repo || !branch) return;
-    setBusy(true);
-    const result = await callGh(
-      isLocalRepo && chatFolder
-        ? {
-            op: "createBranch",
-            cwd: chatFolder,
-            name: input.name,
-            base: branch,
-            push: input.publish,
-          }
-        : { op: "createRemoteBranch", repo, name: input.name, base: branch },
-    );
-    setBusy(false);
-    if (!result.ok) {
-      toast("error", gt("Could not create the branch"), result.error);
-      return;
-    }
-    toast(
-      "success",
-      gt("Created {branch}", { branch: input.name }),
-      isLocalRepo ? gt("Claude is now on this branch.") : gt("Clone the repository to work on it."),
-    );
-    setDialog(null);
-    setPickedBranch(input.name);
-    refresh();
   };
 
   const saveLink = async (folderInput: string, useInChat: boolean) => {
@@ -439,20 +406,23 @@ export default function Cc3GitHubPanel(props: {
   const crumbs = path ? path.split("/") : [];
   const branchItems = (branches.data ?? (branch ? [branch] : [])).map((name) => ({
     value: name,
-    label: `${name}${name === defaultBranch ? ` (${gt("default")})` : ""}${
-      isLocalRepo && name === local.data?.branch ? ` · ${gt("checked out")}` : ""
-    }`,
+    label: `${name}${name === defaultBranch ? ` (${gt("default")})` : ""}`,
   }));
+  const ctx: WorkCtx = {
+    repo,
+    dir: workDir,
+    revision,
+    chatFolder,
+    defaultBranch,
+    onChanged: refresh,
+    toast,
+    askClaude: (text) => sendToClaude(`\u001b[200~${text}\u001b[201~`),
+    connectClaude,
+  };
+  const currentBranch = wt.data?.branch ?? null;
+  const changeCount = wt.data?.files.length ?? 0;
   const dialogView =
-    dialog === "branch" && branch ? (
-      <NewBranchForm
-        base={branch}
-        local={isLocalRepo}
-        busy={busy}
-        onCancel={() => setDialog(null)}
-        onSubmit={(input) => void createBranch(input)}
-      />
-    ) : dialog === "link" ? (
+    dialog === "link" ? (
       <LinkFolderForm
         initial={linkedFolder ?? `${home ?? ""}/${shortName(repo)}`}
         chatFolder={chatFolder}
@@ -474,10 +444,42 @@ export default function Cc3GitHubPanel(props: {
         onSubmit={() => void deleteRepository()}
       />
     ) : null;
+  const tabs: Array<{ id: Tab; label: string }> = [
+    { id: "changes", label: changeCount ? `${gt("Changes")} ${changeCount}` : gt("Changes") },
+    { id: "branches", label: gt("Branches") },
+    { id: "commits", label: gt("Commits") },
+    { id: "prs", label: gt("Pull requests") },
+    { id: "files", label: gt("Files") },
+  ];
+  const browseBar = (
+    <div className="flex items-center gap-2 border-b border-border/60 px-3 py-2">
+      <SimpleSelect
+        ariaLabel={gt("Branch")}
+        value={branch ?? ""}
+        onChange={(value) => {
+          setPickedBranch(value);
+          setPath("");
+          setOpenFilePath(null);
+        }}
+        items={branchItems}
+        icon={<GitBranchIcon className="size-3.5 shrink-0 text-muted-foreground" />}
+        className="min-w-0 flex-1"
+      />
+      <Button
+        size="xs"
+        variant="outline"
+        disabled={!branch}
+        onClick={() => setDialog("pull")}
+        title={gt("Copy files of this branch into a folder")}
+      >
+        {gt("Pull files…")}
+      </Button>
+    </div>
+  );
 
   return (
     <div className="flex min-h-0 flex-1 flex-col text-xs" data-cc3-github-panel>
-      <div className="flex shrink-0 flex-col gap-2 border-b border-border/60 p-3">
+      <div className="flex shrink-0 flex-col gap-3 border-b border-border/60 p-3">
         <div className="flex items-center gap-1.5">
           <Button
             size="icon-xs"
@@ -496,6 +498,9 @@ export default function Cc3GitHubPanel(props: {
           {repoInfo.data?.isPrivate ? (
             <LockIcon className="size-3 shrink-0 text-muted-foreground" />
           ) : null}
+          <Button size="icon-xs" variant="ghost" aria-label={gt("Refresh")} onClick={refresh}>
+            <RefreshCwIcon className="size-3.5" />
+          </Button>
           <Menu>
             <MenuTrigger
               render={
@@ -505,10 +510,6 @@ export default function Cc3GitHubPanel(props: {
               <MoreHorizontalIcon className="size-4" />
             </MenuTrigger>
             <MenuPopup align="end">
-              <MenuItem disabled={!branch} onClick={() => setDialog("pull")}>
-                {gt("Pull into folder…")}
-              </MenuItem>
-              <MenuItem onClick={() => setDialog("branch")}>{gt("New branch…")}</MenuItem>
               <MenuItem onClick={() => setDialog("link")}>
                 {linkedFolder ? gt("Change linked folder…") : gt("Link a folder…")}
               </MenuItem>
@@ -535,68 +536,32 @@ export default function Cc3GitHubPanel(props: {
           </Menu>
         </div>
 
-        <div className="flex items-center gap-2">
-          <SimpleSelect
-            ariaLabel={gt("Branch")}
-            value={branch ?? ""}
-            onChange={(value) => {
-              setPickedBranch(value);
-              setPath("");
-              setOpenFilePath(null);
-            }}
-            items={branchItems}
-            icon={<GitBranchIcon className="size-3.5 shrink-0 text-muted-foreground" />}
-            className="min-w-0 flex-1"
-          />
-          {isLocalRepo && branch && branch !== local.data?.branch ? (
-            <Button size="sm" disabled={busy} onClick={() => void switchBranch()}>
-              {busy ? <Spinner className="size-3.5" /> : gt("Switch")}
-            </Button>
-          ) : null}
-        </div>
+        <WorkspaceCard
+          ctx={ctx}
+          status={wt}
+          chatHere={chatOnLinked || (workDir !== null && workDir === chatFolder && isLocalRepo)}
+          leaveTarget={leaveTarget}
+          onLink={() => setDialog("link")}
+          onClone={() => setDialog("clone")}
+        />
 
-        <div className="flex items-center gap-2 text-[11px] text-muted-foreground">
-          <FolderIcon className="size-3.5 shrink-0" />
-          <span className="min-w-0 flex-1 truncate" title={linkedFolder ?? ""}>
-            {linkedFolder ?? gt("No folder linked")}
-          </span>
-          {linkedFolder && !chatOnLinked ? (
-            <Button size="xs" variant="outline" onClick={() => void useFolderInChat(linkedFolder)}>
-              {gt("Use in this chat")}
-            </Button>
-          ) : linkedFolder ? (
-            <>
-              <span>{gt("This chat is here")}</span>
-              {leaveTarget ? (
-                <Button size="xs" variant="outline" onClick={() => connectClaude(leaveTarget)}>
-                  {gt("Leave")}
-                </Button>
-              ) : null}
-            </>
-          ) : (
-            <Button size="xs" variant="outline" onClick={() => setDialog("link")}>
-              {gt("Link folder")}
-            </Button>
-          )}
-        </div>
-
-        <div className="flex items-center gap-1 rounded-md bg-muted/50 p-0.5">
-          {(["files", "commits"] as const).map((id) => (
+        <div className="flex items-center gap-0.5 rounded-md bg-muted/50 p-0.5">
+          {tabs.map((entry) => (
             <button
-              key={id}
+              key={entry.id}
               type="button"
-              className={`flex-1 rounded-[5px] px-2 py-1 text-xs font-medium transition-colors ${
-                tab === id
+              className={`min-w-0 flex-1 truncate rounded-[5px] px-1.5 py-1 text-[11px] font-medium transition-colors ${
+                effectiveTab === entry.id
                   ? "bg-background text-foreground shadow-xs"
                   : "text-muted-foreground hover:text-foreground"
               }`}
               onClick={() => {
-                setTab(id);
+                setTab(entry.id);
                 setOpenFilePath(null);
                 setDialog(null);
               }}
             >
-              {id === "files" ? gt("Files") : gt("Commits")}
+              {entry.label}
             </button>
           ))}
         </div>
@@ -621,8 +586,22 @@ export default function Cc3GitHubPanel(props: {
           />
         ) : dialogView ? (
           dialogView
-        ) : tab === "commits" && branch ? (
-          <GitHubCommits key={`${repo}@${branch}`} repo={repo} branch={branch} refresh={revision} />
+        ) : effectiveTab === "changes" ? (
+          <GitHubChanges ctx={ctx} status={wt} />
+        ) : effectiveTab === "branches" ? (
+          <GitHubBranches ctx={ctx} currentBranch={currentBranch} />
+        ) : effectiveTab === "prs" ? (
+          <GitHubPullRequests ctx={ctx} currentBranch={currentBranch} />
+        ) : effectiveTab === "commits" && branch ? (
+          <div className="flex flex-col">
+            {browseBar}
+            <GitHubCommits
+              key={`${repo}@${branch}`}
+              repo={repo}
+              branch={branch}
+              refresh={revision}
+            />
+          </div>
         ) : openFilePath ? (
           <div className="flex min-h-0 flex-col">
             <div className="flex items-center gap-1 border-b border-border/60 px-2 py-1.5">
@@ -668,6 +647,7 @@ export default function Cc3GitHubPanel(props: {
           </div>
         ) : (
           <div className="flex flex-col">
+            {browseBar}
             <div className="flex flex-wrap items-center gap-1 px-3 py-1.5 text-muted-foreground">
               <button type="button" className="hover:text-foreground" onClick={() => setPath("")}>
                 {shortName(repo)}

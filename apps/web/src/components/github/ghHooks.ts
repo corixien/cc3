@@ -58,3 +58,46 @@ export type Tree =
 export type FileData = { binary: true } | { binary: false; text: string };
 
 export const shortName = (full: string) => full.split("/")[1] ?? full;
+
+export interface WorkCtx {
+  readonly repo: string;
+  /** The checkout the Changes and Branches tabs work on, or `null` when the repository is not on this computer. */
+  readonly dir: string | null;
+  readonly revision: number;
+  readonly chatFolder: string | null;
+  readonly defaultBranch: string | null;
+  readonly onChanged: () => void;
+  readonly toast: (type: "error" | "success", title: string, description?: string) => void;
+  /** Pastes a request into Claude's input without sending it. */
+  readonly askClaude: (text: string) => void;
+  /** Moves the Claude session into a folder (`/cd`). */
+  readonly connectClaude: (folder: string) => void;
+}
+
+export interface WtStatus {
+  branch: string;
+  upstream: string | null;
+  ahead: number;
+  behind: number;
+  files: Array<{ path: string; x: string; y: string }>;
+}
+
+export const relativeTime = (iso: string) => {
+  const seconds = Math.round((Date.parse(iso) - Date.now()) / 1000);
+  if (Number.isNaN(seconds)) return "";
+  const formatter = new Intl.RelativeTimeFormat(undefined, { numeric: "auto" });
+  const units: Array<[Intl.RelativeTimeFormatUnit, number]> = [
+    ["year", 31_536_000],
+    ["month", 2_592_000],
+    ["day", 86_400],
+    ["hour", 3600],
+    ["minute", 60],
+  ];
+  for (const [unit, size] of units) {
+    if (Math.abs(seconds) >= size) return formatter.format(Math.round(seconds / size), unit);
+  }
+  return formatter.format(seconds, "second");
+};
+
+/** `~` for the home folder, otherwise the path as it is. */
+export const tidyPath = (path: string) => path.replace(/^\/home\/[^/]+/, "~");
